@@ -636,7 +636,13 @@ let calDate=new Date();
 // ============================================================
 // AUTH
 // ============================================================
-function showLogin(){document.getElementById('login-modal').classList.add('show');}
+function showLogin(){
+  if(currentUser)return;
+  var splash=document.getElementById('splash');
+  if(splash&&splash.dataset.ready!=='1')return;
+  if(splash){splash.classList.add('hidden');setTimeout(function(){splash.style.display='none';},300);}
+  document.getElementById('login-modal').classList.add('show');
+}
 function doLogin(){
   const u=document.getElementById('login-user').value.trim();
   const p=document.getElementById('login-pass').value;
@@ -688,7 +694,7 @@ function startAutoRefresh(){
       }
     })
     .catch(function(e){console.warn('Refresh check failed:',e);});
-  },20000);
+  },10000);
 }
 
 function refreshCurrentSection(){
@@ -3609,22 +3615,8 @@ function reinitialiser(){if(!confirm('Réinitialiser toutes les données ?'))ret
 // INIT
 chargerDonnees(); // Load localStorage first for instant display
 
-// Show loading indicator
-(function(){
-  var splash=document.getElementById('splash');
-  if(splash){
-    var loadMsg=document.createElement('div');
-    loadMsg.id='supabase-loading';
-    loadMsg.style.cssText='position:absolute;bottom:20px;left:50%;transform:translateX(-50%);font-size:12px;color:rgba(168,85,247,0.6);';
-    loadMsg.textContent='Chargement des données...';
-    splash.appendChild(loadMsg);
-  }
-})();
-
 // Load from Supabase then handle session
 chargerDepuisSupabase(function(){
-  var loadMsg=document.getElementById('supabase-loading');
-  if(loadMsg)loadMsg.remove();
   // Auto-login si session sauvegardee
   try{
     var sess=localStorage.getItem('s9_session');
@@ -3642,12 +3634,9 @@ chargerDepuisSupabase(function(){
       localStorage.removeItem('s9_session');
     }
   }catch(e){}
-  // No session found — hide splash then show login
-  document.getElementById('splash').classList.add('hidden');
-  setTimeout(function(){
-    document.getElementById('splash').style.display='none';
-    document.getElementById('login-modal').classList.add('show');
-  },400);
+  // No session found — logo stays, user clicks to login
+  // Mark that data is loaded so click on logo opens login
+  document.getElementById('splash').dataset.ready='1';
 });
 </script>
 </body>
