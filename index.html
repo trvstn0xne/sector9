@@ -23,7 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .login-box{background:#111118;border:1px solid rgba(120,80,220,0.35);border-radius:14px;padding:40px 48px;width:380px;animation:fadeUp 0.25s ease;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:none;}}
 .login-box h2{font-size:20px;font-weight:600;color:#c084fc;margin-bottom:24px;text-align:center;letter-spacing:2px;}
-.login-box input{width:100%;background:#0a0a0f;border:1px solid rgba(120,80,220,0.25);color:#f0eef8;padding:11px 14px;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;transition:border 0.2s;}
+.login-box input:not([type="checkbox"]){width:100%;background:#0a0a0f;border:1px solid rgba(120,80,220,0.25);color:#f0eef8;padding:11px 14px;border-radius:8px;font-size:14px;margin-bottom:14px;outline:none;transition:border 0.2s;}
 .login-box input:focus{border-color:#7c3aed;}
 .login-btn{width:100%;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:background 0.2s;margin-top:4px;}
 .login-btn:hover{background:#6d28d9;}
@@ -226,8 +226,8 @@ details>summary::-webkit-details-marker{display:none;}
     <h2>SECTOR 9 — ACCÈS</h2>
     <input type="text" id="login-user" placeholder="Identifiant" autocomplete="off"/>
     <input type="password" id="login-pass" placeholder="Mot de passe"/>
-    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px;font-size:13px;color:var(--text3);">
-      <input type="checkbox" id="login-remember" style="accent-color:var(--purple);width:15px;height:15px;"/>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px;font-size:13px;color:var(--text3);padding:0;">
+      <input type="checkbox" id="login-remember" style="accent-color:var(--purple);width:15px;height:15px;margin:0;flex-shrink:0;"/>
       Rester connecté
     </label>
     <button class="login-btn" onclick="doLogin()">Se connecter</button>
@@ -1137,37 +1137,57 @@ function renderMembres(list){
     tr.appendChild(mkTd(sancHtml));
     tr.appendChild(mkTd(absHtml));
     // Dispo cell
-    var dispo=m.dispo||{};
-    var JOURS_D=['lun','mar','mer','jeu','ven','sam','dim'];
-    var JOURS_LBL=['L','M','Me','J','V','S','D'];
-    var SLOTS_D=['matin','aprem','soir'];
-    var SLOTS_LBL_D=['M','A','S'];
-    var tdDispo=document.createElement('td');tdDispo.style.minWidth='110px';
-    var hasDispo=JOURS_D.some(function(j){return SLOTS_D.some(function(s){return dispo[s+'-'+j];});});
-    if(hasDispo){
-      // Mini grid: rows = slots, cols = jours
-      var miniGrid=document.createElement('div');
-      miniGrid.style.cssText='display:inline-grid;grid-template-columns:24px repeat(7,18px);gap:2px;font-size:10px;';
-      // Header row
-      var emptyHdr=document.createElement('div');miniGrid.appendChild(emptyHdr);
-      JOURS_LBL.forEach(function(lbl){
-        var h=document.createElement('div');h.style.cssText='text-align:center;color:var(--text3);font-weight:600;';h.textContent=lbl;miniGrid.appendChild(h);
-      });
-      // Data rows
-      SLOTS_D.forEach(function(slot,si){
-        var rowLbl=document.createElement('div');rowLbl.style.cssText='color:var(--text3);font-size:9px;display:flex;align-items:center;';rowLbl.textContent=SLOTS_LBL_D[si];miniGrid.appendChild(rowLbl);
-        JOURS_D.forEach(function(j){
-          var cell=document.createElement('div');cell.style.cssText='width:16px;height:16px;border-radius:3px;'+(dispo[slot+'-'+j]?'background:rgba(124,58,237,0.35);':'background:var(--bg3);');
-          miniGrid.appendChild(cell);
+    var tdDispo=document.createElement('td');
+    var showDispoBtn=document.createElement('button');
+    showDispoBtn.className='btn btn-sm';showDispoBtn.textContent='Voir';
+    showDispoBtn.onclick=(function(mid,btn){
+      return function(){
+        // Toggle dispo panel below this row
+        var existingPanel=document.getElementById('dispo-panel-'+mid);
+        if(existingPanel){existingPanel.remove();return;}
+        var allPanels=document.querySelectorAll('[id^="dispo-panel-"]');
+        allPanels.forEach(function(p){p.remove();});
+        var m2=membres.find(function(x){return x.id===mid;});
+        if(!m2)return;
+        var d=m2.dispo||{};
+        var panelRow=document.createElement('tr');
+        panelRow.id='dispo-panel-'+mid;
+        var panelTd=document.createElement('td');
+        panelTd.colSpan=99;
+        panelTd.style.cssText='padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);';
+        var title=document.createElement('div');title.style.cssText='font-size:12px;font-weight:600;color:var(--purple3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;';
+        title.textContent='Disponibilités — '+(m2.pseudo||m2.nom);
+        panelTd.appendChild(title);
+        var JOURS_P=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+        var JOURS_K=['lun','mar','mer','jeu','ven','sam','dim'];
+        var SLOTS_P=['Matin','Après-midi','Soir'];
+        var SLOTS_K=['matin','aprem','soir'];
+        var grid=document.createElement('div');
+        grid.style.cssText='display:grid;grid-template-columns:80px repeat(7,1fr);gap:4px;max-width:500px;';
+        // Header
+        var empty=document.createElement('div');grid.appendChild(empty);
+        JOURS_P.forEach(function(j){var h=document.createElement('div');h.style.cssText='text-align:center;font-size:11px;font-weight:600;color:var(--text3);';h.textContent=j;grid.appendChild(h);});
+        // Rows
+        SLOTS_K.forEach(function(slot,si){
+          var lbl=document.createElement('div');lbl.style.cssText='font-size:11px;color:var(--text3);font-weight:600;display:flex;align-items:center;';lbl.textContent=SLOTS_P[si];grid.appendChild(lbl);
+          JOURS_K.forEach(function(jour){
+            var cell=document.createElement('div');
+            var hasDispo=d[slot+'-'+jour];
+            cell.style.cssText='height:28px;border-radius:4px;'+(hasDispo?'background:rgba(124,58,237,0.4);':'background:var(--bg2);border:1px solid var(--border);');
+            if(hasDispo){var check=document.createElement('div');check.style.cssText='width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--purple3);';check.textContent='✓';cell.appendChild(check);}
+            grid.appendChild(cell);
+          });
         });
-      });
-      tdDispo.appendChild(miniGrid);
-    } else {
-      var noD=document.createElement('span');noD.style.cssText='color:var(--text3);font-size:12px;';noD.textContent='—';tdDispo.appendChild(noD);
-    }
-    var editDispoBtn=document.createElement('button');editDispoBtn.className='btn btn-sm';editDispoBtn.style.cssText='font-size:10px;padding:2px 6px;margin-top:4px;display:block;';editDispoBtn.textContent='Modifier';
-    editDispoBtn.onclick=(function(id){return function(){openDispoModal(id);};})(m.id);
-    tdDispo.appendChild(editDispoBtn);
+        panelTd.appendChild(grid);
+        var editBtn2=document.createElement('button');editBtn2.className='btn btn-sm';editBtn2.style.marginTop='10px';editBtn2.textContent='Modifier les dispos';
+        editBtn2.onclick=(function(id2){return function(){openDispoModal(id2);};})(mid);
+        panelTd.appendChild(editBtn2);
+        panelRow.appendChild(panelTd);
+        var currentRow=btn.closest('tr');
+        currentRow.parentNode.insertBefore(panelRow,currentRow.nextSibling);
+      };
+    })(m.id,showDispoBtn);
+    tdDispo.appendChild(showDispoBtn);
     tr.appendChild(tdDispo);
     var tdCi=document.createElement('td');tdCi.appendChild(ciBtn);tr.appendChild(tdCi);
     // Actions buttons — DOM so onclick works
