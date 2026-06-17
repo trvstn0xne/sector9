@@ -2461,10 +2461,6 @@ function renderQuotaForm(wrap, data, recelItems, speedoItems, divId, showPrices)
 
   // ── RECEL ──
   var rCard=makeQuotaCard('💰','Recel');
-  var rSub=document.createElement('div');
-  rSub.style.cssText='font-size:11px;color:var(--text3);margin-bottom:12px;';
-  rSub.textContent='Mettez 0 si vous n\'avez pas eu cet item.';
-  rCard.appendChild(rSub);
 
   // Group by category
   var recelCats={};
@@ -2475,16 +2471,43 @@ function renderQuotaForm(wrap, data, recelItems, speedoItems, divId, showPrices)
   });
 
   Object.keys(recelCats).forEach(function(cat){
-    // Category header
-    var catHdr=document.createElement('div');
-    catHdr.style.cssText='font-size:11px;font-weight:700;color:var(--purple3);text-transform:uppercase;letter-spacing:0.5px;margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border);';
-    catHdr.textContent=cat;
-    rCard.appendChild(catHdr);
+    // Check if category has any non-zero values (for default open state)
+    var catItems=recelCats[cat];
+    var hasValues=catItems.some(function(item){
+      var ex=(data.recel||[]).find(function(r){return r.itemId===item.id;});
+      return ex&&ex.qte>0;
+    });
 
-    recelCats[cat].forEach(function(item){
+    // Collapsible category header
+    var catWrap=document.createElement('div');
+    catWrap.style.cssText='margin-bottom:6px;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;';
+
+    var catHdr=document.createElement('div');
+    catHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);cursor:pointer;user-select:none;';
+    var catName=document.createElement('span');
+    catName.style.cssText='font-size:12px;font-weight:700;color:var(--purple3);text-transform:uppercase;letter-spacing:0.5px;';
+    catName.textContent=cat;
+    var catArrow=document.createElement('span');
+    catArrow.style.cssText='font-size:11px;color:var(--text3);transition:transform 0.2s;';
+    catArrow.textContent='▾';
+    catHdr.appendChild(catName);catHdr.appendChild(catArrow);
+
+    var catBody=document.createElement('div');
+    catBody.style.cssText='padding:8px 14px;'+(hasValues?'':'display:none;');
+    if(hasValues)catArrow.style.transform='rotate(0deg)';
+    else catArrow.style.transform='rotate(-90deg)';
+
+    catHdr.onclick=function(){
+      var isOpen=catBody.style.display!=='none';
+      catBody.style.display=isOpen?'none':'block';
+      catArrow.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
+    };
+
+    catItems.forEach(function(item){
       var existing=(data.recel||[]).find(function(r){return r.itemId===item.id;});
       var row=document.createElement('div');
-      row.style.cssText='display:flex;align-items:center;gap:10px;padding:5px 0;';
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);';
+      row.style.borderBottom='1px solid rgba(120,80,220,0.08)';
       var lbl=document.createElement('span');
       lbl.style.cssText='flex:1;font-size:13px;color:var(--text2);';
       lbl.textContent=item.nom;
@@ -2508,8 +2531,11 @@ function renderQuotaForm(wrap, data, recelItems, speedoItems, divId, showPrices)
       plusBtn.onclick=function(){qteInput.value=(parseInt(qteInput.value)||0)+1;};
       qteWrap.appendChild(minusBtn);qteWrap.appendChild(qteInput);qteWrap.appendChild(plusBtn);
       row.appendChild(lbl);row.appendChild(qteWrap);
-      rCard.appendChild(row);
+      catBody.appendChild(row);
     });
+
+    catWrap.appendChild(catHdr);catWrap.appendChild(catBody);
+    rCard.appendChild(catWrap);
   });
   wrap.appendChild(rCard);
 
@@ -3920,6 +3946,7 @@ chargerDepuisSupabase(function(){
   // Mark that data is loaded so click on logo opens login
   document.getElementById('splash').dataset.ready='1';
 });
+
 
 
 </script>
