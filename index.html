@@ -1138,29 +1138,34 @@ function renderMembres(list){
     tr.appendChild(mkTd(absHtml));
     // Dispo cell
     var dispo=m.dispo||{};
-    var JOURS=['lun','mar','mer','jeu','ven','sam','dim'];
-    var SLOTS=['matin','aprem','soir'];
-    var dispoHtml='';
-    var hasDispo=false;
-    JOURS.forEach(function(j){
-      var slots=SLOTS.filter(function(s){return dispo[s+'-'+j];});
-      if(slots.length)hasDispo=true;
-    });
+    var JOURS_D=['lun','mar','mer','jeu','ven','sam','dim'];
+    var JOURS_LBL=['L','M','Me','J','V','S','D'];
+    var SLOTS_D=['matin','aprem','soir'];
+    var SLOTS_LBL_D=['M','A','S'];
+    var tdDispo=document.createElement('td');tdDispo.style.minWidth='110px';
+    var hasDispo=JOURS_D.some(function(j){return SLOTS_D.some(function(s){return dispo[s+'-'+j];});});
     if(hasDispo){
-      dispoHtml='<div style="display:flex;flex-wrap:wrap;gap:2px;max-width:120px;">';
-      JOURS.forEach(function(j){
-        var slots=SLOTS.filter(function(s){return dispo[s+'-'+j];});
-        if(slots.length){
-          var jLabel=j.charAt(0).toUpperCase()+j.slice(1,3);
-          dispoHtml+='<span style="font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(124,58,237,0.15);color:var(--purple3);">'+jLabel+'</span>';
-        }
+      // Mini grid: rows = slots, cols = jours
+      var miniGrid=document.createElement('div');
+      miniGrid.style.cssText='display:inline-grid;grid-template-columns:24px repeat(7,18px);gap:2px;font-size:10px;';
+      // Header row
+      var emptyHdr=document.createElement('div');miniGrid.appendChild(emptyHdr);
+      JOURS_LBL.forEach(function(lbl){
+        var h=document.createElement('div');h.style.cssText='text-align:center;color:var(--text3);font-weight:600;';h.textContent=lbl;miniGrid.appendChild(h);
       });
-      dispoHtml+='</div>';
+      // Data rows
+      SLOTS_D.forEach(function(slot,si){
+        var rowLbl=document.createElement('div');rowLbl.style.cssText='color:var(--text3);font-size:9px;display:flex;align-items:center;';rowLbl.textContent=SLOTS_LBL_D[si];miniGrid.appendChild(rowLbl);
+        JOURS_D.forEach(function(j){
+          var cell=document.createElement('div');cell.style.cssText='width:16px;height:16px;border-radius:3px;'+(dispo[slot+'-'+j]?'background:rgba(124,58,237,0.35);':'background:var(--bg3);');
+          miniGrid.appendChild(cell);
+        });
+      });
+      tdDispo.appendChild(miniGrid);
     } else {
-      dispoHtml='<span style="color:var(--text3);font-size:12px;">—</span>';
+      var noD=document.createElement('span');noD.style.cssText='color:var(--text3);font-size:12px;';noD.textContent='—';tdDispo.appendChild(noD);
     }
-    var tdDispo=document.createElement('td');tdDispo.innerHTML=dispoHtml;
-    var editDispoBtn=document.createElement('button');editDispoBtn.className='btn btn-sm';editDispoBtn.style.cssText='font-size:10px;padding:2px 6px;margin-top:3px;display:block;';editDispoBtn.textContent='Modifier';
+    var editDispoBtn=document.createElement('button');editDispoBtn.className='btn btn-sm';editDispoBtn.style.cssText='font-size:10px;padding:2px 6px;margin-top:4px;display:block;';editDispoBtn.textContent='Modifier';
     editDispoBtn.onclick=(function(id){return function(){openDispoModal(id);};})(m.id);
     tdDispo.appendChild(editDispoBtn);
     tr.appendChild(tdDispo);
@@ -2882,9 +2887,10 @@ function getWeekRange(){
   var now=new Date();
   var day=now.getDay();
   var diffToMon=day===0?-6:1-day;
-  var mon=new Date(now);mon.setDate(now.getDate()+diffToMon);mon.setHours(0,0,0,0);
-  var sun=new Date(mon);sun.setDate(mon.getDate()+6);sun.setHours(23,59,59,999);
-  return {start:mon,end:sun};
+  var mon=new Date(now);mon.setDate(now.getDate()+diffToMon);
+  var sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  function toStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  return {start:mon,end:sun,startStr:toStr(mon),endStr:toStr(sun)};
 }
 function dateStrToDate(str){
   // str format: DD/MM/YYYY
@@ -2906,8 +2912,7 @@ function renderRecette(divId){
   var speedoByItem={}, recelByItem={};
 
   Object.keys(quotaHistory).forEach(function(dateStr){
-    var d=new Date(dateStr);
-    if(d<week.start||d>week.end)return;
+    if(dateStr<week.startStr||dateStr>week.endStr)return;
     var dayData=quotaHistory[dateStr]||{};
     Object.values(dayData).forEach(function(mData){
       if(!mData||!mData.submitted)return;
@@ -3033,8 +3038,7 @@ function calculerPaies(divId){
   var memberSpeedos={};
 
   Object.keys(quotaHistory).forEach(function(dateStr){
-    var d=new Date(dateStr);
-    if(d<week.start||d>week.end)return;
+    if(dateStr<week.startStr||dateStr>week.endStr)return;
     var dayData=quotaHistory[dateStr]||{};
     Object.keys(dayData).forEach(function(mId){
       var mData=dayData[mId];
