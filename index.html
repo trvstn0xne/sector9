@@ -1002,7 +1002,7 @@ function buildMembreHTML(isCmd,isRecruit){
     +'<div class="section-sub">Profil et informations personnelles</div>'
     +'<div class="subtabs" id="compte-subtabs">'
     +'<button class="subtab active" onclick="showSubtab(\'compte-subtabs\',\'sub-mb-profil\',this)">Mon profil</button>'
-    +(!isCmd?'<button class="subtab" onclick="showSubtab(\'compte-subtabs\',\'sub-mb-sanctions\',this)">Mes sanctions</button>':'')
+    
     +'</div>'
     +'<div id="sub-mb-profil" class="subtab-content active"><div id="mon-compte-content"></div></div>'
     +(!isCmd?'<div id="sub-mb-sanctions" class="subtab-content"><div id="mes-sanctions-list"></div></div>':'')
@@ -1470,34 +1470,40 @@ function renderMonCompte(){
     +'</div></div>'
     +'<button class="btn btn-sm" style="align-self:flex-start;flex-shrink:0;" onclick="openModal(\'modal-mdp\')">🔒 Changer mon mot de passe</button>'
     +'</div></div>'
-    +'<div class="card"><div class="card-title">Mes revenus</div>'
-    +'<div style="margin-bottom:12px;"><span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--purple3);">'+rev.categorie+'</span></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:4px;">'
+    +'<div class="card" style="margin-bottom:0;"><div class="card-title">Revenus</div>'
+    +'<div style="margin-bottom:8px;"><span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--purple3);">'+rev.categorie+'</span></div>'
     +revHtml
-    +'<p style="font-size:11px;color:var(--text3);margin-top:12px;">Les pourcentages évoluent avec ton grade.</p></div>'
-    +'<div class="card"><div class="card-title">Disponibilités</div>'
+    +'<p style="font-size:11px;color:var(--text3);margin-top:10px;">Les % évoluent avec ton grade.</p></div>'
+    +'<div class="card" style="margin-bottom:0;"><div class="card-title">Disponibilités</div>'
     +'<div id="mc-dispo-content"></div>'
-    +'<button class="btn btn-sm" style="margin-top:10px;" onclick="openDispoModal('+m.id+')">Modifier mes disponibilités</button></div>'
-    +'<div class="card"><div class="card-title">Mes sanctions</div><div id="mc-sanctions-content"></div></div>';
+    +'<button class="btn btn-sm" style="margin-top:10px;" onclick="openDispoModal('+m.id+')">Modifier</button></div>'
+    +'<div class="card" style="margin-bottom:0;"><div class="card-title">Mes sanctions</div><div id="mc-sanctions-content"></div></div>'
+    +'</div>';
   // Render sanctions
   var sancDiv=document.getElementById('mc-sanctions-content');
   if(sancDiv){
-    var mySanctions=sanctions.filter(function(s){return s.membreId===m.id;});
+    var mySanctions=sanctions.filter(function(s){return s.membreId===m.id;}).sort(function(a,b){return b.date>a.date?1:-1;});
     if(!mySanctions.length){
-      sancDiv.innerHTML='<p style="color:var(--text3);font-size:13px;">Aucune sanction enregistrée.</p>';
+      sancDiv.innerHTML='<p style="color:var(--text3);font-size:13px;">Aucune sanction.</p>';
     } else {
-      var sHtml='<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">';
+      var gravColors3={mineure:'var(--success)',intermediaire:'var(--warning)',grave:'#e05c00',critique:'var(--danger)'};
+      var sHtml3='';
       mySanctions.forEach(function(s){
-        var faute=baremeData.find(function(b){return b.id===s.baremeId;});
-        var gravClass=faute?'badge-'+faute.gravite:'badge-pending';
-        sHtml+='<div style="background:var(--bg3);border-radius:var(--r2);padding:10px 14px;border-left:3px solid var(--danger);">'
-          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
-          +'<span style="font-size:13px;font-weight:600;color:var(--text);">'+(faute?faute.faute:s.faute||'Sanction')+'</span>'
-          +'<span style="font-size:11px;color:var(--text3);">'+s.date+'</span></div>'
-          +(s.note?'<div style="font-size:12px;color:var(--text3);">'+s.note+'</div>':'')
+        var infr=baremeData.find(function(b){return b.id===s.infractionId;});
+        var gc=gravColors3[s.gravite]||'var(--danger)';
+        sHtml3+='<div style="background:var(--bg3);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;border-left:3px solid '+gc+';">'
+          +'<div style="display:flex;justify-content:space-between;margin-bottom:6px;">'
+          +'<span style="font-size:12px;font-weight:700;color:var(--text);">'+(infr?infr.faute:(s.type||'Sanction'))+'</span>'
+          +'<span style="font-size:11px;color:var(--text3);">'+fmtDate(s.date)+'</span></div>'
+          +'<div style="display:flex;gap:4px;flex-wrap:wrap;">'
+          +(s.gravite?'<span style="padding:1px 7px;border-radius:20px;font-size:10px;font-weight:600;background:'+gc+'22;color:'+gc+';">'+(s.gravite.charAt(0).toUpperCase()+s.gravite.slice(1))+'</span>':'')
+          +(s.type?'<span style="padding:1px 7px;border-radius:20px;font-size:10px;background:rgba(120,80,220,0.12);color:var(--purple3);">'+s.type+'</span>':'')
+          +'</div>'
+          +(s.motif?'<div style="font-size:11px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border);">'+s.motif+'</div>':'')
           +'</div>';
       });
-      sHtml+='</div>';
-      sancDiv.innerHTML=sHtml;
+      sancDiv.innerHTML=sHtml3;
     }
   }
   // Render dispo table
