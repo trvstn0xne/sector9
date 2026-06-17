@@ -680,14 +680,8 @@ function startAutoRefresh(){
     .then(function(rows){
       if(!rows||!rows[0])return;
       var serverTs=rows[0].updated_at;
-      if(!lastUpdatedAt){
-        // First check — just store the timestamp
-        lastUpdatedAt=serverTs;
-        return;
-      }
-      if(serverTs!==lastUpdatedAt){
-        // Something changed — reload full data
-        lastUpdatedAt=serverTs;
+      if(serverTs&&lastUpdatedAt&&serverTs!==lastUpdatedAt){
+        // Data changed on server — reload silently
         chargerDepuisSupabase(function(){
           refreshCurrentSection();
         });
@@ -3586,7 +3580,7 @@ function chargerDonnees(){
 }
 
 function chargerDepuisSupabase(callback){
-  fetch(SUPABASE_URL+'/rest/v1/s9_data?id=eq.main&select=data',{
+  fetch(SUPABASE_URL+'/rest/v1/s9_data?id=eq.main&select=data,updated_at',{
     headers:{
       'apikey':SUPABASE_KEY,
       'Authorization':'Bearer '+SUPABASE_KEY
@@ -3594,9 +3588,13 @@ function chargerDepuisSupabase(callback){
   })
   .then(function(r){return r.json();})
   .then(function(rows){
-    if(rows&&rows[0]&&rows[0].data&&Object.keys(rows[0].data).length>0){
-      applyData(rows[0].data);
-      try{localStorage.setItem(LS_KEY,JSON.stringify(rows[0].data));}catch(e){}
+    if(rows&&rows[0]){
+      if(rows[0].data&&Object.keys(rows[0].data).length>0){
+        applyData(rows[0].data);
+        try{localStorage.setItem(LS_KEY,JSON.stringify(rows[0].data));}catch(e){}
+      }
+      // Store server timestamp so refresh knows baseline
+      if(rows[0].updated_at)lastUpdatedAt=rows[0].updated_at;
     }
     if(callback)callback();
   })
@@ -3644,8 +3642,12 @@ chargerDepuisSupabase(function(){
       localStorage.removeItem('s9_session');
     }
   }catch(e){}
-  // No session found — show login
-  document.getElementById('login-modal').classList.add('show');
+  // No session found — hide splash then show login
+  document.getElementById('splash').classList.add('hidden');
+  setTimeout(function(){
+    document.getElementById('splash').style.display='none';
+    document.getElementById('login-modal').classList.add('show');
+  },400);
 });
 </script>
 </body>
