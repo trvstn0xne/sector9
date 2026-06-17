@@ -975,10 +975,12 @@ function buildMembreHTML(isCmd,isRecruit){
     +'<div class="section-title">Mes quotas</div>'
     +'<div class="section-sub">Objectifs minimum hebdomadaires</div>'
     +'<div id="quota-banner-wrap"></div>'
+    +'<div id="mb-quota-tabs-container">'
     +'<div id="mb-quota-subtabs-wrap"></div>'
     +'<div id="mbq-saisie" class="subtab-content active"><div id="mb-quota-saisie-div"></div></div>'
     +'<div id="mbq-recap" class="subtab-content"><div id="mb-quota-recap-div"></div></div>'
     +'<div id="mbq-armes" class="subtab-content"><p style="padding:20px;color:var(--text3);font-size:13px;">Section Armes — contenu a venir.</p></div>'
+    +'</div>'
     +'</div>'
 
     +'<div class="section" id="sec-mb-calendrier">'
@@ -3663,12 +3665,31 @@ function renderQuotaSubtabs(){
   var isCmd=currentUser&&currentUser.role==='commandant';
   var hasArmes=hasRole('armes');
   if(!isCmd&&!hasArmes){wrap.innerHTML='';return;}
+  // Build subtabs - onclick uses container id as group
   var html='<div class="subtabs" id="mb-quota-subtabs">';
-  html+='<button class="subtab active" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-saisie\',this)">Mes quotas</button>';
-  if(isCmd)html+='<button class="subtab" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-recap\',this)">Quotas des membres</button>';
-  if(hasArmes)html+='<button class="subtab" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-armes\',this)">Armes</button>';
+  html+='<button class="subtab active" onclick="showQuotaSubtab2(\'mbq-saisie\',this)">Mes quotas</button>';
+  if(isCmd)html+='<button class="subtab" onclick="showQuotaSubtab2(\'mbq-recap\',this)">Quotas des membres</button>';
+  if(hasArmes)html+='<button class="subtab" onclick="showQuotaSubtab2(\'mbq-armes\',this)">Armes</button>';
   html+='</div>';
   wrap.innerHTML=html;
+}
+
+function showQuotaSubtab2(tabId,btn){
+  // Toggle all content divs in the container
+  ['mbq-saisie','mbq-recap','mbq-armes'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.classList.remove('active');
+  });
+  // Deactivate all subtab buttons
+  var subtabs=document.getElementById('mb-quota-subtabs');
+  if(subtabs)subtabs.querySelectorAll('.subtab').forEach(function(b){b.classList.remove('active');});
+  // Activate target
+  var target=document.getElementById(tabId);
+  if(target)target.classList.add('active');
+  if(btn)btn.classList.add('active');
+  // Render content
+  if(tabId==='mbq-recap')renderQuotaRecap('mb-quota-recap-div',true);
+  if(tabId==='mbq-saisie')renderQuotaSaisie('mb-quota-saisie-div');
 }
 
 // ============================================================
