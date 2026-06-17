@@ -3478,47 +3478,101 @@ function saveDispo(membreId){
 // LOCALSTORAGE
 // ============================================================
 var LS_KEY='s9_data_v4';
+var SUPABASE_URL='https://zgmvlwkegfbrnsxfbbiy.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
+
 function sauvegarder(){
-  try{localStorage.setItem(LS_KEY,JSON.stringify({membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence}));}
-  catch(e){console.warn('Sauvegarde échouée:',e);}
+  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence};
+  // Save to localStorage as backup
+  try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
+  // Save to Supabase
+  fetch(SUPABASE_URL+'/rest/v1/s9_data?id=eq.main',{
+    method:'PATCH',
+    headers:{
+      'Content-Type':'application/json',
+      'apikey':SUPABASE_KEY,
+      'Authorization':'Bearer '+SUPABASE_KEY,
+      'Prefer':'return=minimal'
+    },
+    body:JSON.stringify({data:payload,updated_at:new Date().toISOString()})
+  }).catch(function(e){console.warn('Supabase save failed:',e);});
 }
+function applyData(data){
+  if(!data)return;
+  if(data.membres&&data.membres.length)membres=data.membres;
+  if(data.sanctions)sanctions=data.sanctions;
+  if(data.baremeData&&data.baremeData.length)baremeData=data.baremeData;
+  if(data.events)events=data.events;
+  if(data.todos)todos=data.todos;
+  if(data.comptes&&data.comptes.length)comptes=data.comptes;
+  if(data.database&&data.database.length)database=data.database;
+  if(data.bannerText!==undefined)bannerText=data.bannerText;
+  if(data.quotaCards&&data.quotaCards.length)quotaCards=data.quotaCards;
+  if(data.presences)presences=data.presences;
+  if(data.quotaHistory)quotaHistory=data.quotaHistory;
+  if(data.coffre)coffre=data.coffre;
+  if(data.frequence)frequence=data.frequence;
+}
+
 function chargerDonnees(){
   try{
-    var raw=localStorage.getItem(LS_KEY);if(!raw)return false;
-    var data=JSON.parse(raw);
-    if(data.membres&&data.membres.length)membres=data.membres;
-    if(data.sanctions)sanctions=data.sanctions;
-    if(data.baremeData&&data.baremeData.length)baremeData=data.baremeData;
-    if(data.events)events=data.events;
-    if(data.todos)todos=data.todos;
-    if(data.comptes&&data.comptes.length)comptes=data.comptes;
-    if(data.database&&data.database.length)database=data.database;
-    if(data.bannerText!==undefined)bannerText=data.bannerText;
-    if(data.quotaCards&&data.quotaCards.length)quotaCards=data.quotaCards;
-    if(data.presences)presences=data.presences;
-    if(data.quotaHistory)quotaHistory=data.quotaHistory;
-    if(data.coffre)coffre=data.coffre;
-    if(data.frequence)frequence=data.frequence;
-    return true;
-  }catch(e){console.warn('Chargement échoué:',e);return false;}
+    var raw=localStorage.getItem(LS_KEY);
+    if(raw)applyData(JSON.parse(raw));
+  }catch(e){}
+  return true;
 }
+
+function chargerDepuisSupabase(callback){
+  fetch(SUPABASE_URL+'/rest/v1/s9_data?id=eq.main&select=data',{
+    headers:{
+      'apikey':SUPABASE_KEY,
+      'Authorization':'Bearer '+SUPABASE_KEY
+    }
+  })
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    if(rows&&rows[0]&&rows[0].data&&Object.keys(rows[0].data).length>0){
+      applyData(rows[0].data);
+      try{localStorage.setItem(LS_KEY,JSON.stringify(rows[0].data));}catch(e){}
+    }
+    if(callback)callback();
+  })
+  .catch(function(e){
+    console.warn('Supabase load failed, using localStorage:',e);
+    if(callback)callback();
+  });
+}
+
 function reinitialiser(){if(!confirm('Réinitialiser toutes les données ?'))return;localStorage.removeItem(LS_KEY);location.reload();}
 
 // INIT
-chargerDonnees();
-// Auto-login si session sauvegardee
+chargerDonnees(); // Load localStorage first for instant display
+
+// Show loading indicator
 (function(){
+  var splash=document.getElementById('splash');
+  if(splash){
+    var loadMsg=document.createElement('div');
+    loadMsg.id='supabase-loading';
+    loadMsg.style.cssText='position:absolute;bottom:20px;left:50%;transform:translateX(-50%);font-size:12px;color:rgba(168,85,247,0.6);';
+    loadMsg.textContent='Chargement des données...';
+    splash.appendChild(loadMsg);
+  }
+})();
+
+// Load from Supabase then handle session
+chargerDepuisSupabase(function(){
+  var loadMsg=document.getElementById('supabase-loading');
+  if(loadMsg)loadMsg.remove();
+  // Auto-login si session sauvegardee
   try{
     var sess=localStorage.getItem('s9_session');
     if(sess){
       var s=JSON.parse(sess);
-      // Session valide 30 jours
       if(s&&s.userId&&(Date.now()-s.ts)<30*24*60*60*1000){
         var c=comptes.find(function(x){return x.id===s.userId;});
         if(c){
           currentUser=c;
-          document.getElementById('login-modal').classList.remove('show');
-          // Update ts
           localStorage.setItem('s9_session',JSON.stringify({userId:c.id,ts:Date.now()}));
           doLoginSuccess();
           return;
@@ -3528,7 +3582,7 @@ chargerDonnees();
     }
   }catch(e){}
   document.getElementById('login-modal').classList.remove('show');
-})();
+});
 
 </script>
 </body>
