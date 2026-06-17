@@ -3485,17 +3485,19 @@ function sauvegarder(){
   var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence};
   // Save to localStorage as backup
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
-  // Save to Supabase
-  fetch(SUPABASE_URL+'/rest/v1/s9_data?id=eq.main',{
-    method:'PATCH',
+  // Save to Supabase via UPSERT
+  fetch(SUPABASE_URL+'/rest/v1/s9_data',{
+    method:'POST',
     headers:{
       'Content-Type':'application/json',
       'apikey':SUPABASE_KEY,
       'Authorization':'Bearer '+SUPABASE_KEY,
-      'Prefer':'return=minimal'
+      'Prefer':'resolution=merge-duplicates,return=minimal'
     },
-    body:JSON.stringify({data:payload,updated_at:new Date().toISOString()})
-  }).catch(function(e){console.warn('Supabase save failed:',e);});
+    body:JSON.stringify({id:'main',data:payload,updated_at:new Date().toISOString()})
+  })
+  .then(function(r){if(!r.ok)r.text().then(function(t){console.warn('Supabase error:',t);});})
+  .catch(function(e){console.warn('Supabase save failed:',e);});
 }
 function applyData(data){
   if(!data)return;
