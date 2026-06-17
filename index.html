@@ -317,6 +317,7 @@ details>summary::-webkit-details-marker{display:none;}
       <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2);"><input type="checkbox" id="m-radio" style="accent-color:var(--purple);width:14px;height:14px;"/> Radio</label>
       <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2);"><input type="checkbox" id="m-arme" style="accent-color:var(--purple);width:14px;height:14px;"/> Arme</label>
       <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2);"><input type="checkbox" id="m-disqueuse" style="accent-color:var(--purple);width:14px;height:14px;"/> Disqueuse</label>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2);"><input type="checkbox" id="m-ppa" style="accent-color:var(--purple);width:14px;height:14px;"/> PPA</label>
     </div>
     <div style="margin-bottom:14px;display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
       <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2);margin-top:8px;"><input type="checkbox" id="m-absence" style="accent-color:var(--purple);width:14px;height:14px;" onchange="toggleAbsenceDate()"/> En absence</label>
@@ -501,21 +502,21 @@ details>summary::-webkit-details-marker{display:none;}
           <span>Recruteur</span>
           <span style="font-size:11px;color:var(--text3);">— accès à l'onglet Recrutement</span>
         </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);">
+          <input type="checkbox" id="c-role-armes" style="accent-color:var(--purple);width:15px;height:15px;"/>
+          <span>Armes</span>
+          <span style="font-size:11px;color:var(--text3);">— accès à l'onglet Armes</span>
+        </label>
       </div>
     </div>
     <div style="margin-bottom:14px;"><label class="lbl">Membre associé (optionnel)</label>
       <select class="input" id="c-membre-id"><option value="">— Aucun —</option></select>
     </div>
     <div id="c-err" style="font-size:12px;color:var(--danger);min-height:16px;margin-bottom:8px;"></div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('modal-compte')">Annuler</button>
-      <button class="btn btn-primary" onclick="saveCompte()">Enregistrer</button>
-    </div>
   </div>
 </div>
 
 <script>
-window.addEv
 window.addEventListener('error', function(e){
   var d=document.createElement('div');
   d.style.cssText='position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:12px 16px;z-index:9999;font-size:13px;font-family:monospace;';
@@ -710,6 +711,7 @@ function refreshCurrentSection(){
   if(id==='admin-membres'||id==='mb-membres'){if(currentUser.role==='admin')renderMembres(membres);else renderMembresMb();}
   if(id==='admin-calendrier'){renderCal('cal-cells','cal-days-names','cal-title','events-list',false);}
   if(id==='mb-calendrier'){renderCal('mb-cal-cells','mb-cal-days-names','mb-cal-title','mb-events-list',true);}
+  if(id==='mb-quotas'){setTimeout(function(){renderQuotaSubtabs();renderQuotaSaisie('mb-quota-saisie-div');},0);}
   if(id==='admin-compta'||id==='mb-compta')renderCoffre();
   if(id==='admin-sanctions')renderSancMembres();
   if(id==='mb-compte')renderMonCompte();
@@ -832,7 +834,7 @@ function showSec(id,btn){
   if(id==='admin-compta'||id==='mb-compta'){setTimeout(function(){renderCoffre();},0);}
   if(id==='admin-quotas'||id==='mb-quotas')renderQuotaBanner();
   if(id==='admin-quotas'){setTimeout(function(){renderQuotaRecap('quota-recap-div',true);},0);}
-  if(id==='mb-quotas'){setTimeout(function(){renderQuotaSaisie('mb-quota-saisie-div');},0);}
+  if(id==='mb-quotas'){setTimeout(function(){renderQuotaSubtabs();renderQuotaSaisie('mb-quota-saisie-div');},0);}
   if(id==='mb-recrutement'){}  // recrutement static HTML, no special render needed
   if(id==='admin-calendrier'){renderPresencePanel('admin-presence-panel',true);}
   if(id==='mb-calendrier'){renderPresencePanel('mb-presence-panel',false);}
@@ -973,13 +975,10 @@ function buildMembreHTML(isCmd,isRecruit){
     +'<div class="section-title">Mes quotas</div>'
     +'<div class="section-sub">Objectifs minimum hebdomadaires</div>'
     +'<div id="quota-banner-wrap"></div>'
-    +(isCmd?'<div class="subtabs" id="mb-quota-subtabs">'
-    +'<button class="subtab active" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-saisie\',this)">Mes quotas</button>'
-    +'<button class="subtab" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-recap\',this)">Quotas des membres</button>'
-    +'</div>'
+    +'<div id="mb-quota-subtabs-wrap"></div>'
     +'<div id="mbq-saisie" class="subtab-content active"><div id="mb-quota-saisie-div"></div></div>'
     +'<div id="mbq-recap" class="subtab-content"><div id="mb-quota-recap-div"></div></div>'
-    :'<div id="mb-quota-saisie-div"></div>')
+    +'<div id="mbq-armes" class="subtab-content"><p style="padding:20px;color:var(--text3);font-size:13px;">Section Armes — contenu a venir.</p></div>'
     +'</div>'
 
     +'<div class="section" id="sec-mb-calendrier">'
@@ -1080,6 +1079,7 @@ function buildRecrutementHTML(){
     +'<div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:6px;">'
     +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2);"><input type="checkbox" id="r-arme" style="accent-color:var(--purple);width:14px;height:14px;"/> Arme</label>'
     +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2);"><input type="checkbox" id="r-radio" style="accent-color:var(--purple);width:14px;height:14px;"/> Radio</label>'
+    +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2);"><input type="checkbox" id="r-ppa" style="accent-color:var(--purple);width:14px;height:14px;"/> PPA</label>'
     +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;color:var(--text2);"><input type="checkbox" id="r-disqueuse" style="accent-color:var(--purple);width:14px;height:14px;"/> Disqueuse</label>'
     +'</div></div>'
     +'<div style="margin-bottom:14px;"><label class="lbl">Travail légal ? <span class="req">*</span></label><input class="input" id="r-travail" placeholder="Oui — lequel / Non"/></div>'
@@ -1132,6 +1132,7 @@ function initMembre(){
   var isCmd=currentUser.role==='commandant';
   setTimeout(function(){
     renderAccueil();
+    renderQuotaSubtabs();
     renderCal('mb-cal-cells','mb-cal-days-names','mb-cal-title','mb-events-list',true);
     if(isCmd){renderTodo('mb-todo-panel');renderDatabase();}
     renderPresencePanel('mb-presence-panel',false);
@@ -1279,7 +1280,7 @@ function saveMembre(){
     discord:document.getElementById('m-discord').value.trim(),
     radio:document.getElementById('m-radio').checked,
     arme:document.getElementById('m-arme').checked,
-    disqueuse:document.getElementById('m-disqueuse').checked,
+    disqueuse:document.getElementById('m-disqueuse').checked,ppa:document.getElementById('m-ppa')&&document.getElementById('m-ppa').checked||false,
     absence:document.getElementById('m-absence').checked,
     absenceFin:document.getElementById('m-absence-fin').value,
     photo:document.getElementById('m-photo-url').value.trim(),
@@ -1683,7 +1684,7 @@ function submitRecruit(){
   var ciInput=document.getElementById('r-photo-ci');
   readFileB64(visageInput,function(photoB64){
     readFileB64(ciInput,function(ciB64){
-      membres.push({id:Date.now(),nom:nom||'Candidat',pseudo:'',date:document.getElementById('r-date').value,tel:document.getElementById('r-tel').value.trim(),discord:document.getElementById('r-discord').value.trim(),grade:'Recrue',radio:false,arme:document.getElementById('r-arme')&&document.getElementById('r-arme').checked||false,disqueuse:false,absence:false,absenceFin:'',photo:photoB64,carteId:ciB64,dispo:dispoData,pending:true});
+      membres.push({id:Date.now(),nom:nom||'Candidat',pseudo:'',date:document.getElementById('r-date').value,tel:document.getElementById('r-tel').value.trim(),discord:document.getElementById('r-discord').value.trim(),grade:'Recrue',radio:false,arme:document.getElementById('r-arme')&&document.getElementById('r-arme').checked||false,disqueuse:false,absence:false,absenceFin:'',photo:photoB64,carteId:ciB64,dispo:dispoData,ppa:document.getElementById('r-ppa')&&document.getElementById('r-ppa').checked||false,pending:true});
       sauvegarder();
       document.getElementById('recruit-ok').style.display='block';
       setTimeout(function(){document.getElementById('recruit-ok').style.display='none';},5000);
@@ -2112,6 +2113,8 @@ function openEditCompte(id){
   document.getElementById('c-err').textContent='';
   var cb=document.getElementById('c-role-recruteur');
   if(cb)cb.checked=c.roles&&c.roles.indexOf('recruteur')>=0;
+  var cbA=document.getElementById('c-role-armes');
+  if(cbA)cbA.checked=c.roles&&c.roles.indexOf('armes')>=0;
   populateMembreSelect(c.membreId);openModal('modal-compte');
 }
 function saveCompte(){
@@ -2126,14 +2129,22 @@ function saveCompte(){
   var existing=comptes.find(function(c){return c.user===user&&c.id!==compteEditId;});
   if(existing){errDiv.textContent='Cet identifiant est déjà utilisé.';return;}
   var cbRec=document.getElementById('c-role-recruteur');
+  var cbArm=document.getElementById('c-role-armes');
   var roles=[];
   if(cbRec&&cbRec.checked)roles.push('recruteur');
+  if(cbArm&&cbArm.checked)roles.push('armes');
   if(compteEditId){
     var idx=comptes.findIndex(function(c){return c.id===compteEditId;});
     comptes[idx]=Object.assign({},comptes[idx],{user:user,pass:pass,role:role,membreId:membreId,roles:roles});
     if(currentUser&&currentUser.id===compteEditId){currentUser.user=user;currentUser.pass=pass;currentUser.role=role;currentUser.membreId=membreId;currentUser.roles=roles;}
   } else {
     comptes.push({id:'c_'+Date.now(),user:user,pass:pass,role:role,membreId:membreId,roles:roles});
+  }
+  // If current user's account was updated, rebuild interface
+  if(currentUser&&compteEditId&&currentUser.id===compteEditId){
+    var updatedC=comptes.find(function(c){return c.id===compteEditId;});
+    if(updatedC)currentUser=updatedC;
+    buildInterface();
   }
   closeModal('modal-compte');renderComptes();sauvegarder();
 }
@@ -2269,7 +2280,8 @@ function getTodayStr(){
 
 function getMyTodayData(){
   if(!currentUser||!currentUser.membreId)return null;
-  var today=getTodayStr();
+  var selEl=document.getElementById('quota-date-sel');
+  var today=selEl&&selEl.value?selEl.value:getTodayStr();
   if(!quotaHistory[today])quotaHistory[today]={};
   if(!quotaHistory[today][currentUser.membreId])quotaHistory[today][currentUser.membreId]={containers:0,recel:[],speedos:[]};
   return quotaHistory[today][currentUser.membreId];
@@ -2290,19 +2302,33 @@ function canSubmitQuota(){
 // ============================================================
 // RENDER QUOTA SAISIE (membre/commandant)
 // ============================================================
-function renderQuotaSaisie(divId){
+function renderQuotaSaisie(divId,forceDate){
   var div=document.getElementById(divId);if(!div)return;
-  var today=getTodayStr();
-  var data=getMyTodayData();
-  var submitted=data&&data.submitted;
+  var today=forceDate||getTodayStr();
   var isCmd=currentUser&&currentUser.role==='commandant';
   var isAdmin=currentUser&&currentUser.role==='admin';
+  var data=(quotaHistory[today]&&quotaHistory[today][currentUser.membreId])||{};
+  var submitted=data&&data.submitted;
 
-  // Items de recel (hors armes et hors drogue — uniquement Recel et Récolte)
+  // Items de recel
   var recelItems=database.filter(function(x){return x.cat==='Recel'||x.cat==='Drogue'||x.cat==='Autre';});
   var speedoItems=database.filter(function(x){return x.cat==='Recolte';});
 
   var wrap=document.createElement('div');
+
+  // Date selector at top
+  var dateBar=document.createElement('div');dateBar.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;';
+  var dateLbl=document.createElement('label');dateLbl.style.cssText='font-size:12px;color:var(--text3);font-weight:600;';dateLbl.textContent='Date :';
+  var dateInp=document.createElement('input');dateInp.type='date';dateInp.className='input';dateInp.id='quota-date-sel';
+  dateInp.style.cssText='width:160px;';dateInp.max=getTodayStr();dateInp.value=today;
+  var dateBtn=document.createElement('button');dateBtn.className='btn btn-sm';dateBtn.textContent='Charger';
+  dateBtn.onclick=(function(d){return function(){renderQuotaSaisie(d,document.getElementById('quota-date-sel').value);};})(divId);
+  if(today!==getTodayStr()){
+    var dateBadge=document.createElement('span');dateBadge.style.cssText='font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(239,159,39,0.15);color:var(--warning);';
+    dateBadge.textContent='Saisie retro : '+fmtDate(today);dateBar.appendChild(dateBadge);
+  }
+  dateBar.appendChild(dateLbl);dateBar.appendChild(dateInp);dateBar.appendChild(dateBtn);
+  wrap.appendChild(dateBar);
 
   // Header date
   var hdr=document.createElement('div');
@@ -2409,6 +2435,7 @@ function renderQuotaReadonly(wrap, data, recelItems, speedoItems, showValues){
 }
 
 function renderQuotaForm(wrap, data, recelItems, speedoItems, divId, showPrices){
+  data=data||{};  // Ensure data is never null
   // ── CONTAINERS ──
   var cCard=makeQuotaCard('📦','Containers');
   var cRow=document.createElement('div');cRow.style.cssText='display:flex;align-items:center;gap:12px;padding:8px 0;';
@@ -2547,7 +2574,8 @@ function renderRecelRows(container, rows, recelItems){
 }
 
 function submitQuotaDay(divId, data, recelItems, speedoItems){
-  var today=getTodayStr();
+  var selEl=document.getElementById('quota-date-sel');
+  var today=selEl&&selEl.value?selEl.value:getTodayStr();
   if(!quotaHistory[today])quotaHistory[today]={};
 
   // Read containers
@@ -3628,6 +3656,21 @@ function fmtDate(d){
   return d;
 }
 
+
+function renderQuotaSubtabs(){
+  var wrap=document.getElementById('mb-quota-subtabs-wrap');
+  if(!wrap)return;
+  var isCmd=currentUser&&currentUser.role==='commandant';
+  var hasArmes=hasRole('armes');
+  if(!isCmd&&!hasArmes){wrap.innerHTML='';return;}
+  var html='<div class="subtabs" id="mb-quota-subtabs">';
+  html+='<button class="subtab active" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-saisie\',this)">Mes quotas</button>';
+  if(isCmd)html+='<button class="subtab" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-recap\',this)">Quotas des membres</button>';
+  if(hasArmes)html+='<button class="subtab" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-armes\',this)">Armes</button>';
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
@@ -3669,7 +3712,18 @@ function applyData(data){
   if(data.baremeData&&data.baremeData.length)baremeData=data.baremeData;
   if(data.events)events=data.events;
   if(data.todos)todos=data.todos;
-  if(data.comptes&&data.comptes.length)comptes=data.comptes;
+  if(data.comptes&&data.comptes.length){
+    comptes=data.comptes;
+    // If logged in, refresh currentUser roles from updated comptes
+    if(currentUser){
+      var freshUser=comptes.find(function(c){return c.id===currentUser.id;});
+      if(freshUser&&JSON.stringify(freshUser.roles)!==JSON.stringify(currentUser.roles)){
+        currentUser=freshUser;
+        // Roles changed - rebuild interface
+        setTimeout(function(){buildInterface();},0);
+      }
+    }
+  }
   if(data.database&&data.database.length)database=data.database;
   if(data.bannerText!==undefined)bannerText=data.bannerText;
   if(data.quotaCards&&data.quotaCards.length)quotaCards=data.quotaCards;
@@ -3740,6 +3794,7 @@ chargerDepuisSupabase(function(){
   // Mark that data is loaded so click on logo opens login
   document.getElementById('splash').dataset.ready='1';
 });
+
 </script>
 </body>
 </html>
