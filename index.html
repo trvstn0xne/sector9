@@ -503,6 +503,17 @@ details>summary::-webkit-details-marker{display:none;}
       <select class="input" id="c-membre-id"><option value="">— Aucun —</option></select>
     </div>
     <div id="c-err" style="font-size:12px;color:var(--dan
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-compte')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveCompte()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
 window.addEventListener('error', function(e){
   var d=document.createElement('div');
   d.style.cssText='position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:12px 16px;z-index:9999;font-size:13px;font-family:monospace;';
@@ -3288,14 +3299,6 @@ function chargerDonnees(){
     if(data.frequence)frequence=data.frequence;
     return true;
   }catch(e){console.warn('Chargement échoué:',e);return false;}
-}
-function reinitialiser(){if(!confirm('Réinitialiser toutes les données ?'))return;localStorage.removeItem(LS_KEY);location.reload();}
-
-// INIT
-chargerDonnees();
-document.getElementById('login-modal').classList.remove('show');
-
-ole.warn('Chargement échoué:',e);return false;}
 }
 function reinitialiser(){if(!confirm('Réinitialiser toutes les données ?'))return;localStorage.removeItem(LS_KEY);location.reload();}
 
