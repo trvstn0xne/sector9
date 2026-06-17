@@ -510,7 +510,19 @@ details>summary::-webkit-details-marker{display:none;}
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);">
           <input type="checkbox" id="c-role-armes" style="accent-color:var(--purple);width:15px;height:15px;"/>
           <span>Armes</span>
-          <span style="font-size:11px;color:var(--text3
+          <span style="font-size:11px;color:var(--text3);">— accès à l'onglet Armes</span>
+        </label>
+      </div>
+    </div>
+    <div id="c-err" style="font-size:12px;color:var(--danger);min-height:16px;margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-compte')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveCompte()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
 window.addEventListener('error', function(e){
   var d=document.createElement('div');
   d.style.cssText='position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:12px 16px;z-index:9999;font-size:13px;font-family:monospace;';
@@ -3909,24 +3921,6 @@ chargerDepuisSupabase(function(){
   document.getElementById('splash').dataset.ready='1';
 });
 
-   if(sess){
-      var s=JSON.parse(sess);
-      if(s&&s.userId&&(Date.now()-s.ts)<30*24*60*60*1000){
-        var c=comptes.find(function(x){return x.id===s.userId;});
-        if(c){
-          currentUser=c;
-          localStorage.setItem('s9_session',JSON.stringify({userId:c.id,ts:Date.now()}));
-          doLoginSuccess();
-          return;
-        }
-      }
-      localStorage.removeItem('s9_session');
-    }
-  }catch(e){}
-  // No session found — logo stays, user clicks to login
-  // Mark that data is loaded so click on logo opens login
-  document.getElementById('splash').dataset.ready='1';
-});
 
 </script>
 </body>
