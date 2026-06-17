@@ -75,7 +75,7 @@ tr:hover td{background:rgba(124,58,237,0.04);}
 .btn:hover{background:var(--bg3);}
 .btn-primary{background:var(--purple);color:#fff;border-color:var(--purple);}
 .btn-primary:hover{background:#6d28d9;}
-.btn-sm{padding:4px 10px;font-size:12px;}
+.btn-sm{padding:4px 10px;font-size:12px;vertical-align:middle;}
 .btn-danger{border-color:rgba(226,75,74,0.3);color:var(--danger);}
 .btn-danger:hover{background:rgba(226,75,74,0.08);}
 .btn-success{border-color:rgba(29,158,117,0.4);color:var(--success);}
@@ -1260,8 +1260,7 @@ function renderBareme(){
       +'<td><span class="badge '+GRAVITE_CLASSES[b.gravite]+'">'+GRAVITE_LABELS[b.gravite]+'</span></td>'
       +'<td>'+(b.sanc1||'—')+'</td><td>'+(b.recidive||'—')+'</td>'
       +'<td style="font-weight:600;">'+(b.max||'—')+'</td>'
-      +'<td style="display:flex;gap:6px;flex-wrap:wrap;">'
-      +'<button class="btn btn-sm" onclick="openEditBareme('+b.id+')">Éditer</button>'
+      +'<td style="vertical-align:middle;white-space:nowrap;"><button class="btn btn-sm" style="margin-right:4px;" onclick="openEditBareme('+b.id+')">Éditer</button>'
       +'<button class="btn btn-sm btn-danger" onclick="deleteBareme('+b.id+')">Suppr.</button></td>';
     tbody.appendChild(tr);
   });
@@ -1493,7 +1492,7 @@ function renderDatabase(){
           +'<td style="font-weight:500;color:var(--text);">'+item.nom+'</td>'
           +'<td style="font-weight:700;color:var(--purple2);">'+item.valeur.toLocaleString('fr-FR')+' $</td>'
           +'<td style="font-size:12px;color:var(--text3);">'+(item.dateMaj||'—')+'</td>'
-          +(canEdit?'<td style="display:flex;gap:6px;"><button class="btn btn-sm" onclick="openEditItem('+item.id+')">Éditer</button><button class="btn btn-sm btn-danger" onclick="deleteItem('+item.id+')">Suppr.</button></td>':'')
+          +(canEdit?'<td style="white-space:nowrap;"><button class="btn btn-sm" onclick="openEditItem('+item.id+')">Éditer</button><button class="btn btn-sm btn-danger" onclick="deleteItem('+item.id+')">Suppr.</button></td>':'')
           +'</tr>';
       });
       out+='</tbody></table></div>';
@@ -1909,8 +1908,8 @@ function renderComptes(){
     tdRole.innerHTML=roleBadge;
     var tdMembre=document.createElement('td');tdMembre.style.color='var(--text2)';
     tdMembre.textContent=m?((m.pseudo||m.nom)+' — '+m.grade):'—';
-    var tdAct=document.createElement('td');tdAct.style.cssText='display:flex;gap:6px;';
-    var editBtn=document.createElement('button');editBtn.className='btn btn-sm';editBtn.textContent='Editer';
+    var tdAct=document.createElement('td');tdAct.style.whiteSpace='nowrap';
+    var editBtn=document.createElement('button');editBtn.className='btn btn-sm';editBtn.textContent='Editer';editBtn.style.marginRight='4px';
     editBtn.onclick=(function(cid){return function(){openEditCompte(cid);};})(c.id);
     tdAct.appendChild(editBtn);
     if(!isMe){
@@ -2006,7 +2005,13 @@ function renderPresencePanel(panelId, readOnly){
   var panel=document.getElementById(panelId);
   if(!panel)return;
   var nextEv=getNextEvent();
-  if(!nextEv){panel.innerHTML='';return;}
+  if(!nextEv){
+    panel.innerHTML='<div class="card" style="border-color:rgba(124,58,237,0.2);text-align:center;padding:20px;">'
+      +'<div style="font-size:13px;color:var(--text3);">📅 Aucune réunion planifiée</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-top:6px;">Créez un événement dans le calendrier</div>'
+      +'</div>';
+    return;
+  }
 
   var evPresences=presences[nextEv.id]||{};
   var MONTHS_SHORT=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
