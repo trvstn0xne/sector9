@@ -698,16 +698,21 @@ function startAutoRefresh(){
 }
 
 function refreshCurrentSection(){
-  // Refresh active section without rebuilding whole interface
   var activeSection=document.querySelector('.section.active');
   if(!activeSection)return;
   var id=activeSection.id.replace('sec-','');
+  // Always refresh these regardless of active section
+  renderPresencePanel('mb-presence-panel',false);
+  renderPresencePanel('admin-presence-panel',true);
+  renderBanner();
+  // Refresh active section
   if(id==='admin-accueil'||id==='mb-accueil')renderAccueil();
   if(id==='admin-membres'||id==='mb-membres'){if(currentUser.role==='admin')renderMembres(membres);else renderMembresMb();}
-  if(id==='admin-calendrier'||id==='mb-calendrier'){renderCal('cal-cells','cal-days-names','cal-title','events-list',false);renderPresencePanel('admin-presence-panel',true);}
-  if(id==='mb-calendrier'){renderCal('mb-cal-cells','mb-cal-days-names','mb-cal-title','mb-events-list',true);renderPresencePanel('mb-presence-panel',false);}
+  if(id==='admin-calendrier'){renderCal('cal-cells','cal-days-names','cal-title','events-list',false);}
+  if(id==='mb-calendrier'){renderCal('mb-cal-cells','mb-cal-days-names','mb-cal-title','mb-events-list',true);}
   if(id==='admin-compta'||id==='mb-compta')renderCoffre();
-  renderBanner();
+  if(id==='admin-sanctions')renderSancMembres();
+  if(id==='mb-compte')renderMonCompte();
 }
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&document.getElementById('login-modal').classList.contains('show'))doLogin();
@@ -855,10 +860,7 @@ function buildAdminHTML(){
     +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'
     +'<input class="input" style="max-width:240px;" id="search-membre" placeholder="Rechercher..." oninput="filterMembres()"/>'
     +'<button class="btn btn-primary" onclick="openAddMembre()">+ Ajouter un membre</button></div>'
-    +'<div class="table-wrap"><table><thead><tr>'
-    +'<th>Photo</th><th>Nom</th><th>Arrivée</th><th>Tél.</th><th>Grade</th>'
-    +'<th>Radio</th><th>Arme</th><th>Disqueuse</th><th>Discord</th><th>Sanctions</th><th>Absence</th><th>Disponibilités</th><th>Carte ID</th><th>Actions</th>'
-    +'</tr></thead><tbody id="membres-tbody"></tbody></table></div></div>'
+    +'<div id="membres-table-wrap"></div></div>'
 
     +'<div class="section" id="sec-admin-database">'
     +'<div class="section-title">Database</div>'
@@ -1046,7 +1048,7 @@ function buildRecrutementHTML(){
     +'</div>'
     +'<div style="margin-bottom:14px;"><label class="lbl">Disponibilités <span class="req">*</span></label>'
     +'<div style="overflow-x:auto;"><table class="dispo-table"><thead><tr><th></th><th>Lun</th><th>Mar</th><th>Mer</th><th>Jeu</th><th>Ven</th><th>Sam</th><th>Dim</th></tr></thead><tbody>'
-    +['Matin','Après-midi','Soir'].map(function(r,i){
+    +['Matin','Apres-midi','Soir'].map(function(r,i){
       var key=['matin','aprem','soir'][i];
       return '<tr><td style="font-weight:600;color:var(--text3);font-size:11px;text-align:left;white-space:nowrap;">'+r+'</td>'
         +['lun','mar','mer','jeu','ven','sam','dim'].map(function(d){
@@ -1143,9 +1145,15 @@ function initMembre(){
 function getMemberSanctions(id){return sanctions.filter(function(s){return s.membreId===id;});}
 
 function renderMembres(list){
-  var tbody=document.getElementById('membres-tbody');
-  if(!tbody)return;
-  tbody.innerHTML='';
+  var wrap=document.getElementById('membres-table-wrap');
+  if(!wrap)return;
+  wrap.innerHTML='';
+  var tableDiv=document.createElement('div');tableDiv.className='table-wrap';
+  var table=document.createElement('table');
+  var thead=document.createElement('thead');
+  thead.innerHTML='<tr><th>Photo</th><th>Pseudo / Nom</th><th>Grade</th><th>Arrivee</th><th>Sanctions</th><th>Absence</th><th>Actions</th></tr>';
+  var tbody=document.createElement('tbody');tbody.id='membres-tbody';
+  table.appendChild(thead);table.appendChild(tbody);tableDiv.appendChild(table);wrap.appendChild(tableDiv);
   var sorted=[].concat(list).sort(function(a,b){
     if(a.pending&&!b.pending)return 1;
     if(!a.pending&&b.pending)return -1;
@@ -1154,96 +1162,32 @@ function renderMembres(list){
   sorted.forEach(function(m){
     var tr=document.createElement('tr');
     var tdPhoto=document.createElement('td');
+    // PHOTO
     var photoDiv=document.createElement('div');photoDiv.className='photo-thumb';
-    if(m.photo){
-      var img=document.createElement('img');img.src=m.photo;photoDiv.appendChild(img);
-      photoDiv.onclick=(function(n,p){return function(){previewPhoto(n,p);};})(m.nom,m.photo);
-    } else {
-      photoDiv.textContent='+';photoDiv.title='Ajouter photo';
-      photoDiv.onclick=(function(id){return function(){openEditMembre(id);};})(m.id);
-    }
-    tdPhoto.appendChild(photoDiv);tr.appendChild(tdPhoto);
-    var ciBtn=document.createElement('button');ciBtn.className='id-btn'+(m.carteId?' has-id':'');
-    ciBtn.innerHTML=m.carteId?'&#128219; Voir':'+ Ajouter';
-    if(m.carteId){ciBtn.onclick=(function(n,c){return function(){previewPhoto('CI — '+n,c);};})(m.nom,m.carteId);}
-    else{ciBtn.onclick=(function(id){return function(){openEditMembre(id);};})(m.id);}
+    if(m.photo){var img=document.createElement('img');img.src=m.photo;photoDiv.appendChild(img);photoDiv.onclick=(function(n,p){return function(){previewPhoto(n,p);};})(m.nom,m.photo);}
+    else{photoDiv.textContent='+';photoDiv.title='Ajouter photo';photoDiv.onclick=(function(id){return function(){openEditMembre(id);};})(m.id);}
+    // SANCTIONS / ABSENCE html
     var sl=getMemberSanctions(m.id);
     var sancHtml=sl.length?'<span class="badge badge-warn">&#9888; '+sl.length+' sanction'+(sl.length>1?'s':'')+'</span>':'<span style="color:var(--text3);font-size:12px;">Aucune</span>';
     var absHtml=m.absence?'<span class="badge badge-abs">Absence'+(m.absenceFin?' - '+m.absenceFin:'')+'</span>':'<span style="color:var(--text3);font-size:12px;">Non</span>';
-    var statusHtml=m.pending?'<span class="badge badge-pending">En attente</span>':'<span class="badge badge-ok">Actif</span>';
-    var actHtml=m.pending
-      ?'<button class="btn btn-sm btn-success" onclick="openValidate('+m.id+')">Valider</button> <button class="btn btn-sm btn-danger" onclick="deleteMembre('+m.id+')">Refuser</button>'
-      :'<button class="btn btn-sm" onclick="openEditMembre('+m.id+')">Editer</button> <button class="btn btn-sm btn-danger" onclick="deleteMembre('+m.id+')">Suppr.</button>';
-    // Build all cells with consistent vertical-align
-    function mkTd(html,style){var t=document.createElement('td');if(style)t.setAttribute('style',style);t.innerHTML=html;return t;}
-    var nomCell=mkTd(m.nom,'font-weight:600;color:var(--text);');
-    if(m.pending){nomCell.innerHTML+=' <span class="badge badge-pending" style="font-size:10px;">En attente</span>';}
+    function mkTd2(h,s){var t=document.createElement('td');if(s)t.style.cssText=s;t.innerHTML=h;return t;}
+    // CELLS
+    var tdPh=document.createElement('td');tdPh.appendChild(photoDiv);tr.appendChild(tdPh);
+    var nomCell=document.createElement('td');
+    var pEl=document.createElement('div');pEl.style.cssText='font-weight:700;color:var(--text);font-size:13px;';pEl.textContent=m.pseudo||m.nom;
+    if(m.pending){var pb=document.createElement('span');pb.className='badge badge-pending';pb.style.cssText='font-size:10px;margin-left:6px;';pb.textContent='En attente';pEl.appendChild(pb);}
+    if(m.pseudo){var nEl=document.createElement('div');nEl.style.cssText='font-size:11px;color:var(--text3);';nEl.textContent=m.nom;nomCell.appendChild(pEl);nomCell.appendChild(nEl);}
+    else{nomCell.appendChild(pEl);}
     tr.appendChild(nomCell);
-    tr.appendChild(mkTd(m.date||'—'));
-    tr.appendChild(mkTd(m.tel||'—'));
-    tr.appendChild(mkTd('<span class="badge '+gradeColor(m.grade)+'">'+m.grade+'</span>'));
-    tr.appendChild(mkTd(m.radio?'<span class="badge badge-ok">✓</span>':'<span style="opacity:.4">✗</span>'));
-    tr.appendChild(mkTd(m.arme?'<span class="badge badge-ok">✓</span>':'<span style="opacity:.4">✗</span>'));
-    tr.appendChild(mkTd(m.disqueuse?'<span class="badge badge-ok">✓</span>':'<span style="opacity:.4">✗</span>'));
-    tr.appendChild(mkTd(m.discord||'—','font-size:12px;color:var(--text3);'));
-    tr.appendChild(mkTd(sancHtml));
-    tr.appendChild(mkTd(absHtml));
-    // Dispo cell
-    var tdDispo=document.createElement('td');
-    var showDispoBtn=document.createElement('button');
-    showDispoBtn.className='btn btn-sm';showDispoBtn.textContent='Voir';
-    showDispoBtn.onclick=(function(mid,btn){
-      return function(){
-        // Toggle dispo panel below this row
-        var existingPanel=document.getElementById('dispo-panel-'+mid);
-        if(existingPanel){existingPanel.remove();return;}
-        var allPanels=document.querySelectorAll('[id^="dispo-panel-"]');
-        allPanels.forEach(function(p){p.remove();});
-        var m2=membres.find(function(x){return x.id===mid;});
-        if(!m2)return;
-        var d=m2.dispo||{};
-        var panelRow=document.createElement('tr');
-        panelRow.id='dispo-panel-'+mid;
-        var panelTd=document.createElement('td');
-        panelTd.colSpan=99;
-        panelTd.style.cssText='padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);';
-        var title=document.createElement('div');title.style.cssText='font-size:12px;font-weight:600;color:var(--purple3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;';
-        title.textContent='Disponibilités — '+(m2.pseudo||m2.nom);
-        panelTd.appendChild(title);
-        var JOURS_P=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-        var JOURS_K=['lun','mar','mer','jeu','ven','sam','dim'];
-        var SLOTS_P=['Matin','Après-midi','Soir'];
-        var SLOTS_K=['matin','aprem','soir'];
-        var grid=document.createElement('div');
-        grid.style.cssText='display:grid;grid-template-columns:80px repeat(7,1fr);gap:4px;max-width:500px;';
-        // Header
-        var empty=document.createElement('div');grid.appendChild(empty);
-        JOURS_P.forEach(function(j){var h=document.createElement('div');h.style.cssText='text-align:center;font-size:11px;font-weight:600;color:var(--text3);';h.textContent=j;grid.appendChild(h);});
-        // Rows
-        SLOTS_K.forEach(function(slot,si){
-          var lbl=document.createElement('div');lbl.style.cssText='font-size:11px;color:var(--text3);font-weight:600;display:flex;align-items:center;';lbl.textContent=SLOTS_P[si];grid.appendChild(lbl);
-          JOURS_K.forEach(function(jour){
-            var cell=document.createElement('div');
-            var hasDispo=d[slot+'-'+jour];
-            cell.style.cssText='height:28px;border-radius:4px;'+(hasDispo?'background:rgba(124,58,237,0.4);':'background:var(--bg2);border:1px solid var(--border);');
-            if(hasDispo){var check=document.createElement('div');check.style.cssText='width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--purple3);';check.textContent='✓';cell.appendChild(check);}
-            grid.appendChild(cell);
-          });
-        });
-        panelTd.appendChild(grid);
-        var editBtn2=document.createElement('button');editBtn2.className='btn btn-sm';editBtn2.style.marginTop='10px';editBtn2.textContent='Modifier les dispos';
-        editBtn2.onclick=(function(id2){return function(){openDispoModal(id2);};})(mid);
-        panelTd.appendChild(editBtn2);
-        panelRow.appendChild(panelTd);
-        var currentRow=btn.closest('tr');
-        currentRow.parentNode.insertBefore(panelRow,currentRow.nextSibling);
-      };
-    })(m.id,showDispoBtn);
-    tdDispo.appendChild(showDispoBtn);
-    tr.appendChild(tdDispo);
-    var tdCi=document.createElement('td');tdCi.appendChild(ciBtn);tr.appendChild(tdCi);
-    // Actions buttons — DOM so onclick works
+    tr.appendChild(mkTd2('<span class="badge '+gradeColor(m.grade)+'">'+m.grade+'</span>'));
+    tr.appendChild(mkTd2(fmtDate(m.date),'font-size:12px;color:var(--text3);'));
+    tr.appendChild(mkTd2(sancHtml));
+    tr.appendChild(mkTd2(absHtml));
+    // ACTIONS
     var tdAct=document.createElement('td');tdAct.style.cssText='white-space:nowrap;';
+    var profilBtn=document.createElement('button');profilBtn.className='btn btn-sm btn-primary';profilBtn.textContent='Profil';profilBtn.style.marginRight='4px';
+    profilBtn.onclick=(function(id){return function(){openProfilMembre(id);};})(m.id);
+    tdAct.appendChild(profilBtn);
     if(m.pending){
       var valBtn=document.createElement('button');valBtn.className='btn btn-sm btn-success';valBtn.textContent='Valider';valBtn.style.marginRight='4px';
       valBtn.onclick=(function(id){return function(){openValidate(id);};})(m.id);
@@ -1253,7 +1197,6 @@ function renderMembres(list){
     } else {
       var editBtn2=document.createElement('button');editBtn2.className='btn btn-sm';editBtn2.textContent='Editer';editBtn2.style.marginRight='4px';
       editBtn2.onclick=(function(id){return function(){openEditMembre(id);};})(m.id);
-
       var delBtn2=document.createElement('button');delBtn2.className='btn btn-sm btn-danger';delBtn2.textContent='Suppr.';
       delBtn2.onclick=(function(id){return function(){deleteMembre(id);};})(m.id);
       tdAct.appendChild(editBtn2);tdAct.appendChild(delBtn2);
@@ -1533,7 +1476,30 @@ function renderMonCompte(){
     +'<p style="font-size:11px;color:var(--text3);margin-top:12px;">Les pourcentages évoluent avec ton grade.</p></div>'
     +'<div class="card"><div class="card-title">Disponibilités</div>'
     +'<div id="mc-dispo-content"></div>'
-    +'<button class="btn btn-sm" style="margin-top:10px;" onclick="openDispoModal('+m.id+')">Modifier mes disponibilités</button></div>';
+    +'<button class="btn btn-sm" style="margin-top:10px;" onclick="openDispoModal('+m.id+')">Modifier mes disponibilités</button></div>'
+    +'<div class="card"><div class="card-title">Mes sanctions</div><div id="mc-sanctions-content"></div></div>';
+  // Render sanctions
+  var sancDiv=document.getElementById('mc-sanctions-content');
+  if(sancDiv){
+    var mySanctions=sanctions.filter(function(s){return s.membreId===m.id;});
+    if(!mySanctions.length){
+      sancDiv.innerHTML='<p style="color:var(--text3);font-size:13px;">Aucune sanction enregistrée.</p>';
+    } else {
+      var sHtml='<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">';
+      mySanctions.forEach(function(s){
+        var faute=baremeData.find(function(b){return b.id===s.baremeId;});
+        var gravClass=faute?'badge-'+faute.gravite:'badge-pending';
+        sHtml+='<div style="background:var(--bg3);border-radius:var(--r2);padding:10px 14px;border-left:3px solid var(--danger);">'
+          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
+          +'<span style="font-size:13px;font-weight:600;color:var(--text);">'+(faute?faute.faute:s.faute||'Sanction')+'</span>'
+          +'<span style="font-size:11px;color:var(--text3);">'+s.date+'</span></div>'
+          +(s.note?'<div style="font-size:12px;color:var(--text3);">'+s.note+'</div>':'')
+          +'</div>';
+      });
+      sHtml+='</div>';
+      sancDiv.innerHTML=sHtml;
+    }
+  }
   // Render dispo table
   var dispoDiv2=document.getElementById('mc-dispo-content');
   if(dispoDiv2&&m){
@@ -3525,6 +3491,136 @@ function saveDispo(membreId){
   renderMonCompte();
 }
 
+
+
+function openProfilMembre(membreId){
+  var m=membres.find(function(x){return x.id===membreId;});
+  if(!m)return;
+  var modal=document.getElementById('modal-profil-membre');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-profil-membre';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.cssText='max-width:560px;max-height:85vh;overflow-y:auto;';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-profil-membre');};
+    var content=document.createElement('div');content.id='profil-membre-content';
+    mb.appendChild(cx);mb.appendChild(content);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-profil-membre');});
+    document.body.appendChild(modal);
+  }
+  var content=document.getElementById('profil-membre-content');content.innerHTML='';
+  // Header
+  var header=document.createElement('div');
+  header.style.cssText='display:flex;align-items:center;gap:20px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);';
+  var av=document.createElement('div');
+  av.style.cssText='width:80px;height:80px;border-radius:50%;background:var(--bg3);border:2px solid rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-size:32px;color:var(--text3);';
+  if(m.photo){var ai=document.createElement('img');ai.src=m.photo;ai.style.cssText='width:100%;height:100%;object-fit:cover;';av.appendChild(ai);}
+  else{av.textContent=(m.pseudo||m.nom).charAt(0).toUpperCase();}
+  var hInfo=document.createElement('div');
+  var hP=document.createElement('div');hP.style.cssText='font-size:22px;font-weight:800;color:var(--text);';hP.textContent=m.pseudo||m.nom;
+  var hN=document.createElement('div');hN.style.cssText='font-size:13px;color:var(--text3);margin-top:2px;';hN.textContent=m.pseudo?m.nom:'';
+  var hG=document.createElement('span');hG.className='badge '+gradeColor(m.grade);hG.style.cssText='margin-top:6px;display:inline-block;';hG.textContent=m.grade;
+  hInfo.appendChild(hP);if(m.pseudo)hInfo.appendChild(hN);hInfo.appendChild(hG);
+  header.appendChild(av);header.appendChild(hInfo);content.appendChild(header);
+  // Info grid
+  var grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;';
+  function infoCard(label,val){
+    var c=document.createElement('div');c.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:10px 14px;';
+    c.innerHTML='<div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">'+label+'</div>'
+      +'<div style="font-size:13px;color:var(--text2);">'+val+'</div>';
+    return c;
+  }
+  grid.appendChild(infoCard('Arrivee',m.date||'—'));
+  grid.appendChild(infoCard('Telephone',m.tel||'—'));
+  grid.appendChild(infoCard('Discord',m.discord||'—'));
+  grid.appendChild(infoCard('Absence',m.absence?'Oui':'Non'));
+  grid.appendChild(infoCard('Radio',m.radio?'Oui':'Non'));
+  grid.appendChild(infoCard('Arme',m.arme?'Oui':'Non'));
+  grid.appendChild(infoCard('Disqueuse',m.disqueuse?'Oui':'Non'));
+  content.appendChild(grid);
+  // Disponibilites
+  var JOURS_P=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  var JOURS_K=['lun','mar','mer','jeu','ven','sam','dim'];
+  var SLOTS_PL=['Matin','Apres-midi','Soir'];
+  var SLOTS_K=['matin','aprem','soir'];
+  var d=m.dispo||{};
+  var dTitle=document.createElement('div');dTitle.style.cssText='font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;';dTitle.textContent='Disponibilites';
+  content.appendChild(dTitle);
+  var dGrid=document.createElement('div');dGrid.style.cssText='display:grid;grid-template-columns:70px repeat(7,1fr);gap:3px;margin-bottom:20px;';
+  var eHdr=document.createElement('div');dGrid.appendChild(eHdr);
+  JOURS_P.forEach(function(j){var h=document.createElement('div');h.style.cssText='text-align:center;font-size:11px;font-weight:600;color:var(--text3);';h.textContent=j;dGrid.appendChild(h);});
+  SLOTS_K.forEach(function(slot,si){
+    var lbl=document.createElement('div');lbl.style.cssText='font-size:11px;color:var(--text3);display:flex;align-items:center;';lbl.textContent=SLOTS_PL[si];dGrid.appendChild(lbl);
+    JOURS_K.forEach(function(jour){
+      var cell=document.createElement('div');cell.style.cssText='height:24px;border-radius:3px;'+(d[slot+'-'+jour]?'background:rgba(124,58,237,0.4);':'background:var(--bg3);');
+      if(d[slot+'-'+jour]){var ck=document.createElement('div');ck.style.cssText='height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--purple3);';ck.textContent='v';cell.appendChild(ck);}
+      dGrid.appendChild(cell);
+    });
+  });
+  content.appendChild(dGrid);
+  // Sanctions
+  var mySancs=sanctions.filter(function(s){return s.membreId===m.id;}).sort(function(a,b){return b.date>a.date?1:-1;});
+  var sTitleDiv=document.createElement('div');sTitleDiv.style.cssText='font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;';
+  sTitleDiv.textContent='Sanctions ('+mySancs.length+')';
+  content.appendChild(sTitleDiv);
+  if(!mySancs.length){
+    var noS=document.createElement('div');noS.style.cssText='font-size:13px;color:var(--text3);margin-bottom:20px;padding:12px 14px;background:var(--bg3);border-radius:var(--r2);';noS.textContent='Aucune sanction enregistree.';content.appendChild(noS);
+  } else {
+    var gravColors={mineure:'var(--success)',intermediaire:'var(--warning)',grave:'#e05c00',critique:'var(--danger)'};
+    var gravLabels={mineure:'Mineure',intermediaire:'Intermediaire',grave:'Grave',critique:'Critique'};
+    mySancs.forEach(function(s){
+      var infraction=baremeData.find(function(b){return b.id===s.infractionId;});
+      var gravColor=gravColors[s.gravite]||'var(--danger)';
+      var gravLabel=gravLabels[s.gravite]||s.gravite||'—';
+      var sRow=document.createElement('div');
+      sRow.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:12px 16px;margin-bottom:10px;border-left:3px solid '+gravColor+';';
+      // Header: infraction name + date
+      var rowHdr=document.createElement('div');rowHdr.style.cssText='display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:12px;';
+      var infrNom=document.createElement('div');infrNom.style.cssText='font-size:13px;font-weight:700;color:var(--text);flex:1;';
+      infrNom.textContent=infraction?infraction.faute:(s.type||'Sanction');
+      var dateEl=document.createElement('div');dateEl.style.cssText='font-size:11px;color:var(--text3);white-space:nowrap;flex-shrink:0;';
+      dateEl.textContent=fmtDate(s.date);
+      rowHdr.appendChild(infrNom);rowHdr.appendChild(dateEl);sRow.appendChild(rowHdr);
+      // Tags: gravite + type
+      var tags=document.createElement('div');tags.style.cssText='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;';
+      var gTag=document.createElement('span');gTag.style.cssText='padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:'+gravColor+'22;color:'+gravColor+';';gTag.textContent=gravLabel;tags.appendChild(gTag);
+      if(s.type){var tTag=document.createElement('span');tTag.style.cssText='padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(120,80,220,0.12);color:var(--purple3);';tTag.textContent=s.type;tags.appendChild(tTag);}
+      sRow.appendChild(tags);
+      // Sanction appliquée (from barème)
+      if(infraction&&infraction.sanc1){
+        var sancAppli=document.createElement('div');sancAppli.style.cssText='font-size:12px;color:var(--text3);margin-bottom:6px;';
+        sancAppli.innerHTML='<span style="color:var(--text3);">Sanction : </span><span style="color:var(--text2);">'+infraction.sanc1+'</span>';
+        sRow.appendChild(sancAppli);
+      }
+      // Motif
+      if(s.motif){var motifEl=document.createElement('div');motifEl.style.cssText='font-size:12px;color:var(--text3);padding-top:6px;border-top:1px solid var(--border);margin-top:6px;';motifEl.innerHTML='<span style="font-weight:600;">Motif : </span>'+s.motif;sRow.appendChild(motifEl);}
+      content.appendChild(sRow);
+    });
+  }
+  // Carte ID
+  if(m.carteId){
+    var ciTitle=document.createElement('div');ciTitle.style.cssText='font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;';ciTitle.textContent='Carte ID';
+    var ciImg=document.createElement('img');ciImg.src=m.carteId;ciImg.style.cssText='max-width:100%;border-radius:var(--r2);border:1px solid var(--border);margin-bottom:20px;';
+    content.appendChild(ciTitle);content.appendChild(ciImg);
+  }
+  // Footer
+  var footer=document.createElement('div');footer.className='modal-footer';footer.style.marginTop='8px';
+  var editBtn3=document.createElement('button');editBtn3.className='btn btn-primary';editBtn3.textContent='Modifier le profil';
+  editBtn3.onclick=(function(id){return function(){closeModal('modal-profil-membre');openEditMembre(id);};})(m.id);
+  var dispoBtn2=document.createElement('button');dispoBtn2.className='btn';dispoBtn2.textContent='Modifier les dispos';
+  dispoBtn2.onclick=(function(id){return function(){closeModal('modal-profil-membre');openDispoModal(id);};})(m.id);
+  footer.appendChild(dispoBtn2);footer.appendChild(editBtn3);
+  content.appendChild(footer);
+  openModal('modal-profil-membre');
+}
+
+
+function fmtDate(d){
+  if(!d)return '—';
+  // Already DD/MM/YYYY
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(d))return d;
+  // YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(d)){var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+  return d;
+}
 
 // ============================================================
 // LOCALSTORAGE
