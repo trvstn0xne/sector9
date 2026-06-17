@@ -507,6 +507,10 @@ details>summary::-webkit-details-marker{display:none;}
       <select class="input" id="c-membre-id"><option value="">— Aucun —</option></select>
     </div>
     <div id="c-err" style="font-size:12px;color:var(--danger);min-height:16px;margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-compte')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveCompte()">Enregistrer</button>
+    </div>
   </div>
 </div>
 
@@ -648,6 +652,9 @@ function doLogin(){
     document.getElementById('login-err').textContent='Identifiant ou mot de passe incorrect.';
   }
 }
+var refreshInterval=null;
+var lastUpdatedAt=null;
+
 function doLoginSuccess(){
   document.getElementById('login-modal').classList.remove('show');
   document.getElementById('splash').classList.add('hidden');
@@ -657,12 +664,54 @@ function doLoginSuccess(){
   document.getElementById('user-tag').textContent=currentUser.user+' ('+roleLabel+')';
   buildInterface();
   renderBanner();
+  startAutoRefresh();
+}
+
+function startAutoRefresh(){
+  if(refreshInterval)clearInterval(refreshInterval);
+  refreshInterval=setInterval(function(){
+    if(!currentUser)return;
+    // Check if data has changed on Supabase
+    fetch(SUPABASE_URL+'/rest/v1/s9_data?id=eq.main&select=updated_at',{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+    })
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      if(!rows||!rows[0])return;
+      var serverTs=rows[0].updated_at;
+      if(lastUpdatedAt&&serverTs!==lastUpdatedAt){
+        // Data changed — reload from Supabase silently
+        chargerDepuisSupabase(function(){
+          lastUpdatedAt=serverTs;
+          // Refresh current visible section
+          refreshCurrentSection();
+        });
+      } else if(!lastUpdatedAt){
+        lastUpdatedAt=serverTs;
+      }
+    })
+    .catch(function(){});
+  },30000);
+}
+
+function refreshCurrentSection(){
+  // Refresh active section without rebuilding whole interface
+  var activeSection=document.querySelector('.section.active');
+  if(!activeSection)return;
+  var id=activeSection.id.replace('sec-','');
+  if(id==='admin-accueil'||id==='mb-accueil')renderAccueil();
+  if(id==='admin-membres'||id==='mb-membres'){if(currentUser.role==='admin')renderMembres(membres);else renderMembresMb();}
+  if(id==='admin-calendrier'||id==='mb-calendrier'){renderCal('cal-cells','cal-days-names','cal-title','events-list',false);renderPresencePanel('admin-presence-panel',true);}
+  if(id==='mb-calendrier'){renderCal('mb-cal-cells','mb-cal-days-names','mb-cal-title','mb-events-list',true);renderPresencePanel('mb-presence-panel',false);}
+  if(id==='admin-compta'||id==='mb-compta')renderCoffre();
+  renderBanner();
 }
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&document.getElementById('login-modal').classList.contains('show'))doLogin();
 });
 function logout(){
   currentUser=null;
+  if(refreshInterval){clearInterval(refreshInterval);refreshInterval=null;}
   try{localStorage.removeItem('s9_session');}catch(e){}
   document.getElementById('app').classList.remove('show');
   document.getElementById('splash').style.display='flex';
@@ -3496,7 +3545,15 @@ function sauvegarder(){
     },
     body:JSON.stringify({id:'main',data:payload,updated_at:new Date().toISOString()})
   })
-  .then(function(r){if(!r.ok)r.text().then(function(t){console.warn('Supabase error:',t);});})
+  .then(function(r){
+    if(r.ok){
+      // Update local timestamp to avoid self-triggering refresh
+      var now=new Date().toISOString();
+      lastUpdatedAt=now;
+    } else {
+      r.text().then(function(t){console.warn('Supabase error:',t);});
+    }
+  })
   .catch(function(e){console.warn('Supabase save failed:',e);});
 }
 function applyData(data){
