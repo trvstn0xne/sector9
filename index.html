@@ -3661,7 +3661,10 @@ function renderQuotaSubtabs(){
   var wrap=document.getElementById('mb-quota-subtabs-wrap');
   if(!wrap)return;
   var isCmd=currentUser&&currentUser.role==='commandant';
+  // Debug: log roles
+  console.log('[DEBUG] currentUser.roles:', currentUser&&JSON.stringify(currentUser.roles));
   var hasArmes=hasRole('armes');
+  console.log('[DEBUG] hasArmes:', hasArmes);
   if(!isCmd&&!hasArmes){wrap.innerHTML='';return;}
   var html='<div class="subtabs" id="mb-quota-subtabs">';
   html+='<button class="subtab active" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-saisie\',this)">Mes quotas</button>';
