@@ -1139,9 +1139,11 @@ function renderMembres(list){
     } else {
       var editBtn2=document.createElement('button');editBtn2.className='btn btn-sm';editBtn2.textContent='Editer';editBtn2.style.marginRight='4px';
       editBtn2.onclick=(function(id){return function(){openEditMembre(id);};})(m.id);
+      var mdpBtn=document.createElement('button');mdpBtn.className='btn btn-sm';mdpBtn.textContent='MDP';mdpBtn.style.marginRight='4px';mdpBtn.title='Reset mot de passe';
+      mdpBtn.onclick=(function(id){return function(){openResetMdpMembre(id);};})(m.id);
       var delBtn2=document.createElement('button');delBtn2.className='btn btn-sm btn-danger';delBtn2.textContent='Suppr.';
       delBtn2.onclick=(function(id){return function(){deleteMembre(id);};})(m.id);
-      tdAct.appendChild(editBtn2);tdAct.appendChild(delBtn2);
+      tdAct.appendChild(editBtn2);tdAct.appendChild(mdpBtn);tdAct.appendChild(delBtn2);
     }
     tr.appendChild(tdAct);
     tbody.appendChild(tr);
@@ -3076,57 +3078,68 @@ function renderAccueil(){
   var m=currentUser.membreId?membres.find(function(x){return x.id===currentUser.membreId;}):null;
   var displayName=m?(m.pseudo||m.nom):currentUser.user;
   var grade=m?m.grade:'';
-
-  // BIENVENUE
-  var welcomeWrap=document.createElement('div');
-  welcomeWrap.style.cssText='margin-bottom:28px;';
-  var greetDiv=document.createElement('div');
-  greetDiv.style.cssText='font-size:28px;font-weight:800;color:var(--text);margin-bottom:4px;';
   var hour=new Date().getHours();
-  greetDiv.textContent=(hour<12?'Bonjour':'Bonsoir')+', '+displayName+' \uD83D\uDC4B';
-  var subDiv=document.createElement('div');
-  subDiv.style.cssText='font-size:13px;color:var(--text3);';
-  subDiv.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  if(grade){
-    var gradeBadge=document.createElement('span');
-    gradeBadge.className='badge '+gradeColor(grade);gradeBadge.style.marginLeft='10px';gradeBadge.textContent=grade;
-    subDiv.appendChild(gradeBadge);
-  }
-  welcomeWrap.appendChild(greetDiv);welcomeWrap.appendChild(subDiv);
-  div.appendChild(welcomeWrap);
+  var greet=hour<12?'Bonjour':'Bonsoir';
 
-  // GRID
+  // HERO HEADER
+  var hero=document.createElement('div');
+  hero.style.cssText='background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(168,85,247,0.05));border:1px solid rgba(124,58,237,0.25);border-radius:var(--radius);padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;gap:24px;';
+  var avatarDiv=document.createElement('div');
+  avatarDiv.style.cssText='width:72px;height:72px;border-radius:50%;background:var(--bg3);border:2px solid rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-size:28px;color:var(--text3);';
+  if(m&&m.photo){var ai=document.createElement('img');ai.src=m.photo;ai.style.cssText='width:100%;height:100%;object-fit:cover;';avatarDiv.appendChild(ai);}
+  else{avatarDiv.textContent=displayName.charAt(0).toUpperCase();}
+  var heroText=document.createElement('div');heroText.style.flex='1';
+  var heroTitle=document.createElement('div');heroTitle.style.cssText='font-size:26px;font-weight:800;color:var(--text);margin-bottom:4px;';
+  heroTitle.textContent=greet+', '+displayName;
+  var heroSub=document.createElement('div');heroSub.style.cssText='font-size:13px;color:var(--text3);display:flex;align-items:center;gap:10px;margin-top:4px;';
+  heroSub.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  if(grade){var gb=document.createElement('span');gb.className='badge '+gradeColor(grade);gb.style.marginLeft='8px';gb.textContent=grade;heroSub.appendChild(gb);}
+  heroText.appendChild(heroTitle);heroText.appendChild(heroSub);
+  hero.appendChild(avatarDiv);hero.appendChild(heroText);
+  var freqBadge=document.createElement('div');
+  freqBadge.style.cssText='text-align:center;flex-shrink:0;padding:12px 20px;background:rgba(239,159,39,0.08);border:1px solid rgba(239,159,39,0.25);border-radius:var(--r2);';
+  freqBadge.innerHTML='<div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Frequence</div>'
+    +'<div style="font-size:24px;font-weight:800;color:var(--warning);">'+frequence.valeur+'</div>'
+    +'<div style="font-size:11px;color:var(--text3);">MHz</div>';
+  if(isAdmin){var feBtn=document.createElement('button');feBtn.className='btn btn-sm';feBtn.style.cssText='margin-top:6px;font-size:11px;width:100%;';feBtn.textContent='Modifier';feBtn.onclick=editFrequence;freqBadge.appendChild(feBtn);}
+  hero.appendChild(freqBadge);
+  div.appendChild(hero);
+
+  // MAIN GRID
   var grid=document.createElement('div');
-  grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;';
+  grid.style.cssText='display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;';
   var left=document.createElement('div');
   var right=document.createElement('div');
 
-  // PROCHAINE REUNION + VOTE
+  // PROCHAINE REUNION (left)
   var nextEv=getNextEvent();
+  var reunCard=document.createElement('div');reunCard.className='card';reunCard.style.cssText='margin-bottom:16px;border-color:rgba(124,58,237,0.3);';
+  var rtitle=document.createElement('div');rtitle.className='card-title';rtitle.style.marginBottom='12px';rtitle.textContent='Prochaine reunion';reunCard.appendChild(rtitle);
   if(nextEv){
     var MS=['Jan','Fev','Mar','Avr','Mai','Jun','Jul','Aou','Sep','Oct','Nov','Dec'];
     var dp=nextEv.date.split('-');
-    var dateLabel=dp[2]+' '+MS[parseInt(dp[1])-1];
-    var reunCard=document.createElement('div');
-    reunCard.className='card';reunCard.style.cssText='margin-bottom:16px;border-color:rgba(124,58,237,0.3);';
-    var rt=document.createElement('div');rt.className='card-title';rt.style.marginBottom='4px';rt.textContent='Prochaine reunion';
-    var rs=document.createElement('div');rs.style.cssText='font-size:15px;font-weight:700;color:var(--purple2);margin-bottom:16px;';
-    rs.textContent=nextEv.titre+' \u2014 '+dateLabel+' a '+nextEv.heure;
-    reunCard.appendChild(rt);reunCard.appendChild(rs);
-
+    var evInfo=document.createElement('div');
+    evInfo.style.cssText='display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:12px 16px;background:var(--bg3);border-radius:var(--r2);';
+    var dateBox=document.createElement('div');dateBox.style.cssText='text-align:center;min-width:52px;border-right:1px solid var(--border);padding-right:16px;margin-right:4px;';
+    dateBox.innerHTML='<div style="font-size:28px;font-weight:800;color:var(--purple2);">'+dp[2]+'</div>'
+      +'<div style="font-size:12px;color:var(--text3);">'+MS[parseInt(dp[1])-1]+'</div>';
+    var evDetail=document.createElement('div');
+    evDetail.innerHTML='<div style="font-weight:700;font-size:15px;color:var(--text);">'+nextEv.titre+'</div>'
+      +'<div style="font-size:13px;color:var(--text3);margin-top:4px;">'+nextEv.heure+(nextEv.desc?' — '+nextEv.desc:'')+'</div>';
+    evInfo.appendChild(dateBox);evInfo.appendChild(evDetail);reunCard.appendChild(evInfo);
     var evPresences=presences[nextEv.id]||{};
     if(!isAdmin&&currentUser.membreId){
       var myVote=evPresences[currentUser.membreId]||'';
-      var bw=document.createElement('div');bw.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;';
-      [{key:'present',label:'\u2705 Present',cls:'selected-present'},
-       {key:'incertain',label:'\u23F3 En retard / Pas sur',cls:'selected-incertain'},
-       {key:'absent',label:'\u274C Absent',cls:'selected-absent'}].forEach(function(v){
+      var bw=document.createElement('div');bw.style.cssText='display:flex;gap:8px;margin-bottom:14px;';
+      [{key:'present',label:'✅ Présent',cls:'selected-present'},
+       {key:'incertain',label:'⏳ Pas sûr',cls:'selected-incertain'},
+       {key:'absent',label:'❌ Absent',cls:'selected-absent'}].forEach(function(v){
         var btn=document.createElement('button');
         btn.className='presence-btn'+(myVote===v.key?' '+v.cls:'');
         btn.textContent=v.label;btn.style.flex='1';btn.style.justifyContent='center';
-        btn.onclick=(function(eid,choice,btnWrap){
+        btn.onclick=(function(eid,choice,bwrap){
           return function(){
-            btnWrap.querySelectorAll('.presence-btn').forEach(function(b){b.className='presence-btn';});
+            bwrap.querySelectorAll('.presence-btn').forEach(function(b){b.className='presence-btn';});
             this.className='presence-btn '+choice.cls;
             vote(eid,choice.key);
             renderPresencePanel('mb-presence-panel',false);
@@ -3137,103 +3150,89 @@ function renderAccueil(){
       });
       reunCard.appendChild(bw);
     }
-
     var ml=membres.filter(function(x){return !x.pending;});
-    var p=0,inc=0,ab=0;
-    ml.forEach(function(x){var v=evPresences[x.id];if(v==='present')p++;else if(v==='incertain')inc++;else if(v==='absent')ab++;});
-    var ctrs=document.createElement('div');ctrs.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;';
-    ctrs.innerHTML='<span style="padding:3px 10px;border-radius:20px;background:rgba(29,158,117,0.12);color:var(--success);font-size:12px;font-weight:600;">\u2705 '+p+'</span>'
-      +'<span style="padding:3px 10px;border-radius:20px;background:rgba(239,159,39,0.12);color:var(--warning);font-size:12px;font-weight:600;">\u23F3 '+inc+'</span>'
-      +'<span style="padding:3px 10px;border-radius:20px;background:rgba(226,75,74,0.12);color:var(--danger);font-size:12px;font-weight:600;">\u274C '+ab+'</span>';
-    var voted=p+inc+ab;
-    var ftr=document.createElement('div');ftr.style.cssText='font-size:11px;color:var(--text3);text-align:right;';
-    ftr.innerHTML='<span style="color:'+(voted===ml.length?'var(--success)':'var(--text3)')+';">'+voted+' / '+ml.length+'</span> ont repondu';
-    reunCard.appendChild(ctrs);reunCard.appendChild(ftr);
-    left.appendChild(reunCard);
+    var pv=0,iv=0,av=0;
+    ml.forEach(function(x){var v=evPresences[x.id];if(v==='present')pv++;else if(v==='incertain')iv++;else if(v==='absent')av++;});
+    var voted=pv+iv+av;
+    var ctrs=document.createElement('div');ctrs.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;';
+    ctrs.innerHTML='<span style="padding:4px 12px;border-radius:20px;background:rgba(29,158,117,0.12);color:var(--success);font-size:12px;font-weight:600;">✅ '+pv+'</span>'
+      +'<span style="padding:4px 12px;border-radius:20px;background:rgba(239,159,39,0.12);color:var(--warning);font-size:12px;font-weight:600;">⏳ '+iv+'</span>'
+      +'<span style="padding:4px 12px;border-radius:20px;background:rgba(226,75,74,0.12);color:var(--danger);font-size:12px;font-weight:600;">❌ '+av+'</span>'
+      +'<span style="font-size:11px;color:var(--text3);margin-left:auto;">'+voted+'/'+ml.length+' ont répondu</span>';
+    reunCard.appendChild(ctrs);
+  } else {
+    var noEv=document.createElement('div');noEv.style.cssText='text-align:center;padding:16px;color:var(--text3);font-size:13px;';
+    noEv.textContent='Aucune reunion planifiee';reunCard.appendChild(noEv);
   }
+  left.appendChild(reunCard);
 
-  // QUOTAS DU JOUR
+  // QUOTAS DU JOUR (left, non-admin)
   if(!isAdmin){
     var today2=getTodayStr();
     var myData=currentUser.membreId&&quotaHistory[today2]?quotaHistory[today2][currentUser.membreId]:null;
     var submitted2=myData&&myData.submitted;
     var qCard=document.createElement('div');qCard.className='card';
-    var qt=document.createElement('div');qt.className='card-title';qt.textContent='Mes quotas du jour';qCard.appendChild(qt);
-    if(submitted2){
-      var qs=document.createElement('span');
-      qs.style.cssText='padding:4px 12px;border-radius:20px;background:rgba(29,158,117,0.15);color:var(--success);font-size:12px;font-weight:600;display:inline-block;margin-bottom:12px;';
-      qs.textContent='Soumis aujourd hui';qCard.appendChild(qs);
-    } else {
-      var qa=document.createElement('div');
-      qa.style.cssText='padding:10px 14px;background:rgba(239,159,39,0.1);border-radius:var(--r2);border-left:3px solid var(--warning);font-size:13px;color:var(--text2);margin-bottom:12px;';
-      qa.textContent='Quotas pas encore soumis aujourd hui.';qCard.appendChild(qa);
-    }
-    var gb=document.createElement('button');gb.className='btn btn-primary btn-sm';
-    gb.textContent=submitted2?'Voir mes quotas':'Remplir mes quotas';
-    gb.onclick=function(){var b=document.querySelector('[onclick*="mb-quotas"]');if(b)b.click();};
-    qCard.appendChild(gb);left.appendChild(qCard);
+    var qt=document.createElement('div');qt.className='card-title';qt.style.marginBottom='12px';qt.textContent='Quotas du jour';qCard.appendChild(qt);
+    var qRow=document.createElement('div');qRow.style.cssText='display:flex;align-items:center;justify-content:space-between;';
+    var qBadge=document.createElement('span');
+    qBadge.style.cssText='padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;'+(submitted2?'background:rgba(29,158,117,0.15);color:var(--success);':'background:rgba(239,159,39,0.12);color:var(--warning);');
+    qBadge.textContent=submitted2?'Soumis':'Non soumis';
+    var qBtn=document.createElement('button');qBtn.className='btn btn-sm'+(submitted2?'':' btn-primary');
+    qBtn.textContent=submitted2?'Voir':'Remplir';
+    qBtn.onclick=function(){var b=document.querySelector('[onclick*="mb-quotas"]');if(b)b.click();};
+    qRow.appendChild(qBadge);qRow.appendChild(qBtn);qCard.appendChild(qRow);
+    left.appendChild(qCard);
+  }
+
+  // RACCOURCIS (right, admin seulement)
+  if(isAdmin){
+    var shortcuts=[
+      {icon:'👥',label:'Membres',sec:'admin-membres',color:'rgba(124,58,237,0.12)',border:'rgba(124,58,237,0.3)'},
+      {icon:'📦',label:'Quotas',sec:'admin-quotas',color:'rgba(29,158,117,0.1)',border:'rgba(29,158,117,0.3)'},
+      {icon:'💰',label:'Comptabilite',sec:'admin-compta',color:'rgba(239,159,39,0.1)',border:'rgba(239,159,39,0.3)'},
+      {icon:'📅',label:'Calendrier',sec:'admin-calendrier',color:'rgba(124,58,237,0.12)',border:'rgba(124,58,237,0.3)'},
+      {icon:'⚙️',label:'Comptes',sec:'admin-comptes',color:'rgba(136,135,128,0.1)',border:'rgba(136,135,128,0.3)'},
+    ];
+    var scCard=document.createElement('div');scCard.className='card';scCard.style.marginBottom='16px';
+    var sct=document.createElement('div');sct.className='card-title';sct.style.marginBottom='14px';sct.textContent='Acces rapide';scCard.appendChild(sct);
+    var scGrid=document.createElement('div');scGrid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+    shortcuts.forEach(function(s){
+      var btn=document.createElement('button');
+      btn.style.cssText='background:'+s.color+';border:1px solid '+s.border+';border-radius:var(--r2);padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:opacity 0.15s;';
+      btn.onmouseover=function(){this.style.opacity='0.8';};
+      btn.onmouseout=function(){this.style.opacity='1';};
+      var ic=document.createElement('span');ic.style.fontSize='22px';ic.textContent=s.icon;
+      var lb=document.createElement('span');lb.style.cssText='font-size:12px;font-weight:600;color:var(--text2);';lb.textContent=s.label;
+      btn.appendChild(ic);btn.appendChild(lb);
+      btn.onclick=(function(sec){return function(){var b=document.querySelector('[onclick*="'+sec+'"]');if(b)b.click();};})(s.sec);
+      scGrid.appendChild(btn);
+    });
+    scCard.appendChild(scGrid);right.appendChild(scCard);
   }
 
   // MON COMPTE (right)
   if(m){
-    var cCard=document.createElement('div');cCard.className='card';cCard.style.marginBottom='16px';
-    var ct=document.createElement('div');ct.className='card-title';ct.style.marginBottom='14px';ct.textContent='Mon compte';
-    cCard.appendChild(ct);
-    var ar=document.createElement('div');ar.style.cssText='display:flex;align-items:center;gap:14px;margin-bottom:16px;';
-    var av=document.createElement('div');av.style.cssText='width:56px;height:56px;border-radius:50%;background:var(--bg3);border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;';
-    if(m.photo){var ai=document.createElement('img');ai.src=m.photo;ai.style.cssText='width:100%;height:100%;object-fit:cover;';av.appendChild(ai);}
-    else{av.style.fontSize='22px';av.style.color='var(--text3)';av.textContent=(m.pseudo||m.nom).charAt(0).toUpperCase();}
-    var inf=document.createElement('div');
-    inf.innerHTML='<div style="font-size:16px;font-weight:700;color:var(--text);">'+(m.pseudo||m.nom)+'</div>'
-      +'<div style="font-size:12px;color:var(--text3);">'+m.nom+'</div>'
-      +'<span class="badge '+gradeColor(m.grade)+'" style="margin-top:4px;display:inline-block;">'+m.grade+'</span>';
-    ar.appendChild(av);ar.appendChild(inf);cCard.appendChild(ar);
-    if(m.tel)cCard.innerHTML+='<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">\uD83D\uDCDE '+m.tel+'</div>';
-    if(m.discord)cCard.innerHTML+='<div style="font-size:12px;color:var(--text3);margin-bottom:12px;">\uD83D\uDCAC '+m.discord+'</div>';
+    var cCard=document.createElement('div');cCard.className='card';
+    var ct=document.createElement('div');ct.className='card-title';ct.style.marginBottom='12px';ct.textContent='Mon compte';cCard.appendChild(ct);
+    if(m.tel){var tr1=document.createElement('div');tr1.style.cssText='font-size:12px;color:var(--text3);margin-bottom:5px;';tr1.textContent='Tel : '+m.tel;cCard.appendChild(tr1);}
+    if(m.discord){var tr2=document.createElement('div');tr2.style.cssText='font-size:12px;color:var(--text3);margin-bottom:5px;';tr2.textContent='Discord : '+m.discord;cCard.appendChild(tr2);}
+    if(m.date){var tr3=document.createElement('div');tr3.style.cssText='font-size:12px;color:var(--text3);margin-bottom:12px;';tr3.textContent='Depuis : '+m.date;cCard.appendChild(tr3);}
     var gcb=document.createElement('button');gcb.className='btn btn-sm';gcb.textContent='Voir mon profil';
     gcb.onclick=function(){var b=document.querySelector('[onclick*="mb-compte"]');if(b)b.click();};
     cCard.appendChild(gcb);right.appendChild(cCard);
-  }
-
-  // ADMIN SHORTCUTS
-  // FREQUENCE CARD
-  var freqCard=document.createElement('div');freqCard.className='card';freqCard.style.marginBottom='16px';
-  freqCard.style.borderColor='rgba(239,159,39,0.4)';
-  var ftitle=document.createElement('div');ftitle.className='card-title';ftitle.textContent='📡 Fréquence de la semaine';ftitle.style.marginBottom='10px';
-  freqCard.appendChild(ftitle);
-  var fval=document.createElement('div');
-  fval.style.cssText='font-size:32px;font-weight:800;color:var(--warning);margin-bottom:8px;';
-  fval.textContent=frequence.valeur+' MHz';
-  freqCard.appendChild(fval);
-  if(isAdmin){
-    var feditBtn=document.createElement('button');feditBtn.className='btn btn-sm';feditBtn.textContent='Modifier';
-    feditBtn.onclick=function(){
-      var nv=prompt('Nouvelle fréquence :',frequence.valeur);
-      if(nv!==null&&nv.trim()!==''){
-        frequence.valeur=parseFloat(nv.replace(',','.'))||frequence.valeur;
-        sauvegarder();renderAccueil();
-      }
-    };
-    freqCard.appendChild(feditBtn);
-  }
-  right.appendChild(freqCard);
-
-  if(isAdmin){
-    var aCard=document.createElement('div');aCard.className='card';
-    var at=document.createElement('div');at.className='card-title';at.style.marginBottom='14px';at.textContent='Acces rapide';aCard.appendChild(at);
-    [{label:'Membres',sec:'admin-membres'},{label:'Quotas',sec:'admin-quotas'},{label:'Comptabilite',sec:'admin-compta'},{label:'Calendrier',sec:'admin-calendrier'},{label:'Comptes',sec:'admin-comptes'}].forEach(function(s){
-      var btn=document.createElement('button');btn.className='btn btn-sm';btn.style.cssText='width:100%;margin-bottom:8px;justify-content:flex-start;';
-      btn.textContent=s.label;
-      btn.onclick=(function(sec){return function(){var b=document.querySelector('[onclick*="'+sec+'"]');if(b)b.click();};})(s.sec);
-      aCard.appendChild(btn);
-    });
-    right.appendChild(aCard);
   }
 
   grid.appendChild(left);grid.appendChild(right);
   div.appendChild(grid);
 }
 
+function editFrequence(){
+  var nv=prompt('Nouvelle frequence (MHz) :',frequence.valeur);
+  if(nv!==null&&nv.trim()!==''){
+    frequence.valeur=parseFloat(nv.replace(',','.'))||frequence.valeur;
+    sauvegarder();renderAccueil();
+  }
+}
 
 
 function openAccueilModal(){
