@@ -408,6 +408,11 @@ details>summary::-webkit-details-marker{display:none;}
       <div class="field"><label class="lbl">Heure</label><input class="input" type="time" id="ev-heure" value="21:00"/></div>
     </div>
     <div style="margin-bottom:14px;"><label class="lbl">Description</label><textarea class="input" id="ev-desc"></textarea></div>
+    <div style="margin-bottom:14px;"><label class="lbl">Catégorie</label>
+      <select class="input" id="ev-categorie">
+        <option value="reunion">🤝 Réunion (vote de présence activé)</option>
+        <option value="autre">📌 Autre événement</option>
+      </select></div>
     <div style="margin-bottom:14px;"><label class="lbl">Répétition</label>
       <select class="input" id="ev-recurrence">
         <option value="none">Aucune (unique)</option>
@@ -497,15 +502,7 @@ details>summary::-webkit-details-marker{display:none;}
     <div style="margin-bottom:14px;"><label class="lbl">Membre associé (optionnel)</label>
       <select class="input" id="c-membre-id"><option value="">— Aucun —</option></select>
     </div>
-    <div id="c-err" style="font-size:12px;color:var(--danger);min-height:16px;margin-bottom:8px;"></div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('modal-compte')">Annuler</button>
-      <button class="btn btn-primary" onclick="saveCompte()">Enregistrer</button>
-    </div>
-  </div>
-</div>
-
-<script>
+    <div id="c-err" style="font-size:12px;color:var(--dan
 window.addEventListener('error', function(e){
   var d=document.createElement('div');
   d.style.cssText='position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:12px 16px;z-index:9999;font-size:13px;font-family:monospace;';
@@ -750,8 +747,9 @@ function showSec(id,btn){
   if(btn)btn.classList.add('active');
   if(id==='admin-calendrier')renderCal('cal-cells','cal-days-names','cal-title','events-list',false);
   if(id==='mb-calendrier')renderCal('mb-cal-cells','mb-cal-days-names','mb-cal-title','mb-events-list',true);
-  if(id==='admin-calendrier')renderTodo('todo-panel');
   if(id==='mb-calendrier'&&currentUser&&currentUser.role==='commandant')renderTodo('mb-todo-panel');
+  if(id==='mb-calendrier'){setTimeout(function(){renderPresencePanel('mb-presence-panel',false);},0);}
+  if(id==='admin-calendrier'){setTimeout(function(){renderPresencePanel('admin-presence-panel',true);renderTodo('todo-panel');},0);}
   if(id==='admin-sanctions'){renderBareme();renderSancMembres();populateSancFiltre();}
   if(id==='admin-database'||id==='mb-database')renderDatabase();
   if(id==='mb-compte')renderMonCompte();
@@ -1056,7 +1054,7 @@ function initAdmin(){
   setupFileInput('r-photo-ci','r-ci-preview',null);
   document.getElementById('m-photo-url').addEventListener('input',function(){var p=document.getElementById('m-photo-preview');if(this.value){p.src=this.value;p.style.display='block';}else p.style.display='none';});
   document.getElementById('m-ci-url').addEventListener('input',function(){var p=document.getElementById('m-ci-preview');if(this.value){p.src=this.value;p.style.display='block';}else p.style.display='none';});
-  setTimeout(function(){renderAccueil();renderBareme();renderDatabase();renderCal('cal-cells','cal-days-names','cal-title','events-list',false);renderTodo('todo-panel');renderPresencePanel('admin-presence-panel',true);},0);
+  setTimeout(function(){renderAccueil();renderBareme();renderDatabase();renderCal('cal-cells','cal-days-names','cal-title','events-list',false);renderTodo('todo-panel');renderPresencePanel('admin-presence-panel',true);renderPresencePanel('admin-presence-panel',true);},0);
 }
 function initMembre(){
   renderMembresMb();
@@ -1650,6 +1648,7 @@ function openAddEventDate(d){
   var recEndEl=document.getElementById('ev-recur-end');
   if(recEl)recEl.value='none';
   if(recEndEl)recEndEl.value='';
+  var catEl2=document.getElementById('ev-categorie');if(catEl2)catEl2.value='reunion';
   var delBtn=document.getElementById('ev-delete-btn');
   if(delBtn)delBtn.style.display='none';
   openModal('modal-event');
@@ -1667,6 +1666,7 @@ function openEditEvent(id){
   var recEndEl=document.getElementById('ev-recur-end');
   if(recEl)recEl.value=ev.recurrence||'none';
   if(recEndEl)recEndEl.value=ev.recurEnd||'';
+  var catEl3=document.getElementById('ev-categorie');if(catEl3)catEl3.value=ev.categorie||'reunion';
   var delBtn=document.getElementById('ev-delete-btn');
   if(delBtn)delBtn.style.display='inline-flex';
   openModal('modal-event');
@@ -1681,7 +1681,9 @@ function saveEvent(){
   var recurrence=recEl?recEl.value:'none';
   var recurEnd=recEndEl?recEndEl.value:'';
   if(!titre||!date){alert('Titre et date requis.');return;}
-  var data={titre:titre,date:date,heure:heure,desc:desc,recurrence:recurrence,recurEnd:recurEnd,parentId:null};
+  var catEl=document.getElementById('ev-categorie');
+  var categorie=catEl?catEl.value:'reunion';
+  var data={titre:titre,date:date,heure:heure,desc:desc,recurrence:recurrence,recurEnd:recurEnd,categorie:categorie,parentId:null};
   if(eventEditId){
     var idx=events.findIndex(function(x){return x.id===eventEditId;});
     events[idx]=Object.assign({},events[idx],data);
@@ -1698,7 +1700,7 @@ function saveEvent(){
         else{d.setDate(d.getDate()+step);}
         if(d>endDate)break;
         var ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-        events.push({id:Date.now()+count+1,parentId:baseId,titre:titre,date:ds,heure:heure,desc:desc,recurrence:'none',recurEnd:''});
+        events.push({id:Date.now()+count+1,parentId:baseId,titre:titre,date:ds,heure:heure,desc:desc,recurrence:'none',recurEnd:'',categorie:categorie});
         count++;
       }
     }
@@ -1996,8 +1998,9 @@ function deleteCompte(id){
 // ============================================================
 function getNextEvent(){
   var now=new Date().toISOString().split('T')[0];
-  var future=events.filter(function(e){return e.date>=now&&e.recurrence!=='none'||e.date>=now;})
-    .sort(function(a,b){return a.date.localeCompare(b.date)||a.heure.localeCompare(b.heure);});
+  var future=events.filter(function(e){
+    return e.date>=now&&(e.categorie==='reunion'||!e.categorie);
+  }).sort(function(a,b){return a.date.localeCompare(b.date)||a.heure.localeCompare(b.heure);});
   return future[0]||null;
 }
 
@@ -3285,6 +3288,14 @@ function chargerDonnees(){
     if(data.frequence)frequence=data.frequence;
     return true;
   }catch(e){console.warn('Chargement échoué:',e);return false;}
+}
+function reinitialiser(){if(!confirm('Réinitialiser toutes les données ?'))return;localStorage.removeItem(LS_KEY);location.reload();}
+
+// INIT
+chargerDonnees();
+document.getElementById('login-modal').classList.remove('show');
+
+ole.warn('Chargement échoué:',e);return false;}
 }
 function reinitialiser(){if(!confirm('Réinitialiser toutes les données ?'))return;localStorage.removeItem(LS_KEY);location.reload();}
 
