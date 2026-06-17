@@ -59,7 +59,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .table-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border);}
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th{background:var(--bg3);color:var(--text3);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.8px;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
-td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;white-space:nowrap;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:rgba(124,58,237,0.04);}
 
@@ -613,6 +613,7 @@ let presences={};
 // presences = { eventId: { membreId: 'present'|'incertain'|'absent' } }
 let quotaHistory={};
 let coffre={solde:0,transactions:[]};
+let frequence={valeur:991.2};
 let currentUser=null;
 let membreEditId=null;
 let baremeEditId=null;
@@ -1106,19 +1107,36 @@ function renderMembres(list){
     var actHtml=m.pending
       ?'<button class="btn btn-sm btn-success" onclick="openValidate('+m.id+')">Valider</button> <button class="btn btn-sm btn-danger" onclick="deleteMembre('+m.id+')">Refuser</button>'
       :'<button class="btn btn-sm" onclick="openEditMembre('+m.id+')">Editer</button> <button class="btn btn-sm btn-danger" onclick="deleteMembre('+m.id+')">Suppr.</button>';
-    var tmp=document.createElement('tr');
-    tmp.innerHTML='<td>'+statusHtml+'</td>'
-      +'<td style="font-weight:600;color:var(--text);">'+m.nom+'</td>'
-      +'<td>'+(m.date||'—')+'</td><td>'+(m.tel||'—')+'</td>'
-      +'<td><span class="badge '+gradeColor(m.grade)+'">'+m.grade+'</span></td>'
-      +'<td>'+(m.radio?'<span class="badge badge-ok">&#10003;</span>':'<span style="opacity:.4">&#10007;</span>')+'</td>'
-      +'<td>'+(m.arme?'<span class="badge badge-ok">&#10003;</span>':'<span style="opacity:.4">&#10007;</span>')+'</td>'
-      +'<td>'+(m.disqueuse?'<span class="badge badge-ok">&#10003;</span>':'<span style="opacity:.4">&#10007;</span>')+'</td>'
-      +'<td style="font-size:12px;color:var(--text3);">'+(m.discord||'—')+'</td>'
-      +'<td>'+sancHtml+'</td><td>'+absHtml+'</td>';
-    while(tmp.firstChild)tr.appendChild(tmp.firstChild);
+    // Build all cells with consistent vertical-align
+    function mkTd(html,style){var t=document.createElement('td');if(style)t.setAttribute('style',style);t.innerHTML=html;return t;}
+    tr.appendChild(mkTd(statusHtml));
+    tr.appendChild(mkTd(m.nom,'font-weight:600;color:var(--text);'));
+    tr.appendChild(mkTd(m.date||'—'));
+    tr.appendChild(mkTd(m.tel||'—'));
+    tr.appendChild(mkTd('<span class="badge '+gradeColor(m.grade)+'">'+m.grade+'</span>'));
+    tr.appendChild(mkTd(m.radio?'<span class="badge badge-ok">✓</span>':'<span style="opacity:.4">✗</span>'));
+    tr.appendChild(mkTd(m.arme?'<span class="badge badge-ok">✓</span>':'<span style="opacity:.4">✗</span>'));
+    tr.appendChild(mkTd(m.disqueuse?'<span class="badge badge-ok">✓</span>':'<span style="opacity:.4">✗</span>'));
+    tr.appendChild(mkTd(m.discord||'—','font-size:12px;color:var(--text3);'));
+    tr.appendChild(mkTd(sancHtml));
+    tr.appendChild(mkTd(absHtml));
     var tdCi=document.createElement('td');tdCi.appendChild(ciBtn);tr.appendChild(tdCi);
-    var tdAct=document.createElement('td');tdAct.style.cssText='white-space:nowrap;';tdAct.innerHTML=actHtml;tr.appendChild(tdAct);
+    // Actions buttons — DOM so onclick works
+    var tdAct=document.createElement('td');tdAct.style.cssText='white-space:nowrap;';
+    if(m.pending){
+      var valBtn=document.createElement('button');valBtn.className='btn btn-sm btn-success';valBtn.textContent='Valider';valBtn.style.marginRight='4px';
+      valBtn.onclick=(function(id){return function(){openValidate(id);};})(m.id);
+      var refBtn=document.createElement('button');refBtn.className='btn btn-sm btn-danger';refBtn.textContent='Refuser';
+      refBtn.onclick=(function(id){return function(){deleteMembre(id);};})(m.id);
+      tdAct.appendChild(valBtn);tdAct.appendChild(refBtn);
+    } else {
+      var editBtn2=document.createElement('button');editBtn2.className='btn btn-sm';editBtn2.textContent='Editer';editBtn2.style.marginRight='4px';
+      editBtn2.onclick=(function(id){return function(){openEditMembre(id);};})(m.id);
+      var delBtn2=document.createElement('button');delBtn2.className='btn btn-sm btn-danger';delBtn2.textContent='Suppr.';
+      delBtn2.onclick=(function(id){return function(){deleteMembre(id);};})(m.id);
+      tdAct.appendChild(editBtn2);tdAct.appendChild(delBtn2);
+    }
+    tr.appendChild(tdAct);
     tbody.appendChild(tr);
   });
 }
@@ -3161,6 +3179,28 @@ function renderAccueil(){
   }
 
   // ADMIN SHORTCUTS
+  // FREQUENCE CARD
+  var freqCard=document.createElement('div');freqCard.className='card';freqCard.style.marginBottom='16px';
+  freqCard.style.borderColor='rgba(239,159,39,0.4)';
+  var ftitle=document.createElement('div');ftitle.className='card-title';ftitle.textContent='📡 Fréquence de la semaine';ftitle.style.marginBottom='10px';
+  freqCard.appendChild(ftitle);
+  var fval=document.createElement('div');
+  fval.style.cssText='font-size:32px;font-weight:800;color:var(--warning);margin-bottom:8px;';
+  fval.textContent=frequence.valeur+' MHz';
+  freqCard.appendChild(fval);
+  if(isAdmin){
+    var feditBtn=document.createElement('button');feditBtn.className='btn btn-sm';feditBtn.textContent='Modifier';
+    feditBtn.onclick=function(){
+      var nv=prompt('Nouvelle fréquence :',frequence.valeur);
+      if(nv!==null&&nv.trim()!==''){
+        frequence.valeur=parseFloat(nv.replace(',','.'))||frequence.valeur;
+        sauvegarder();renderAccueil();
+      }
+    };
+    freqCard.appendChild(feditBtn);
+  }
+  right.appendChild(freqCard);
+
   if(isAdmin){
     var aCard=document.createElement('div');aCard.className='card';
     var at=document.createElement('div');at.className='card-title';at.style.marginBottom='14px';at.textContent='Acces rapide';aCard.appendChild(at);
@@ -3218,7 +3258,7 @@ document.addEventListener('click',function(e){
 // ============================================================
 var LS_KEY='s9_data_v4';
 function sauvegarder(){
-  try{localStorage.setItem(LS_KEY,JSON.stringify({membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre}));}
+  try{localStorage.setItem(LS_KEY,JSON.stringify({membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence}));}
   catch(e){console.warn('Sauvegarde échouée:',e);}
 }
 function chargerDonnees(){
@@ -3237,6 +3277,7 @@ function chargerDonnees(){
     if(data.presences)presences=data.presences;
     if(data.quotaHistory)quotaHistory=data.quotaHistory;
     if(data.coffre)coffre=data.coffre;
+    if(data.frequence)frequence=data.frequence;
     return true;
   }catch(e){console.warn('Chargement échoué:',e);return false;}
 }
