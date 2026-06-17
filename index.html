@@ -711,11 +711,7 @@ function refreshCurrentSection(){
   if(id==='admin-membres'||id==='mb-membres'){if(currentUser.role==='admin')renderMembres(membres);else renderMembresMb();}
   if(id==='admin-calendrier'){renderCal('cal-cells','cal-days-names','cal-title','events-list',false);}
   if(id==='mb-calendrier'){renderCal('mb-cal-cells','mb-cal-days-names','mb-cal-title','mb-events-list',true);}
-  if(id==='mb-quotas'){setTimeout(function(){
-    console.log('[SHOWSEC] calling renderQuotaSubtabs, roles=', JSON.stringify(currentUser&&currentUser.roles));
-    renderQuotaSubtabs();
-    renderQuotaSaisie('mb-quota-saisie-div');
-  },0);}
+  if(id==='mb-quotas'){setTimeout(function(){renderQuotaSubtabs();renderQuotaSaisie('mb-quota-saisie-div');},0);}
   if(id==='admin-compta'||id==='mb-compta')renderCoffre();
   if(id==='admin-sanctions')renderSancMembres();
   if(id==='mb-compte')renderMonCompte();
@@ -838,11 +834,7 @@ function showSec(id,btn){
   if(id==='admin-compta'||id==='mb-compta'){setTimeout(function(){renderCoffre();},0);}
   if(id==='admin-quotas'||id==='mb-quotas')renderQuotaBanner();
   if(id==='admin-quotas'){setTimeout(function(){renderQuotaRecap('quota-recap-div',true);},0);}
-  if(id==='mb-quotas'){setTimeout(function(){
-    console.log('[SHOWSEC] calling renderQuotaSubtabs, roles=', JSON.stringify(currentUser&&currentUser.roles));
-    renderQuotaSubtabs();
-    renderQuotaSaisie('mb-quota-saisie-div');
-  },0);}
+  if(id==='mb-quotas'){setTimeout(function(){renderQuotaSubtabs();renderQuotaSaisie('mb-quota-saisie-div');},0);}
   if(id==='mb-recrutement'){}  // recrutement static HTML, no special render needed
   if(id==='admin-calendrier'){renderPresencePanel('admin-presence-panel',true);}
   if(id==='mb-calendrier'){renderPresencePanel('mb-presence-panel',false);}
@@ -3669,7 +3661,7 @@ function renderQuotaSubtabs(){
   var wrap=document.getElementById('mb-quota-subtabs-wrap');
   if(!wrap)return;
   var isCmd=currentUser&&currentUser.role==='commandant';
-  console.log('[QUOTA] roles=', JSON.stringify(currentUser&&currentUser.roles), 'hasArmes=', hasRole('armes'));
+
   if(!isCmd&&!hasArmes){wrap.innerHTML='';return;}
   var html='<div class="subtabs" id="mb-quota-subtabs">';
   html+='<button class="subtab active" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-saisie\',this)">Mes quotas</button>';
