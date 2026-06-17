@@ -1118,7 +1118,7 @@ function renderMembres(list){
       +'<td>'+sancHtml+'</td><td>'+absHtml+'</td>';
     while(tmp.firstChild)tr.appendChild(tmp.firstChild);
     var tdCi=document.createElement('td');tdCi.appendChild(ciBtn);tr.appendChild(tdCi);
-    var tdAct=document.createElement('td');tdAct.style.cssText='display:flex;gap:6px;flex-wrap:wrap;';tdAct.innerHTML=actHtml;tr.appendChild(tdAct);
+    var tdAct=document.createElement('td');tdAct.style.cssText='white-space:nowrap;';tdAct.innerHTML=actHtml;tr.appendChild(tdAct);
     tbody.appendChild(tr);
   });
 }
