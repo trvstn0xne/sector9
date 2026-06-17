@@ -226,6 +226,10 @@ details>summary::-webkit-details-marker{display:none;}
     <h2>SECTOR 9 — ACCÈS</h2>
     <input type="text" id="login-user" placeholder="Identifiant" autocomplete="off"/>
     <input type="password" id="login-pass" placeholder="Mot de passe"/>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px;font-size:13px;color:var(--text3);">
+      <input type="checkbox" id="login-remember" style="accent-color:var(--purple);width:15px;height:15px;"/>
+      Rester connecté
+    </label>
     <button class="login-btn" onclick="doLogin()">Se connecter</button>
     <div class="login-err" id="login-err"></div>
   </div>
@@ -503,13 +507,8 @@ details>summary::-webkit-details-marker{display:none;}
       <select class="input" id="c-membre-id"><option value="">— Aucun —</option></select>
     </div>
     <div id="c-err" style="font-size:12px;color:var(--danger);min-height:16px;margin-bottom:8px;"></div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('modal-compte')">Annuler</button>
-      <button class="btn btn-primary" onclick="saveCompte()">Enregistrer</button>
-    </div>
   </div>
 </div>
-
 
 <script>
 window.addEventListener('error', function(e){
@@ -548,11 +547,11 @@ let quotaCards=[
   {id:3,icon:'🧪',titre:'Acide (Speedo)',valeur:'5',unite:'par semaine',detail:''},
 ];
 let membres=[
-  {id:1,nom:'Alexandre Moreau',pseudo:'Clyde',date:'2024-01-15',tel:'555-0101',grade:'Commandant',radio:true,arme:true,disqueuse:true,absence:false,absenceFin:'',photo:'',carteId:'',discord:'Clyde#0523',pending:false},
-  {id:2,nom:'Sarah Dupont',pseudo:'Bonnie',date:'2024-03-22',tel:'555-0102',grade:'Capitaine',radio:true,arme:true,disqueuse:false,absence:false,absenceFin:'',photo:'',carteId:'',discord:'Bonnie#2305',pending:false},
-  {id:3,nom:'Marco Diaz',pseudo:'Marco',date:'2024-06-10',tel:'555-0103',grade:'Sergent',radio:true,arme:false,disqueuse:false,absence:true,absenceFin:'2025-08-15',photo:'',carteId:'',discord:'MarcoD#9999',pending:false},
-  {id:4,nom:'Jayden Williams',pseudo:'Jayden',date:'2024-09-01',tel:'555-0104',grade:'Opérateur',radio:false,arme:false,disqueuse:false,absence:false,absenceFin:'',photo:'',carteId:'',discord:'Jayden#0000',pending:false},
-  {id:5,nom:'Andrew Clark',pseudo:'Andrew',date:'2024-10-15',tel:'555-0105',grade:'Recrue',radio:false,arme:false,disqueuse:false,absence:false,absenceFin:'',photo:'',carteId:'',discord:'Andrew#1111',pending:false},
+  {id:1,nom:'Alexandre Moreau',pseudo:'Clyde',date:'2024-01-15',tel:'555-0101',grade:'Commandant',radio:true,arme:true,disqueuse:true,absence:false,absenceFin:'',photo:'',carteId:'',discord:'Clyde#0523',pending:false,dispo:{}},
+  {id:2,nom:'Sarah Dupont',pseudo:'Bonnie',date:'2024-03-22',tel:'555-0102',grade:'Capitaine',radio:true,arme:true,disqueuse:false,absence:false,absenceFin:'',photo:'',carteId:'',discord:'Bonnie#2305',pending:false,dispo:{}},
+  {id:3,nom:'Marco Diaz',pseudo:'Marco',date:'2024-06-10',tel:'555-0103',grade:'Sergent',radio:true,arme:false,disqueuse:false,absence:true,absenceFin:'2025-08-15',photo:'',carteId:'',discord:'MarcoD#9999',pending:false,dispo:{}},
+  {id:4,nom:'Jayden Williams',pseudo:'Jayden',date:'2024-09-01',tel:'555-0104',grade:'Opérateur',radio:false,arme:false,disqueuse:false,absence:false,absenceFin:'',photo:'',carteId:'',discord:'Jayden#0000',pending:false,dispo:{}},
+  {id:5,nom:'Andrew Clark',pseudo:'Andrew',date:'2024-10-15',tel:'555-0105',grade:'Recrue',radio:false,arme:false,disqueuse:false,absence:false,absenceFin:'',photo:'',carteId:'',discord:'Andrew#1111',pending:false,dispo:{}},
 ];
 let baremeData=[
   {id:101,faute:"M-01. Quotas hebdomadaires non atteints",gravite:'mineure',sanc1:"Rappel à l'ordre",recidive:'Convocation',max:'Démote temporaire'},
@@ -636,26 +635,35 @@ function showLogin(){document.getElementById('login-modal').classList.add('show'
 function doLogin(){
   const u=document.getElementById('login-user').value.trim();
   const p=document.getElementById('login-pass').value;
+  const rememberEl=document.getElementById('login-remember');
+  const remember=rememberEl&&rememberEl.checked;
   const compte=comptes.find(function(c){return c.user===u&&c.pass===p;});
   if(compte){
     currentUser=compte;
-    document.getElementById('login-modal').classList.remove('show');
-    document.getElementById('splash').classList.add('hidden');
-    setTimeout(function(){document.getElementById('splash').style.display='none';},500);
-    document.getElementById('app').classList.add('show');
-    var roleLabel=compte.role==='admin'?'Admin':compte.role==='commandant'?'Commandant':'Membre';
-    document.getElementById('user-tag').textContent=compte.user+' ('+roleLabel+')';
-    buildInterface();
-    renderBanner();
+    if(remember){
+      try{localStorage.setItem('s9_session',JSON.stringify({userId:compte.id,ts:Date.now()}));}catch(e){}
+    }
+    doLoginSuccess();
   } else {
     document.getElementById('login-err').textContent='Identifiant ou mot de passe incorrect.';
   }
+}
+function doLoginSuccess(){
+  document.getElementById('login-modal').classList.remove('show');
+  document.getElementById('splash').classList.add('hidden');
+  setTimeout(function(){document.getElementById('splash').style.display='none';},500);
+  document.getElementById('app').classList.add('show');
+  var roleLabel=currentUser.role==='admin'?'Admin':currentUser.role==='commandant'?'Commandant':'Membre';
+  document.getElementById('user-tag').textContent=currentUser.user+' ('+roleLabel+')';
+  buildInterface();
+  renderBanner();
 }
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&document.getElementById('login-modal').classList.contains('show'))doLogin();
 });
 function logout(){
   currentUser=null;
+  try{localStorage.removeItem('s9_session');}catch(e){}
   document.getElementById('app').classList.remove('show');
   document.getElementById('splash').style.display='flex';
   document.getElementById('splash').classList.remove('hidden');
@@ -796,8 +804,8 @@ function buildAdminHTML(){
     +'<input class="input" style="max-width:240px;" id="search-membre" placeholder="Rechercher..." oninput="filterMembres()"/>'
     +'<button class="btn btn-primary" onclick="openAddMembre()">+ Ajouter un membre</button></div>'
     +'<div class="table-wrap"><table><thead><tr>'
-    +'<th>Photo</th><th>Statut</th><th>Nom</th><th>Arrivée</th><th>Tél.</th><th>Grade</th>'
-    +'<th>Radio</th><th>Arme</th><th>Disqueuse</th><th>Discord</th><th>Sanctions</th><th>Absence</th><th>Carte ID</th><th>Actions</th>'
+    +'<th>Photo</th><th>Nom</th><th>Arrivée</th><th>Tél.</th><th>Grade</th>'
+    +'<th>Radio</th><th>Arme</th><th>Disqueuse</th><th>Discord</th><th>Sanctions</th><th>Absence</th><th>Disponibilités</th><th>Carte ID</th><th>Actions</th>'
     +'</tr></thead><tbody id="membres-tbody"></tbody></table></div></div>'
 
     +'<div class="section" id="sec-admin-database">'
@@ -1116,8 +1124,9 @@ function renderMembres(list){
       :'<button class="btn btn-sm" onclick="openEditMembre('+m.id+')">Editer</button> <button class="btn btn-sm btn-danger" onclick="deleteMembre('+m.id+')">Suppr.</button>';
     // Build all cells with consistent vertical-align
     function mkTd(html,style){var t=document.createElement('td');if(style)t.setAttribute('style',style);t.innerHTML=html;return t;}
-    tr.appendChild(mkTd(statusHtml));
-    tr.appendChild(mkTd(m.nom,'font-weight:600;color:var(--text);'));
+    var nomCell=mkTd(m.nom,'font-weight:600;color:var(--text);');
+    if(m.pending){nomCell.innerHTML+=' <span class="badge badge-pending" style="font-size:10px;">En attente</span>';}
+    tr.appendChild(nomCell);
     tr.appendChild(mkTd(m.date||'—'));
     tr.appendChild(mkTd(m.tel||'—'));
     tr.appendChild(mkTd('<span class="badge '+gradeColor(m.grade)+'">'+m.grade+'</span>'));
@@ -1127,6 +1136,34 @@ function renderMembres(list){
     tr.appendChild(mkTd(m.discord||'—','font-size:12px;color:var(--text3);'));
     tr.appendChild(mkTd(sancHtml));
     tr.appendChild(mkTd(absHtml));
+    // Dispo cell
+    var dispo=m.dispo||{};
+    var JOURS=['lun','mar','mer','jeu','ven','sam','dim'];
+    var SLOTS=['matin','aprem','soir'];
+    var dispoHtml='';
+    var hasDispo=false;
+    JOURS.forEach(function(j){
+      var slots=SLOTS.filter(function(s){return dispo[s+'-'+j];});
+      if(slots.length)hasDispo=true;
+    });
+    if(hasDispo){
+      dispoHtml='<div style="display:flex;flex-wrap:wrap;gap:2px;max-width:120px;">';
+      JOURS.forEach(function(j){
+        var slots=SLOTS.filter(function(s){return dispo[s+'-'+j];});
+        if(slots.length){
+          var jLabel=j.charAt(0).toUpperCase()+j.slice(1,3);
+          dispoHtml+='<span style="font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(124,58,237,0.15);color:var(--purple3);">'+jLabel+'</span>';
+        }
+      });
+      dispoHtml+='</div>';
+    } else {
+      dispoHtml='<span style="color:var(--text3);font-size:12px;">—</span>';
+    }
+    var tdDispo=document.createElement('td');tdDispo.innerHTML=dispoHtml;
+    var editDispoBtn=document.createElement('button');editDispoBtn.className='btn btn-sm';editDispoBtn.style.cssText='font-size:10px;padding:2px 6px;margin-top:3px;display:block;';editDispoBtn.textContent='Modifier';
+    editDispoBtn.onclick=(function(id){return function(){openDispoModal(id);};})(m.id);
+    tdDispo.appendChild(editDispoBtn);
+    tr.appendChild(tdDispo);
     var tdCi=document.createElement('td');tdCi.appendChild(ciBtn);tr.appendChild(tdCi);
     // Actions buttons — DOM so onclick works
     var tdAct=document.createElement('td');tdAct.style.cssText='white-space:nowrap;';
@@ -1139,11 +1176,10 @@ function renderMembres(list){
     } else {
       var editBtn2=document.createElement('button');editBtn2.className='btn btn-sm';editBtn2.textContent='Editer';editBtn2.style.marginRight='4px';
       editBtn2.onclick=(function(id){return function(){openEditMembre(id);};})(m.id);
-      var mdpBtn=document.createElement('button');mdpBtn.className='btn btn-sm';mdpBtn.textContent='MDP';mdpBtn.style.marginRight='4px';mdpBtn.title='Reset mot de passe';
-      mdpBtn.onclick=(function(id){return function(){openResetMdpMembre(id);};})(m.id);
+
       var delBtn2=document.createElement('button');delBtn2.className='btn btn-sm btn-danger';delBtn2.textContent='Suppr.';
       delBtn2.onclick=(function(id){return function(){deleteMembre(id);};})(m.id);
-      tdAct.appendChild(editBtn2);tdAct.appendChild(mdpBtn);tdAct.appendChild(delBtn2);
+      tdAct.appendChild(editBtn2);tdAct.appendChild(delBtn2);
     }
     tr.appendChild(tdAct);
     tbody.appendChild(tr);
@@ -1417,7 +1453,29 @@ function renderMonCompte(){
     +'<div class="card"><div class="card-title">Mes revenus</div>'
     +'<div style="margin-bottom:12px;"><span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--purple3);">'+rev.categorie+'</span></div>'
     +revHtml
-    +'<p style="font-size:11px;color:var(--text3);margin-top:12px;">Les pourcentages évoluent avec ton grade.</p></div>';
+    +'<p style="font-size:11px;color:var(--text3);margin-top:12px;">Les pourcentages évoluent avec ton grade.</p></div>'
+    +'<div class="card"><div class="card-title">Disponibilités</div>'
+    +'<div id="mc-dispo-content"></div>'
+    +'<button class="btn btn-sm" style="margin-top:10px;" onclick="openDispoModal('+m.id+')">Modifier mes disponibilités</button></div>';
+  // Render dispo table
+  var dispoDiv2=document.getElementById('mc-dispo-content');
+  if(dispoDiv2&&m){
+    var d2=m.dispo||{};
+    var hasAny=Object.keys(d2).some(function(k){return d2[k];});
+    if(!hasAny){dispoDiv2.innerHTML='<p style="color:var(--text3);font-size:13px;">Aucune disponibilité renseignée.</p>';return;}
+    var rows2='<table class="dispo-table" style="width:auto;margin-top:8px;"><thead><tr><th></th>';
+    JOURS_FULL.forEach(function(j){rows2+='<th>'+j+'</th>';});
+    rows2+='</tr></thead><tbody>';
+    SLOTS_KEYS.forEach(function(slot,si){
+      rows2+='<tr><td style="font-size:11px;font-weight:600;color:var(--text3);text-align:left;white-space:nowrap;padding:6px 10px;">'+SLOTS_LABELS[si]+'</td>';
+      JOURS_KEYS.forEach(function(j){
+        rows2+='<td style="text-align:center;">'+(d2[slot+'-'+j]?'<span style="color:var(--success);font-size:14px;">&#10003;</span>':'<span style="color:var(--border);font-size:12px;">&#8212;</span>')+'</td>';
+      });
+      rows2+='</tr>';
+    });
+    rows2+='</tbody></table>';
+    dispoDiv2.innerHTML=rows2;
+  }
 }
 function changeMaPhoto(input){
   if(!input.files[0])return;
@@ -1561,10 +1619,29 @@ function submitRecruit(){
   if(!document.getElementById('r-photo-visage').files[0])errors.push('Photo du visage');
   if(!document.getElementById('r-photo-ci').files[0])errors.push('Carte d\'identité');
   if(errors.length>0){errDiv.style.display='block';errDiv.innerHTML='Champs manquants :<br>• '+errors.join('<br>• ');return;}
-  membres.push({id:Date.now(),nom:nom||'Candidat',pseudo:'',date:document.getElementById('r-date').value,tel:document.getElementById('r-tel').value.trim(),discord:document.getElementById('r-discord').value.trim(),grade:'Recrue',radio:false,arme:document.getElementById('r-arme')&&document.getElementById('r-arme').checked||false,disqueuse:false,absence:false,absenceFin:'',photo:'',carteId:'',pending:true});
-  document.getElementById('recruit-ok').style.display='block';
-  sauvegarder();
-  setTimeout(function(){document.getElementById('recruit-ok').style.display='none';},5000);
+    // Read disponibilités
+  var dispoData={};
+  document.querySelectorAll('.dispo-cb').forEach(function(cb){
+    dispoData[cb.dataset.slot]=cb.checked;
+  });
+  // Read photos async then push
+  function readFileB64(input,cb){
+    if(input&&input.files&&input.files[0]){
+      var r=new FileReader();r.onload=function(e){cb(e.target.result);};r.readAsDataURL(input.files[0]);
+    } else cb('');
+  }
+  var visageInput=document.getElementById('r-photo-visage');
+  var ciInput=document.getElementById('r-photo-ci');
+  readFileB64(visageInput,function(photoB64){
+    readFileB64(ciInput,function(ciB64){
+      membres.push({id:Date.now(),nom:nom||'Candidat',pseudo:'',date:document.getElementById('r-date').value,tel:document.getElementById('r-tel').value.trim(),discord:document.getElementById('r-discord').value.trim(),grade:'Recrue',radio:false,arme:document.getElementById('r-arme')&&document.getElementById('r-arme').checked||false,disqueuse:false,absence:false,absenceFin:'',photo:photoB64,carteId:ciB64,dispo:dispoData,pending:true});
+      sauvegarder();
+      document.getElementById('recruit-ok').style.display='block';
+      setTimeout(function(){document.getElementById('recruit-ok').style.display='none';},5000);
+    });
+  });
+  return;
+
 }
 
 // ============================================================
@@ -1925,6 +2002,22 @@ function renderComptes(){
     var editBtn=document.createElement('button');editBtn.className='btn btn-sm';editBtn.textContent='Editer';editBtn.style.marginRight='4px';
     editBtn.onclick=(function(cid){return function(){openEditCompte(cid);};})(c.id);
     tdAct.appendChild(editBtn);
+    // MDP reset button — only if compte has a linked membre
+    if(c.membreId){
+      var mdpBtn2=document.createElement('button');mdpBtn2.className='btn btn-sm';mdpBtn2.textContent='MDP';mdpBtn2.style.marginRight='4px';mdpBtn2.title='Réinitialiser le mot de passe';
+      mdpBtn2.onclick=(function(cid){
+        return function(){
+          var compte=comptes.find(function(x){return x.id===cid;});
+          if(!compte)return;
+          var newPass=prompt('Nouveau mot de passe pour '+compte.user+' (min. 4 car.) :');
+          if(newPass===null)return;
+          if(newPass.length<4){alert('Trop court.');return;}
+          var idx2=comptes.findIndex(function(x){return x.id===cid;});
+          if(idx2>=0){comptes[idx2].pass=newPass;sauvegarder();alert('Mot de passe modifié.');}
+        };
+      })(c.id);
+      tdAct.appendChild(mdpBtn2);
+    }
     if(!isMe){
       var delBtn=document.createElement('button');delBtn.className='btn btn-sm btn-danger';delBtn.textContent='Suppr.';
       delBtn.onclick=(function(cid){return function(){deleteCompte(cid);};})(c.id);
@@ -3269,6 +3362,94 @@ document.addEventListener('click',function(e){
 });
 
 
+
+function openResetMdpMembre(membreId){
+  var m=membres.find(function(x){return x.id===membreId;});
+  if(!m)return;
+  var c=comptes.find(function(x){return x.membreId===membreId;});
+  if(!c){alert('Aucun compte lie a ce membre.');return;}
+  var newPass=prompt('Nouveau mot de passe pour '+(m.pseudo||m.nom)+' (min. 4 caracteres) :');
+  if(newPass===null)return;
+  if(newPass.length<4){alert('Mot de passe trop court (min. 4 caracteres).');return;}
+  var idx=comptes.findIndex(function(x){return x.id===c.id;});
+  if(idx>=0){comptes[idx].pass=newPass;sauvegarder();alert('Mot de passe modifie.');}
+}
+
+
+// ============================================================
+// DISPONIBILITES
+// ============================================================
+var JOURS_FULL=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+var JOURS_KEYS=['lun','mar','mer','jeu','ven','sam','dim'];
+var SLOTS_LABELS=['Matin','Aprem','Soir'];
+var SLOTS_KEYS=['matin','aprem','soir'];
+
+function openDispoModal(membreId){
+  var m=membres.find(function(x){return x.id===membreId;});
+  if(!m)return;
+  var modal=document.getElementById('modal-dispo');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-dispo';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.maxWidth='520px';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-dispo');};
+    var h3=document.createElement('h3');h3.id='modal-dispo-title';
+    var tableWrap=document.createElement('div');tableWrap.style.overflowX='auto';
+    var tbl=document.createElement('table');tbl.id='dispo-edit-table';tbl.className='dispo-table';
+    tableWrap.appendChild(tbl);
+    var footer=document.createElement('div');footer.className='modal-footer';
+    var cb=document.createElement('button');cb.className='btn';cb.textContent='Annuler';cb.onclick=function(){closeModal('modal-dispo');};
+    var sb=document.createElement('button');sb.className='btn btn-primary';sb.textContent='Enregistrer';sb.onclick=function(){saveDispo(modal.dataset.membreId);};
+    footer.appendChild(cb);footer.appendChild(sb);
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(tableWrap);mb.appendChild(footer);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-dispo');});
+    document.body.appendChild(modal);
+  }
+  modal.dataset.membreId=membreId;
+  document.getElementById('modal-dispo-title').textContent='Disponibilités — '+(m.pseudo||m.nom);
+  renderDispoTable(m.dispo||{});
+  openModal('modal-dispo');
+}
+
+function renderDispoTable(dispo){
+  var tbl=document.getElementById('dispo-edit-table');if(!tbl)return;
+  tbl.innerHTML='';
+  var thead=document.createElement('thead');
+  var hr=document.createElement('tr');
+  var thEmpty=document.createElement('th');hr.appendChild(thEmpty);
+  JOURS_FULL.forEach(function(j){var th=document.createElement('th');th.textContent=j;hr.appendChild(th);});
+  thead.appendChild(hr);tbl.appendChild(thead);
+  var tbody=document.createElement('tbody');
+  SLOTS_KEYS.forEach(function(slot,si){
+    var tr=document.createElement('tr');
+    var td0=document.createElement('td');td0.style.cssText='font-weight:600;color:var(--text3);font-size:11px;text-align:left;white-space:nowrap;';td0.textContent=SLOTS_LABELS[si];tr.appendChild(td0);
+    JOURS_KEYS.forEach(function(jour){
+      var td=document.createElement('td');
+      var lbl=document.createElement('label');
+      var cb=document.createElement('input');cb.type='checkbox';cb.className='dispo-edit-cb';cb.dataset.slot=slot+'-'+jour;
+      cb.checked=!!(dispo[slot+'-'+jour]);cb.style.cssText='accent-color:var(--purple);width:16px;height:16px;cursor:pointer;';
+      lbl.appendChild(cb);td.appendChild(lbl);tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+}
+
+function saveDispo(membreId){
+  var id=parseInt(membreId)||membreId;
+  var idx=membres.findIndex(function(x){return x.id===id;});
+  if(idx<0)return;
+  var newDispo={};
+  document.querySelectorAll('.dispo-edit-cb').forEach(function(cb){
+    newDispo[cb.dataset.slot]=cb.checked;
+  });
+  membres[idx].dispo=newDispo;
+  closeModal('modal-dispo');
+  sauvegarder();
+  renderMembres(membres);
+  renderMonCompte();
+}
+
+
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
@@ -3301,7 +3482,29 @@ function reinitialiser(){if(!confirm('Réinitialiser toutes les données ?'))ret
 
 // INIT
 chargerDonnees();
-document.getElementById('login-modal').classList.remove('show');
+// Auto-login si session sauvegardee
+(function(){
+  try{
+    var sess=localStorage.getItem('s9_session');
+    if(sess){
+      var s=JSON.parse(sess);
+      // Session valide 30 jours
+      if(s&&s.userId&&(Date.now()-s.ts)<30*24*60*60*1000){
+        var c=comptes.find(function(x){return x.id===s.userId;});
+        if(c){
+          currentUser=c;
+          document.getElementById('login-modal').classList.remove('show');
+          // Update ts
+          localStorage.setItem('s9_session',JSON.stringify({userId:c.id,ts:Date.now()}));
+          doLoginSuccess();
+          return;
+        }
+      }
+      localStorage.removeItem('s9_session');
+    }
+  }catch(e){}
+  document.getElementById('login-modal').classList.remove('show');
+})();
 
 </script>
 </body>
