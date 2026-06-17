@@ -3661,7 +3661,7 @@ function renderQuotaSubtabs(){
   var wrap=document.getElementById('mb-quota-subtabs-wrap');
   if(!wrap)return;
   var isCmd=currentUser&&currentUser.role==='commandant';
-
+  var hasArmes=hasRole('armes');
   if(!isCmd&&!hasArmes){wrap.innerHTML='';return;}
   var html='<div class="subtabs" id="mb-quota-subtabs">';
   html+='<button class="subtab active" onclick="showQuotaSubtab(\'mb-quota-subtabs\',\'mbq-saisie\',this)">Mes quotas</button>';
