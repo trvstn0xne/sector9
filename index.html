@@ -3722,13 +3722,15 @@ function applyData(data){
   if(data.todos)todos=data.todos;
   if(data.comptes&&data.comptes.length){
     comptes=data.comptes;
-    // If logged in, refresh currentUser roles from updated comptes
+    // Always sync currentUser from latest Supabase data
     if(currentUser){
       var freshUser=comptes.find(function(c){return c.id===currentUser.id;});
-      if(freshUser&&JSON.stringify(freshUser.roles)!==JSON.stringify(currentUser.roles)){
-        currentUser=freshUser;
-        // Roles changed - rebuild interface
-        setTimeout(function(){buildInterface();},0);
+      if(freshUser){
+        var rolesChanged=JSON.stringify(freshUser.roles)!==JSON.stringify(currentUser.roles);
+        currentUser=freshUser; // Always update
+        if(rolesChanged){
+          setTimeout(function(){buildInterface();renderQuotaSubtabs();},0);
+        }
       }
     }
   }
