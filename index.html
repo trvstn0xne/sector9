@@ -240,6 +240,11 @@ details>summary::-webkit-details-marker{display:none;}
     <span class="brand" onclick="openAccueilModal()" style="cursor:pointer;" title="Accueil">SECTOR 9</span>
     <nav id="topbar-nav"></nav>
     <div class="topbar-right">
+  <button onclick="openOnlinePanel()" style="position:relative;background:rgba(29,158,117,0.12);border:1px solid rgba(29,158,117,0.3);color:var(--success);padding:6px 12px;border-radius:var(--r2);cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">
+    <span style="width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block;"></span>
+    En ligne
+    <span id="online-badge" style="display:none;background:var(--success);color:#000;border-radius:20px;padding:1px 6px;font-size:10px;font-weight:700;align-items:center;"></span>
+  </button>
       <span class="user-tag" id="user-tag"></span>
       <button class="theme-toggle" onclick="toggleTheme()">☀ / ☾</button>
       <button class="logout-btn" onclick="logout()">Déconnexion</button>
@@ -505,22 +510,7 @@ details>summary::-webkit-details-marker{display:none;}
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);">
           <input type="checkbox" id="c-role-armes" style="accent-color:var(--purple);width:15px;height:15px;"/>
           <span>Armes</span>
-          <span style="font-size:11px;color:var(--text3);">— accès à l'onglet Armes</span>
-        </label>
-      </div>
-    </div>
-    <div style="margin-bottom:14px;"><label class="lbl">Membre associé (optionnel)</label>
-      <select class="input" id="c-membre-id"><option value="">— Aucun —</option></select>
-    </div>
-    <div id="c-err" style="font-size:12px;color:var(--danger);min-height:16px;margin-bottom:8px;"></div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('modal-compte')">Annuler</button>
-      <button class="btn btn-primary" onclick="saveCompte()">Enregistrer</button>
-    </div>
-  </div>
-</div>
-
-<script>
+          <span style="font-size:11px;color:var(--text3
 window.addEventListener('error', function(e){
   var d=document.createElement('div');
   d.style.cssText='position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:12px 16px;z-index:9999;font-size:13px;font-family:monospace;';
@@ -681,6 +671,8 @@ function doLoginSuccess(){
 
 function startAutoRefresh(){
   if(refreshInterval)clearInterval(refreshInterval);
+  pingOnline(); // Ping immediately on login
+  setInterval(pingOnline, 60000); // Ping every 60s
   // Poll every 20 seconds — fetch updated_at and compare
   refreshInterval=setInterval(function(){
     if(!currentUser)return;
@@ -709,6 +701,7 @@ function refreshCurrentSection(){
   // Always refresh these regardless of active section
   renderPresencePanel('mb-presence-panel',false);
   renderPresencePanel('admin-presence-panel',true);
+  renderQuotaSubtabs();
   renderBanner();
   // Refresh active section
   if(id==='admin-accueil'||id==='mb-accueil')renderAccueil();
@@ -852,7 +845,6 @@ function showSubtab(groupId,tabId,btn){
   if(target)target.classList.add('active');
   btn.classList.add('active');
   if(tabId==='sub-sanc-membres'){renderSancMembres();populateSancFiltre();}
-  if(tabId==='sub-mb-sanctions')renderMesSanctions();
 }
 
 // ============================================================
@@ -1010,7 +1002,7 @@ function buildMembreHTML(isCmd,isRecruit){
     
     +'</div>'
     +'<div id="sub-mb-profil" class="subtab-content active"><div id="mon-compte-content"></div></div>'
-    +(!isCmd?'<div id="sub-mb-sanctions" class="subtab-content"><div id="mes-sanctions-list"></div></div>':'')
+    
     +'</div>'
     +(isCmd?buildComptaHTML('cmd'):'')
     +(isRecruit?'<div class="section" id="sec-mb-recrutement">'
@@ -3696,6 +3688,101 @@ function showQuotaSubtab2(tabId,btn){
   if(tabId==='mbq-saisie')renderQuotaSaisie('mb-quota-saisie-div');
 }
 
+
+// ============================================================
+// MEMBRES EN LIGNE
+// ============================================================
+function pingOnline(){
+  if(!currentUser)return;
+  var payload={
+    user_id:currentUser.id,
+    user_name:currentUser.user,
+    membre_id:currentUser.membreId||null,
+    role:currentUser.role,
+    last_seen:new Date().toISOString()
+  };
+  fetch(SUPABASE_URL+'/rest/v1/s9_online',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'apikey':SUPABASE_KEY,
+      'Authorization':'Bearer '+SUPABASE_KEY,
+      'Prefer':'resolution=merge-duplicates,return=minimal'
+    },
+    body:JSON.stringify(payload)
+  }).catch(function(){});
+}
+
+function fetchOnlineUsers(callback){
+  // Get users pinged in last 2 minutes
+  var since=new Date(Date.now()-120000).toISOString();
+  fetch(SUPABASE_URL+'/rest/v1/s9_online?last_seen=gte.'+encodeURIComponent(since)+'&select=*',{
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+  })
+  .then(function(r){return r.json();})
+  .then(function(rows){if(callback)callback(rows||[]);})
+  .catch(function(){if(callback)callback([]);});
+}
+
+function openOnlinePanel(){
+  var modal=document.getElementById('modal-online');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-online';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.maxWidth='400px';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-online');};
+    var h3=document.createElement('h3');h3.textContent='Membres en ligne';
+    var sub=document.createElement('div');sub.style.cssText='font-size:12px;color:var(--text3);margin-bottom:16px;';sub.textContent='Actifs dans les 2 dernières minutes';
+    var list=document.createElement('div');list.id='online-list';
+    var footer=document.createElement('div');footer.className='modal-footer';
+    var closeBtn=document.createElement('button');closeBtn.className='btn';closeBtn.textContent='Fermer';closeBtn.onclick=function(){closeModal('modal-online');};
+    footer.appendChild(closeBtn);
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(sub);mb.appendChild(list);mb.appendChild(footer);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-online');});
+    document.body.appendChild(modal);
+  }
+  var list=document.getElementById('online-list');
+  list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px 0;">Chargement...</div>';
+  openModal('modal-online');
+  fetchOnlineUsers(function(rows){
+    if(!rows.length){
+      list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px 0;">Aucun membre en ligne.</div>';
+      return;
+    }
+    list.innerHTML='';
+    rows.sort(function(a,b){return a.role.localeCompare(b.role);}).forEach(function(u){
+      var m=u.membre_id?membres.find(function(x){return x.id===u.membre_id;}):null;
+      var displayName=m?(m.pseudo||m.nom):u.user_name;
+      var grade=m?m.grade:'';
+      var lastSeen=new Date(u.last_seen);
+      var secsAgo=Math.round((Date.now()-lastSeen.getTime())/1000);
+      var timeLabel=secsAgo<60?secsAgo+'s':''+Math.round(secsAgo/60)+'min';
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);';
+      // Green dot
+      var dot=document.createElement('div');dot.style.cssText='width:8px;height:8px;border-radius:50%;background:var(--success);flex-shrink:0;box-shadow:0 0 6px var(--success);';
+      // Avatar
+      var av=document.createElement('div');
+      av.style.cssText='width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--purple3);flex-shrink:0;overflow:hidden;';
+      if(m&&m.photo){var ai=document.createElement('img');ai.src=m.photo;ai.style.cssText='width:100%;height:100%;object-fit:cover;';av.appendChild(ai);}
+      else{av.textContent=displayName.charAt(0).toUpperCase();}
+      var info=document.createElement('div');info.style.flex='1';
+      info.innerHTML='<div style="font-weight:600;font-size:13px;color:var(--text);">'+displayName+'</div>'
+        +(grade?'<span class="badge '+gradeColor(grade)+'">'+grade+'</span>':'<span style="font-size:11px;color:var(--text3);">'+u.role+'</span>');
+      var time=document.createElement('div');time.style.cssText='font-size:11px;color:var(--text3);flex-shrink:0;';time.textContent='il y a '+timeLabel;
+      row.appendChild(dot);row.appendChild(av);row.appendChild(info);row.appendChild(time);
+      list.appendChild(row);
+    });
+    // Badge count update
+    updateOnlineBadge(rows.length);
+  });
+}
+
+function updateOnlineBadge(count){
+  var badge=document.getElementById('online-badge');
+  if(badge){badge.textContent=count;badge.style.display=count>0?'flex':'none';}
+}
+
+
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
@@ -3804,6 +3891,25 @@ chargerDepuisSupabase(function(){
   try{
     var sess=localStorage.getItem('s9_session');
     if(sess){
+      var s=JSON.parse(sess);
+      if(s&&s.userId&&(Date.now()-s.ts)<30*24*60*60*1000){
+        var c=comptes.find(function(x){return x.id===s.userId;});
+        if(c){
+          currentUser=c;
+          localStorage.setItem('s9_session',JSON.stringify({userId:c.id,ts:Date.now()}));
+          doLoginSuccess();
+          return;
+        }
+      }
+      localStorage.removeItem('s9_session');
+    }
+  }catch(e){}
+  // No session found — logo stays, user clicks to login
+  // Mark that data is loaded so click on logo opens login
+  document.getElementById('splash').dataset.ready='1';
+});
+
+   if(sess){
       var s=JSON.parse(sess);
       if(s&&s.userId&&(Date.now()-s.ts)<30*24*60*60*1000){
         var c=comptes.find(function(x){return x.id===s.userId;});
