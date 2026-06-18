@@ -224,7 +224,7 @@ details>summary::-webkit-details-marker{display:none;}
 <div id="login-modal">
   <div class="login-box">
     <h2>SECTOR 9 — ACCÈS</h2>
-    <input type="text" id="login-user" placeholder="Identifiant" autocomplete="off"/>
+    <input type="email" id="login-user" placeholder="Email" autocomplete="email"/>
     <input type="password" id="login-pass" placeholder="Mot de passe"/>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px;font-size:13px;color:var(--text3);padding:0;">
       <input type="checkbox" id="login-remember" style="accent-color:var(--purple);width:15px;height:15px;margin:0;flex-shrink:0;"/>
@@ -490,7 +490,7 @@ details>summary::-webkit-details-marker{display:none;}
   <div class="modal-box" style="max-width:460px;">
     <button class="close-x" onclick="closeModal('modal-compte')">&#x2715;</button>
     <h3 id="modal-compte-title">Ajouter un compte</h3>
-    <div style="margin-bottom:14px;"><label class="lbl">Identifiant</label><input class="input" id="c-user" placeholder="Ex: s9marco" autocomplete="off"/></div>
+    <div style="margin-bottom:14px;"><label class="lbl">Email</label><input class="input" id="c-user" placeholder="Ex: s9marco" autocomplete="off"/></div>
     <div style="margin-bottom:14px;"><label class="lbl">Mot de passe</label><input class="input" type="password" id="c-pass" placeholder="Min. 4 caractères" autocomplete="new-password"/></div>
     <div style="margin-bottom:14px;"><label class="lbl">Rôle</label>
       <select class="input" id="c-role">
@@ -523,6 +523,11 @@ details>summary::-webkit-details-marker{display:none;}
 </div>
 
 <script>
+<script>
+
+<script>
+
+
 window.addEventListener('error', function(e){
   var d=document.createElement('div');
   d.style.cssText='position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:12px 16px;z-index:9999;font-size:13px;font-family:monospace;';
@@ -619,13 +624,7 @@ let database=[
   {id:5004,nom:'SNS',cat:'Armement',souscat:'Arme',valeur:120000,dateMaj:'06/06/26'},
   {id:5005,nom:'2A',cat:'Armement',souscat:'Arme',valeur:420000,dateMaj:'06/06/26'},
 ];
-let comptes=[
-  {id:'admin',user:'admin',pass:'S9admin2024',role:'admin',membreId:null,roles:[]},
-  {id:'bonnie',user:'s9bonnie',pass:'2305',role:'commandant',membreId:2,roles:[]},
-  {id:'clyde',user:'s9clyde',pass:'0523',role:'commandant',membreId:1,roles:[]},
-  {id:'jayden',user:'s9jayden',pass:'0000',role:'membre',membreId:4,roles:['recruteur']},
-  {id:'andrew',user:'s9andrew',pass:'1111',role:'membre',membreId:5,roles:[]},
-];
+let comptes=[];
 let presences={};
 // presences = { eventId: { membreId: 'present'|'incertain'|'absent' } }
 let quotaHistory={};
@@ -651,20 +650,55 @@ function showLogin(){
   document.getElementById('login-modal').classList.add('show');
 }
 function doLogin(){
-  const u=document.getElementById('login-user').value.trim();
-  const p=document.getElementById('login-pass').value;
-  const rememberEl=document.getElementById('login-remember');
-  const remember=rememberEl&&rememberEl.checked;
-  const compte=comptes.find(function(c){return c.user===u&&c.pass===p;});
-  if(compte){
-    currentUser=compte;
-    if(remember){
-      try{localStorage.setItem('s9_session',JSON.stringify({userId:compte.id,ts:Date.now()}));}catch(e){}
+  var email=document.getElementById('login-user').value.trim();
+  var pass=document.getElementById('login-pass').value;
+  var rememberEl=document.getElementById('login-remember');
+  var remember=rememberEl&&rememberEl.checked;
+  var errDiv=document.getElementById('login-err');
+  errDiv.textContent='Connexion...';
+  // Supabase Auth login
+  fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY},
+    body:JSON.stringify({email:email,password:pass})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data.error||!data.access_token){
+      errDiv.textContent='Email ou mot de passe incorrect.';
+      return;
     }
-    doLoginSuccess();
-  } else {
-    document.getElementById('login-err').textContent='Identifiant ou mot de passe incorrect.';
-  }
+    // Get profile from s9_profiles
+    fetch(SUPABASE_URL+'/rest/v1/s9_profiles?id=eq.'+data.user.id+'&select=*',{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+data.access_token}
+    })
+    .then(function(r2){return r2.json();})
+    .then(function(profiles){
+      if(!profiles||!profiles[0]){errDiv.textContent='Profil introuvable.';return;}
+      var profile=profiles[0];
+      currentUser={
+        id:data.user.id,
+        user:profile.user_name,
+        email:email,
+        role:profile.role,
+        roles:profile.roles||[],
+        membreId:profile.membre_id,
+        accessToken:data.access_token,
+        refreshToken:data.refresh_token
+      };
+      if(remember){
+        try{localStorage.setItem('s9_session',JSON.stringify({
+          userId:data.user.id,
+          accessToken:data.access_token,
+          refreshToken:data.refresh_token,
+          ts:Date.now()
+        }));}catch(e){}
+      }
+      errDiv.textContent='';
+      doLoginSuccess();
+    });
+  })
+  .catch(function(){errDiv.textContent='Erreur de connexion.';});
 }
 var refreshInterval=null;
 var lastUpdatedAt=null;
@@ -729,6 +763,13 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&document.getElementById('login-modal').classList.contains('show'))doLogin();
 });
 function logout(){
+  // Sign out from Supabase
+  if(currentUser&&currentUser.accessToken){
+    fetch(SUPABASE_URL+'/auth/v1/logout',{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+currentUser.accessToken}
+    }).catch(function(){});
+  }
   currentUser=null;
   if(refreshInterval){clearInterval(refreshInterval);refreshInterval=null;}
   try{localStorage.removeItem('s9_session');}catch(e){}
@@ -3864,17 +3905,23 @@ function applyData(data){
   if(data.todos)todos=data.todos;
   if(data.comptes&&data.comptes.length){
     comptes=data.comptes;
-    // Always sync currentUser from latest Supabase data
-    if(currentUser){
-      var freshUser=comptes.find(function(c){return c.id===currentUser.id;});
-      if(freshUser){
-        var rolesChanged=JSON.stringify(freshUser.roles)!==JSON.stringify(currentUser.roles);
-        currentUser=freshUser; // Always update
-        if(rolesChanged){
-          setTimeout(function(){buildInterface();renderQuotaSubtabs();},0);
-        }
+  }
+  // Sync currentUser roles from s9_profiles
+  if(currentUser&&currentUser.id){
+    fetch(SUPABASE_URL+'/rest/v1/s9_profiles?id=eq.'+currentUser.id+'&select=roles,role,membre_id',{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+(currentUser.accessToken||SUPABASE_KEY)}
+    })
+    .then(function(r){return r.json();})
+    .then(function(profiles){
+      if(profiles&&profiles[0]){
+        var p=profiles[0];
+        var rolesChanged=JSON.stringify(p.roles)!==JSON.stringify(currentUser.roles);
+        currentUser.roles=p.roles||[];
+        currentUser.role=p.role||currentUser.role;
+        currentUser.membreId=p.membre_id||currentUser.membreId;
+        if(rolesChanged)setTimeout(function(){buildInterface();renderQuotaSubtabs();},0);
       }
-    }
+    }).catch(function(){});
   }
   if(data.database&&data.database.length)database=data.database;
   if(data.bannerText!==undefined)bannerText=data.bannerText;
@@ -3930,22 +3977,45 @@ chargerDepuisSupabase(function(){
     var sess=localStorage.getItem('s9_session');
     if(sess){
       var s=JSON.parse(sess);
-      if(s&&s.userId&&(Date.now()-s.ts)<30*24*60*60*1000){
-        var c=comptes.find(function(x){return x.id===s.userId;});
-        if(c){
-          currentUser=c;
-          localStorage.setItem('s9_session',JSON.stringify({userId:c.id,ts:Date.now()}));
-          doLoginSuccess();
-          return;
-        }
+      if(s&&s.userId&&s.accessToken&&(Date.now()-s.ts)<30*24*60*60*1000){
+        // Verify token still valid by fetching profile
+        fetch(SUPABASE_URL+'/rest/v1/s9_profiles?id=eq.'+s.userId+'&select=*',{
+          headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+s.accessToken}
+        })
+        .then(function(r){return r.json();})
+        .then(function(profiles){
+          if(profiles&&profiles[0]){
+            var profile=profiles[0];
+            currentUser={
+              id:s.userId,
+              user:profile.user_name,
+              email:profile.email,
+              role:profile.role,
+              roles:profile.roles||[],
+              membreId:profile.membre_id,
+              accessToken:s.accessToken,
+              refreshToken:s.refresh_token
+            };
+            localStorage.setItem('s9_session',JSON.stringify({userId:s.userId,accessToken:s.accessToken,refreshToken:s.refresh_token,ts:Date.now()}));
+            doLoginSuccess();
+          } else {
+            localStorage.removeItem('s9_session');
+            document.getElementById('splash').dataset.ready='1';
+          }
+        })
+        .catch(function(){
+          localStorage.removeItem('s9_session');
+          document.getElementById('splash').dataset.ready='1';
+        });
+        return;
       }
       localStorage.removeItem('s9_session');
     }
   }catch(e){}
-  // No session found — logo stays, user clicks to login
-  // Mark that data is loaded so click on logo opens login
   document.getElementById('splash').dataset.ready='1';
 });
+
+
 
 
 
