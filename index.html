@@ -2117,6 +2117,16 @@ function renderComptes(){
   })
   .catch(function(){div.innerHTML='<p style="color:var(--danger);">Erreur de chargement.</p>';});
 }
+function populateMembreSelect(selectedId){
+  var sel=document.getElementById('c-membre-id');if(!sel)return;
+  sel.innerHTML='<option value="">— Aucun —</option>';
+  membres.filter(function(m){return !m.pending;}).forEach(function(m){
+    var opt=document.createElement('option');opt.value=m.id;
+    opt.textContent=(m.pseudo||m.nom)+' ('+m.grade+')';
+    if(m.id===selectedId)opt.selected=true;
+    sel.appendChild(opt);
+  });
+}
 function openAddCompte(){
   compteEditId=null;
   document.getElementById('modal-compte-title').textContent='Ajouter un compte';
@@ -2217,6 +2227,1832 @@ function deleteCompte(id){
   .then(function(){renderComptes();sauvegarder();})
   .catch(function(e){alert('Erreur: '+e.message);});
 }
+
+
+// ============================================================
+// PRÉSENCES
+// ============================================================
+function getNextEvent(){
+  var now=new Date().toISOString().split('T')[0];
+  var future=events.filter(function(e){
+    return e.date>=now&&(e.categorie==='reunion'||!e.categorie);
+  }).sort(function(a,b){return a.date.localeCompare(b.date)||a.heure.localeCompare(b.heure);});
+  return future[0]||null;
+}
+
+function renderPresencePanel(panelId, readOnly){
+  var panel=document.getElementById(panelId);
+  if(!panel)return;
+  var nextEv=getNextEvent();
+  if(!nextEv){
+    panel.innerHTML='<div class="card" style="border-color:rgba(124,58,237,0.2);text-align:center;padding:20px;">'
+      +'<div style="font-size:13px;color:var(--text3);">📅 Aucune réunion planifiée</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-top:6px;">Créez un événement dans le calendrier</div>'
+      +'</div>';
+    return;
+  }
+
+  var evPresences=presences[nextEv.id]||{};
+  var MONTHS_SHORT=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  var dp=nextEv.date.split('-');
+  var dateLabel=dp[2]+' '+MONTHS_SHORT[parseInt(dp[1])-1];
+
+  var card=document.createElement('div');
+  card.className='card';
+  card.style.cssText='border-color:rgba(124,58,237,0.3);position:sticky;top:80px;';
+
+  var title=document.createElement('div');
+  title.className='card-title';title.style.marginBottom='4px';
+  title.textContent='Présences — prochaine réunion';
+  card.appendChild(title);
+
+  var sub=document.createElement('div');
+  sub.style.cssText='font-size:13px;color:var(--text2);margin-bottom:16px;font-weight:600;';
+  sub.textContent=nextEv.titre+' — '+dateLabel+' à '+nextEv.heure;
+  card.appendChild(sub);
+
+  var isAdmin=currentUser&&currentUser.role==='admin';
+
+  // Boutons de vote — membres et commandants seulement
+  if(!isAdmin&&currentUser&&currentUser.membreId){
+    var myVote=evPresences[currentUser.membreId]||'';
+    var btnWrap=document.createElement('div');
+    btnWrap.style.cssText='display:flex;flex-direction:column;gap:8px;margin-bottom:20px;';
+    var votes=[
+      {key:'present',label:'✅ Présent',cls:'selected-present'},
+      {key:'incertain',label:'⏳ En retard / Pas sûr',cls:'selected-incertain'},
+      {key:'absent',label:'❌ Absent',cls:'selected-absent'}
+    ];
+    votes.forEach(function(v){
+      var btn=document.createElement('button');
+      btn.className='presence-btn'+(myVote===v.key?' '+v.cls:'');
+      btn.textContent=v.label;
+      btn.style.width='100%';btn.style.justifyContent='flex-start';
+      btn.onclick=(function(eid,choice,bw){
+        return function(){
+          bw.querySelectorAll('.presence-btn').forEach(function(b){b.className='presence-btn';});
+          this.className='presence-btn '+choice.cls;
+          vote(eid,choice.key);
+        };
+      })(nextEv.id,v,btnWrap);
+      btnWrap.appendChild(btn);
+    });
+    card.appendChild(btnWrap);
+  }
+
+  // Compteurs uniquement (pour tout le monde)
+  var membersList=membres.filter(function(m){return !m.pending;});
+  var present=0,incertain=0,absent=0;
+  membersList.forEach(function(m){
+    var v=evPresences[m.id];
+    if(v==='present')present++;
+    else if(v==='incertain')incertain++;
+    else if(v==='absent')absent++;
+  });
+  var total=membersList.length;
+  var voted=present+incertain+absent;
+
+  var counters=document.createElement('div');
+  counters.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;';
+  counters.innerHTML=
+    '<span style="padding:4px 12px;border-radius:20px;background:rgba(29,158,117,0.12);color:var(--success);font-size:13px;font-weight:600;">✅ '+present+'</span>'
+    +'<span style="padding:4px 12px;border-radius:20px;background:rgba(239,159,39,0.12);color:var(--warning);font-size:13px;font-weight:600;">⏳ '+incertain+'</span>'
+    +'<span style="padding:4px 12px;border-radius:20px;background:rgba(226,75,74,0.12);color:var(--danger);font-size:13px;font-weight:600;">❌ '+absent+'</span>';
+  card.appendChild(counters);
+
+  var footer=document.createElement('div');
+  footer.style.cssText='padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--text3);text-align:right;';
+  footer.innerHTML='<span style="color:'+(voted===total?'var(--success)':'var(--text2)')+';">'+voted+' / '+total+'</span> ont répondu';
+  card.appendChild(footer);
+
+  panel.innerHTML='';panel.appendChild(card);
+}
+
+
+function vote(eventId, choice){
+  if(!currentUser||!currentUser.membreId)return;
+  if(!presences[eventId])presences[eventId]={};
+  presences[eventId][currentUser.membreId]=choice;
+  sauvegarder();
+  // Re-render both panels
+  renderPresencePanel('mb-presence-panel', false);
+  renderPresencePanel('admin-presence-panel', true);
+}
+
+
+// ============================================================
+// SYSTÈME DE QUOTAS JOURNALIERS
+// ============================================================
+
+// quotaHistory = { 'YYYY-MM-DD': { membreId: { containers: N, recel: [{itemId, qte, valeur}], speedos: [{itemId, qte}] } } }
+
+function getTodayStr(){
+  return new Date().toISOString().split('T')[0];
+}
+
+function getMyTodayData(){
+  if(!currentUser||!currentUser.membreId)return null;
+  var selEl=document.getElementById('quota-date-sel');
+  var today=selEl&&selEl.value?selEl.value:getTodayStr();
+  if(!quotaHistory[today])quotaHistory[today]={};
+  if(!quotaHistory[today][currentUser.membreId])quotaHistory[today][currentUser.membreId]={containers:0,recel:[],speedos:[]};
+  return quotaHistory[today][currentUser.membreId];
+}
+
+function cleanOldHistory(){
+  var cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);
+  var cutoffStr=cutoff.toISOString().split('T')[0];
+  Object.keys(quotaHistory).forEach(function(d){if(d<cutoffStr)delete quotaHistory[d];});
+}
+
+function canSubmitQuota(){
+  if(!currentUser||!currentUser.membreId)return false;
+  var today=getTodayStr();
+  return !(quotaHistory[today]&&quotaHistory[today][currentUser.membreId]&&quotaHistory[today][currentUser.membreId].submitted);
+}
+
+// ============================================================
+// RENDER QUOTA SAISIE (membre/commandant)
+// ============================================================
+function renderQuotaSaisie(divId,forceDate){
+  var div=document.getElementById(divId);if(!div)return;
+  var today=forceDate||getTodayStr();
+  var isCmd=currentUser&&currentUser.role==='commandant';
+  var isAdmin=currentUser&&currentUser.role==='admin';
+  var data=(quotaHistory[today]&&quotaHistory[today][currentUser.membreId])||{};
+  var submitted=data&&data.submitted;
+
+  // Items de recel
+  var recelItems=database.filter(function(x){return x.cat==='Recel'||x.cat==='Drogue'||x.cat==='Autre';});
+  var speedoItems=database.filter(function(x){return x.cat==='Recolte';});
+
+  var wrap=document.createElement('div');
+
+  // Date selector at top
+  var dateBar=document.createElement('div');dateBar.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;';
+  var dateLbl=document.createElement('label');dateLbl.style.cssText='font-size:12px;color:var(--text3);font-weight:600;';dateLbl.textContent='Date :';
+  var dateInp=document.createElement('input');dateInp.type='date';dateInp.className='input';dateInp.id='quota-date-sel';
+  dateInp.style.cssText='width:160px;';dateInp.max=getTodayStr();dateInp.value=today;
+  var dateBtn=document.createElement('button');dateBtn.className='btn btn-sm';dateBtn.textContent='Charger';
+  dateBtn.onclick=(function(d){return function(){renderQuotaSaisie(d,document.getElementById('quota-date-sel').value);};})(divId);
+  if(today!==getTodayStr()){
+    var dateBadge=document.createElement('span');dateBadge.style.cssText='font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(239,159,39,0.15);color:var(--warning);';
+    dateBadge.textContent='Saisie retro : '+fmtDate(today);dateBar.appendChild(dateBadge);
+  }
+  dateBar.appendChild(dateLbl);dateBar.appendChild(dateInp);dateBar.appendChild(dateBtn);
+  wrap.appendChild(dateBar);
+
+  // Header date
+  var hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;';
+  var dateEl=document.createElement('div');
+  dateEl.style.cssText='font-size:13px;color:var(--text3);';
+  var d=new Date();
+  dateEl.textContent='Journée du '+d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();
+  hdr.appendChild(dateEl);
+  if(submitted){
+    var badge=document.createElement('span');
+    badge.style.cssText='padding:4px 12px;border-radius:20px;background:rgba(29,158,117,0.15);color:var(--success);font-size:12px;font-weight:600;';
+    badge.textContent='✓ Soumis aujourd\'hui';
+    hdr.appendChild(badge);
+    var editBtn=document.createElement('button');
+    editBtn.className='btn btn-sm';
+    editBtn.textContent='✏️ Modifier';
+    editBtn.onclick=function(){
+      var today=getTodayStr();
+      if(quotaHistory[today]&&quotaHistory[today][currentUser.membreId]){
+        quotaHistory[today][currentUser.membreId].submitted=false;
+      }
+      renderQuotaSaisie(divId);
+    };
+    hdr.appendChild(editBtn);
+  }
+  wrap.appendChild(hdr);
+
+  if(submitted){
+    renderQuotaReadonly(wrap, data, recelItems, speedoItems, isAdmin||isCmd);
+  } else {
+    // Mode saisie
+    renderQuotaForm(wrap, data, recelItems, speedoItems, divId, isAdmin||isCmd);
+  }
+
+  div.innerHTML='';div.appendChild(wrap);
+}
+
+function renderQuotaReadonly(wrap, data, recelItems, speedoItems, showValues){
+  // Containers
+  var cCard=makeQuotaCard('📦','Containers');
+  var cVal=document.createElement('div');
+  cVal.style.cssText='font-size:14px;font-weight:600;';
+  cVal.innerHTML=data.containers?'<span style="color:var(--success);">✅ Containers effectués</span>':'<span style="color:var(--danger);">❌ Non effectués</span>';
+  cCard.appendChild(cVal);wrap.appendChild(cCard);
+
+  // Recel
+  if(data.recel&&data.recel.length){
+    var rCard=makeQuotaCard('💰','Recel');
+    var totalVal=0;
+    data.recel.forEach(function(r){
+      var item=database.find(function(x){return x.id===r.itemId;});
+      if(!item)return;
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;';
+      var left=document.createElement('span');left.style.color='var(--text2)';left.textContent=item.nom+' × '+r.qte;
+      row.appendChild(left);
+      if(showValues){
+        var right=document.createElement('span');right.style.cssText='color:var(--purple2);font-weight:600;';
+        var val=item.valeur*r.qte;totalVal+=val;
+        right.textContent=val.toLocaleString('fr-FR')+' $';
+        row.appendChild(right);
+      } else {
+        totalVal+=item.valeur*r.qte;
+      }
+      rCard.appendChild(row);
+    });
+    if(showValues){
+      var total=document.createElement('div');
+      total.style.cssText='margin-top:10px;padding-top:8px;border-top:1px solid var(--border2);display:flex;justify-content:space-between;font-weight:700;font-size:14px;';
+      total.innerHTML='<span style="color:var(--text);">Total recel</span><span style="color:var(--success);">'+totalVal.toLocaleString('fr-FR')+' $</span>';
+      rCard.appendChild(total);
+    }
+    wrap.appendChild(rCard);
+  }
+
+  // Speedos
+  if(data.speedos&&data.speedos.length){
+    var sCard=makeQuotaCard('🧪','Récolte (Speedos)');
+    var totalSpeedoVal=0;
+    data.speedos.forEach(function(s){
+      var item=database.find(function(x){return x.id===s.itemId;});
+      if(!item)return;
+      var val=item.valeur*s.qte;totalSpeedoVal+=val;
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;';
+      var left=document.createElement('span');left.style.color='var(--text2)';left.textContent=item.nom+' × '+s.qte;
+      row.appendChild(left);
+      if(showValues){
+        var right=document.createElement('span');right.style.cssText='color:var(--purple2);font-weight:600;';
+        right.textContent=val.toLocaleString('fr-FR')+' $';
+        row.appendChild(right);
+      }
+      sCard.appendChild(row);
+    });
+    if(showValues&&totalSpeedoVal>0){
+      var sTotal=document.createElement('div');
+      sTotal.style.cssText='margin-top:10px;padding-top:8px;border-top:1px solid var(--border2);display:flex;justify-content:space-between;font-weight:700;font-size:14px;';
+      sTotal.innerHTML='<span style="color:var(--text);">Total speedos</span><span style="color:var(--success);">'+totalSpeedoVal.toLocaleString('fr-FR')+' $</span>';
+      sCard.appendChild(sTotal);
+    }
+    wrap.appendChild(sCard);
+  }
+}
+
+function renderQuotaForm(wrap, data, recelItems, speedoItems, divId, showPrices){
+  data=data||{};  // Ensure data is never null
+  // ── CONTAINERS ──
+  var cCard=makeQuotaCard('📦','Containers');
+  var cRow=document.createElement('div');cRow.style.cssText='display:flex;align-items:center;gap:12px;padding:8px 0;';
+  var cCheck=document.createElement('input');
+  cCheck.type='checkbox';cCheck.id='qf-containers';
+  cCheck.style.cssText='width:20px;height:20px;cursor:pointer;accent-color:var(--purple);flex-shrink:0;';
+  cCheck.checked=!!(data.containers);
+  var cLabel=document.createElement('label');cLabel.htmlFor='qf-containers';
+  cLabel.style.cssText='font-size:14px;color:var(--text2);cursor:pointer;font-weight:500;';
+  cLabel.textContent='J\'ai fait mes containers aujourd\'hui';
+  cRow.appendChild(cCheck);cRow.appendChild(cLabel);cCard.appendChild(cRow);
+  wrap.appendChild(cCard);
+
+  // ── RECEL ──
+  var rCard=makeQuotaCard('💰','Recel');
+
+  // Group by category
+  var recelCats={};
+  recelItems.forEach(function(item){
+    var cat=item.souscat||item.cat;
+    if(!recelCats[cat])recelCats[cat]=[];
+    recelCats[cat].push(item);
+  });
+
+  Object.keys(recelCats).forEach(function(cat){
+    // Check if category has any non-zero values (for default open state)
+    var catItems=recelCats[cat];
+    var hasValues=catItems.some(function(item){
+      var ex=(data.recel||[]).find(function(r){return r.itemId===item.id;});
+      return ex&&ex.qte>0;
+    });
+
+    // Collapsible category header
+    var catWrap=document.createElement('div');
+    catWrap.style.cssText='margin-bottom:6px;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;';
+
+    var catHdr=document.createElement('div');
+    catHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);cursor:pointer;user-select:none;';
+    var catName=document.createElement('span');
+    catName.style.cssText='font-size:12px;font-weight:700;color:var(--purple3);text-transform:uppercase;letter-spacing:0.5px;';
+    catName.textContent=cat;
+    var catArrow=document.createElement('span');
+    catArrow.style.cssText='font-size:11px;color:var(--text3);transition:transform 0.2s;';
+    catArrow.textContent='▾';
+    catHdr.appendChild(catName);catHdr.appendChild(catArrow);
+
+    var catBody=document.createElement('div');
+    catBody.style.cssText='padding:8px 14px;'+(hasValues?'':'display:none;');
+    if(hasValues)catArrow.style.transform='rotate(0deg)';
+    else catArrow.style.transform='rotate(-90deg)';
+
+    catHdr.onclick=function(){
+      var isOpen=catBody.style.display!=='none';
+      catBody.style.display=isOpen?'none':'block';
+      catArrow.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
+    };
+
+    catItems.forEach(function(item){
+      var existing=(data.recel||[]).find(function(r){return r.itemId===item.id;});
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);';
+      row.style.borderBottom='1px solid rgba(120,80,220,0.08)';
+      var lbl=document.createElement('span');
+      lbl.style.cssText='flex:1;font-size:13px;color:var(--text2);';
+      lbl.textContent=item.nom;
+      var qteWrap=document.createElement('div');
+      qteWrap.style.cssText='display:flex;align-items:center;gap:6px;';
+      var minusBtn=document.createElement('button');
+      minusBtn.type='button';
+      minusBtn.style.cssText='width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+      minusBtn.textContent='-';
+      var qteInput=document.createElement('input');
+      qteInput.type='number';qteInput.min='0';qteInput.max='999';
+      qteInput.style.cssText='width:52px;text-align:center;padding:4px;font-size:13px;';
+      qteInput.className='input qf-recel-inp';
+      qteInput.dataset.itemId=item.id;
+      qteInput.value=existing?existing.qte:0;
+      var plusBtn=document.createElement('button');
+      plusBtn.type='button';
+      plusBtn.style.cssText='width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+      plusBtn.textContent='+';
+      minusBtn.onclick=function(){var v=parseInt(qteInput.value)||0;if(v>0)qteInput.value=v-1;};
+      plusBtn.onclick=function(){qteInput.value=(parseInt(qteInput.value)||0)+1;};
+      qteWrap.appendChild(minusBtn);qteWrap.appendChild(qteInput);qteWrap.appendChild(plusBtn);
+      row.appendChild(lbl);row.appendChild(qteWrap);
+      catBody.appendChild(row);
+    });
+
+    catWrap.appendChild(catHdr);catWrap.appendChild(catBody);
+    rCard.appendChild(catWrap);
+  });
+  wrap.appendChild(rCard);
+
+  // ── SPEEDOS ──
+  var sCard=makeQuotaCard('🧪','Récolte (Speedos)');
+  var speedoTotalEl=document.createElement('div');
+  speedoTotalEl.id='speedo-total-display';
+  speedoTotalEl.style.cssText='font-size:13px;color:var(--purple2);font-weight:600;margin-bottom:10px;';
+
+  function updateSpeedoTotal(){
+    var total=0;
+    document.querySelectorAll('.qf-speedo').forEach(function(inp){
+      var item=database.find(function(x){return x.id===parseInt(inp.dataset.itemId);});
+      if(item)total+=( parseInt(inp.value)||0)*item.valeur;
+    });
+    if(showPrices)speedoTotalEl.textContent=total>0?'Total : '+total.toLocaleString('fr-FR')+' $':''; else speedoTotalEl.textContent='';
+  }
+
+  speedoItems.forEach(function(item){
+    var existing=(data.speedos||[]).find(function(s){return s.itemId===item.id;});
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);';
+    var lbl=document.createElement('span');lbl.style.cssText='flex:1;font-size:13px;color:var(--text2);';lbl.textContent=item.nom;
+    var priceEl=document.createElement('span');priceEl.style.cssText='font-size:11px;color:var(--text3);white-space:nowrap;';
+    if(showPrices)priceEl.textContent=item.valeur.toLocaleString('fr-FR')+' $/u';
+    var qteInput=document.createElement('input');
+    qteInput.type='number';qteInput.min='0';qteInput.max='100';
+    qteInput.style.cssText='width:70px;text-align:center;';
+    qteInput.value=existing?existing.qte:0;
+    qteInput.dataset.itemId=item.id;qteInput.className='input qf-speedo';
+    qteInput.oninput=updateSpeedoTotal;
+    row.appendChild(lbl);row.appendChild(priceEl);row.appendChild(qteInput);
+    sCard.appendChild(row);
+  });
+  sCard.appendChild(speedoTotalEl);
+  updateSpeedoTotal();
+  wrap.appendChild(sCard);
+
+  // ── SUBMIT ──
+  var submitBtn=document.createElement('button');
+  submitBtn.className='btn btn-primary';
+  submitBtn.style.cssText='width:100%;margin-top:20px;justify-content:center;font-size:14px;padding:12px;';
+  submitBtn.textContent='✓ Valider ma journée';
+  submitBtn.onclick=function(){submitQuotaDay(divId,data,recelItems,speedoItems);};
+  wrap.appendChild(submitBtn);
+}
+
+function renderRecelRows(container, rows, recelItems){
+  container.innerHTML='';
+  rows.forEach(function(r,i){
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    var sel=document.createElement('select');sel.className='input';sel.style.flex='1';
+    recelItems.forEach(function(item){
+      var opt=document.createElement('option');opt.value=item.id;opt.textContent=item.nom+' ('+item.souscat+')';
+      if(item.id===r.itemId)opt.selected=true;
+      sel.appendChild(opt);
+    });
+    sel.onchange=function(){rows[i].itemId=parseInt(this.value);};
+    var qteInput=document.createElement('input');
+    qteInput.type='number';qteInput.min='1';qteInput.className='input';
+    qteInput.style.width='70px';qteInput.style.textAlign='center';
+    qteInput.value=r.qte||1;
+    qteInput.oninput=function(){rows[i].qte=parseInt(this.value)||1;};
+    var delBtn=document.createElement('button');
+    delBtn.style.cssText='background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;flex-shrink:0;';
+    delBtn.innerHTML='&#x2715;';
+    delBtn.onclick=(function(idx){return function(){rows.splice(idx,1);renderRecelRows(container,rows,recelItems);};})(i);
+    row.appendChild(sel);row.appendChild(qteInput);row.appendChild(delBtn);
+    container.appendChild(row);
+  });
+}
+
+function submitQuotaDay(divId, data, recelItems, speedoItems){
+  var selEl=document.getElementById('quota-date-sel');
+  var today=selEl&&selEl.value?selEl.value:getTodayStr();
+  if(!quotaHistory[today])quotaHistory[today]={};
+
+  // Read containers
+  var cInput=document.getElementById('qf-containers');
+  var containers=cInput?( cInput.checked?1:0):0;
+
+  // Read speedos
+  var speedos=[];
+  document.querySelectorAll('.qf-speedo').forEach(function(inp){
+    var qte=parseInt(inp.value)||0;
+    if(qte>0)speedos.push({itemId:parseInt(inp.dataset.itemId),qte:qte});
+  });
+
+  // Read recel from new inputs
+  var recel=[];
+  document.querySelectorAll('.qf-recel-inp').forEach(function(inp){
+    var qte=parseInt(inp.value)||0;
+    if(qte>0)recel.push({itemId:parseInt(inp.dataset.itemId),qte:qte});
+  });
+
+  quotaHistory[today][currentUser.membreId]={
+    containers:containers,
+    recel:recel,
+    speedos:speedos,
+    submitted:true,
+    ts:Date.now()
+  };
+
+  cleanOldHistory();
+  sauvegarder();
+
+  // Re-render
+  renderQuotaSaisie(divId);
+}
+
+function makeQuotaCard(icon, titre){
+  var card=document.createElement('div');
+  card.className='card';card.style.marginBottom='16px';
+  var h=document.createElement('div');h.className='card-title';
+  h.textContent=icon+' '+titre;
+  card.appendChild(h);
+  return card;
+}
+
+// ============================================================
+// RENDER RECAP ADMIN/COMMANDANT
+// ============================================================
+function renderQuotaRecap(divId, showValues){
+  var div=document.getElementById(divId);if(!div)return;
+  var today=getTodayStr();
+  var todayData=quotaHistory[today]||{};
+  var membersList=membres.filter(function(m){return !m.pending;});
+
+  var wrap=document.createElement('div');
+
+  // Date selector
+  var dates=Object.keys(quotaHistory).sort().reverse().slice(0,30);
+  var selWrap=document.createElement('div');selWrap.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:20px;';
+  var selLabel=document.createElement('label');selLabel.style.cssText='font-size:13px;color:var(--text3);';selLabel.textContent='Journée :';
+  var dateSel=document.createElement('select');dateSel.className='input';dateSel.style.maxWidth='180px';
+  if(!dates.length){
+    var opt=document.createElement('option');opt.textContent='Aucune donnée';dateSel.appendChild(opt);
+  } else {
+    dates.forEach(function(d){
+      var opt=document.createElement('option');opt.value=d;opt.textContent=d;
+      if(d===today)opt.selected=true;
+      dateSel.appendChild(opt);
+    });
+  }
+  dateSel.onchange=function(){
+    renderQuotaRecapForDate(tableWrap, this.value, membersList, showValues);
+  };
+  selWrap.appendChild(selLabel);selWrap.appendChild(dateSel);
+  wrap.appendChild(selWrap);
+
+  var tableWrap=document.createElement('div');
+  wrap.appendChild(tableWrap);
+  renderQuotaRecapForDate(tableWrap, today, membersList, showValues);
+
+  div.innerHTML='';div.appendChild(wrap);
+}
+
+function renderQuotaRecapForDate(container, dateStr, membersList, showValues){
+  var dayData=quotaHistory[dateStr]||{};
+  container.innerHTML='';
+
+  if(!membersList.length){
+    container.innerHTML='<p style="color:var(--text3);font-size:13px;">Aucun membre.</p>';return;
+  }
+
+  membersList.forEach(function(m){
+    var mData=dayData[m.id];
+    var card=document.createElement('div');
+    card.className='card';card.style.marginBottom='12px';
+
+    // Header membre
+    var hdr=document.createElement('div');
+    hdr.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:12px;';
+    var nameEl=document.createElement('div');nameEl.style.cssText='font-weight:700;font-size:14px;color:var(--text);flex:1;';
+    nameEl.textContent=(m.pseudo||m.nom)+' — '+m.grade;
+    var statusBadge=document.createElement('span');
+    statusBadge.style.cssText='padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;'+(mData&&mData.submitted?'background:rgba(29,158,117,0.12);color:var(--success);':'background:var(--bg3);color:var(--text3);');
+    statusBadge.textContent=mData&&mData.submitted?'✓ Soumis':'Non soumis';
+    hdr.appendChild(nameEl);hdr.appendChild(statusBadge);
+    card.appendChild(hdr);
+
+    if(!mData||!mData.submitted){
+      var empty=document.createElement('p');empty.style.cssText='font-size:12px;color:var(--text3);';empty.textContent='Aucune donnée pour cette journée.';
+      card.appendChild(empty);
+    } else {
+      var grid=document.createElement('div');
+      grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;';
+
+      // Containers
+      var cBox=document.createElement('div');
+      cBox.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:10px 14px;';
+      cBox.innerHTML='<div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:6px;">📦 Containers</div>'
+        +(mData.containers?'<span style="color:var(--success);font-size:13px;font-weight:600;">✅ Effectués</span>':'<span style="color:var(--danger);font-size:13px;font-weight:600;">❌ Non effectués</span>');
+      grid.appendChild(cBox);
+
+      // Recel
+      if(mData.recel&&mData.recel.length){
+        var totalRecel=0;
+        var recelHtml='<div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:6px;">💰 Recel</div>';
+        mData.recel.forEach(function(r){
+          var item=database.find(function(x){return x.id===r.itemId;});
+          if(!item)return;
+          var val=item.valeur*r.qte;totalRecel+=val;
+          recelHtml+='<div style="font-size:12px;color:var(--text2);display:flex;justify-content:space-between;padding:2px 0;">'
+            +'<span>'+item.nom+' ×'+r.qte+'</span>'
+            +(showValues?'<span style="color:var(--purple2);font-weight:600;">'+val.toLocaleString('fr-FR')+' $</span>':'')
+            +'</div>';
+        });
+        if(showValues){
+          recelHtml+='<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-weight:700;font-size:13px;display:flex;justify-content:space-between;">'
+            +'<span>Total</span><span style="color:var(--success);">'+totalRecel.toLocaleString('fr-FR')+' $</span></div>';
+        }
+        var rBox=document.createElement('div');
+        rBox.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:10px 14px;grid-column:span 2;';
+        rBox.innerHTML=recelHtml;grid.appendChild(rBox);
+      }
+
+      // Speedos
+      if(mData.speedos&&mData.speedos.length){
+        var totalSpeedosVal=0;
+        var speedoHtml='<div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:600;margin-bottom:6px;">🧪 Speedos</div>';
+        mData.speedos.forEach(function(s){
+          var item=database.find(function(x){return x.id===s.itemId;});
+          if(!item)return;
+          var lineVal=item.valeur*s.qte;totalSpeedosVal+=lineVal;
+          speedoHtml+='<div style="font-size:12px;color:var(--text2);display:flex;justify-content:space-between;padding:2px 0;">'
+            +'<span>'+item.nom+' ×'+s.qte+'</span><span style="font-weight:600;color:var(--purple2);">'+lineVal.toLocaleString('fr-FR')+' $</span></div>';
+        });
+        speedoHtml+='<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-weight:700;font-size:13px;display:flex;justify-content:space-between;">'
+          +'<span style="color:var(--text);">Total speedos</span><span style="color:var(--success);">'+totalSpeedosVal.toLocaleString('fr-FR')+' $</span></div>';
+        var sBox=document.createElement('div');
+        sBox.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:10px 14px;';
+        sBox.innerHTML=speedoHtml;grid.appendChild(sBox);
+      }
+
+      card.appendChild(grid);
+    }
+    container.appendChild(card);
+  });
+}
+
+function showQuotaSubtab(groupId,tabId,btn){
+  var g=document.getElementById(groupId);if(!g)return;
+  var parent=g.parentElement;
+  if(parent)parent.querySelectorAll('.subtab-content').forEach(function(s){s.classList.remove('active');});
+  g.querySelectorAll('.subtab').forEach(function(b){b.classList.remove('active');});
+  var t=document.getElementById(tabId);if(t)t.classList.add('active');
+  btn.classList.add('active');
+  if(tabId==='mbq-recap')renderQuotaRecap('mb-quota-recap-div',true);
+  if(tabId==='mbq-saisie')renderQuotaSaisie('mb-quota-saisie-div');
+  if(tabId==='aq-recap')renderQuotaRecap('quota-recap-div',true);
+}
+
+
+// ============================================================
+// COMPTABILITE
+// ============================================================
+function buildComptaHTML(ctx){
+  var p=ctx==='admin'?'admin':'mb';
+  var html='<div class="section" id="sec-'+p+'-compta">'
+    +'<div class="section-title">Comptabilite</div>'
+    +'<div class="section-sub">Gestion du coffre et des finances</div>'
+    +'<div class="subtabs" id="'+p+'-compta-subtabs">';
+  html+='<button class="subtab active" data-prefix="'+p+'" data-tab="coffre" onclick="onComptaTab(this)">Coffre</button>';
+  html+='<button class="subtab" data-prefix="'+p+'" data-tab="recette" onclick="onComptaTab(this)">Recette semaine</button>';
+  html+='<button class="subtab" data-prefix="'+p+'" data-tab="paie" onclick="onComptaTab(this)">Paie</button>';
+  html+='</div>';
+  html+='<div id="'+p+'-coffre" class="subtab-content active"><div id="'+p+'-coffre-div"></div></div>';
+  html+='<div id="'+p+'-recette" class="subtab-content"><div id="'+p+'-recette-div"></div></div>';
+  html+='<div id="'+p+'-paie" class="subtab-content"><div id="'+p+'-paie-div"></div></div>';
+  html+='</div>';
+  return html;
+}
+
+function onComptaTab(btn){
+  var p=btn.dataset.prefix;
+  var tab=btn.dataset.tab;
+  showComptaSubtab(p+'-compta-subtabs',p+'-'+tab,btn);
+  if(tab==='coffre')renderCoffre();
+  if(tab==='recette')renderRecette(p+'-recette-div');
+  if(tab==='paie')renderPaie(p+'-paie-div');
+}
+function showComptaSubtab(groupId,tabId,btn){
+  var g=document.getElementById(groupId);if(!g)return;
+  g.parentElement.querySelectorAll('.subtab-content').forEach(function(s){s.classList.remove('active');});
+  g.querySelectorAll('.subtab').forEach(function(b){b.classList.remove('active');});
+  var t=document.getElementById(tabId);if(t)t.classList.add('active');
+  btn.classList.add('active');
+  if(tabId.indexOf('coffre')>=0)renderCoffre();
+  if(tabId.indexOf('recette')>=0){var rd=tabId.replace('recette','recette-div');if(document.getElementById(rd))renderRecette(rd);}
+}
+
+function renderCoffre(){
+  ['admin-coffre-div','mb-coffre-div'].forEach(function(divId){
+    var div=document.getElementById(divId);if(!div)return;
+    div.innerHTML='';
+    // Banniere solde
+    var banner=document.createElement('div');
+    banner.style.cssText='background:linear-gradient(135deg,rgba(124,58,237,0.2),rgba(168,85,247,0.1));border:1px solid rgba(124,58,237,0.35);border-radius:var(--radius);padding:24px 28px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;';
+    var soldeWrap=document.createElement('div');
+    var soldeLabel=document.createElement('div');
+    soldeLabel.style.cssText='font-size:12px;color:var(--purple3);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;';
+    soldeLabel.textContent='Solde actuel du coffre';
+    var soldeVal=document.createElement('div');
+    soldeVal.style.cssText='font-size:36px;font-weight:800;color:var(--text);letter-spacing:-1px;';
+    soldeVal.textContent=coffre.solde.toLocaleString('fr-FR')+' $';
+    soldeWrap.appendChild(soldeLabel);soldeWrap.appendChild(soldeVal);
+    var editBtn=document.createElement('button');editBtn.className='btn btn-sm';
+    editBtn.textContent='Modifier le solde';editBtn.onclick=openEditSolde;
+    banner.appendChild(soldeWrap);banner.appendChild(editBtn);
+    div.appendChild(banner);
+    // Boutons
+    var btnRow=document.createElement('div');btnRow.style.cssText='display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;';
+    var addEntBtn=document.createElement('button');addEntBtn.className='btn btn-success';addEntBtn.textContent='+ Entree';
+    addEntBtn.onclick=function(){openTransactionModal('entree');};
+    var addDepBtn=document.createElement('button');addDepBtn.className='btn btn-danger';addDepBtn.textContent='- Depense';
+    addDepBtn.onclick=function(){openTransactionModal('depense');};
+    btnRow.appendChild(addEntBtn);btnRow.appendChild(addDepBtn);div.appendChild(btnRow);
+    // Tableau
+    var tw=document.createElement('div');tw.className='table-wrap';
+    var table=document.createElement('table');
+    var thead=document.createElement('thead');
+    thead.innerHTML='<tr><th>Date</th><th>Type</th><th>Description</th><th>Montant</th><th>Solde apres</th><th>Actions</th></tr>';
+    var tbody=document.createElement('tbody');
+    var sorted=[].concat(coffre.transactions).reverse();
+    if(!sorted.length){
+      tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px;">Aucune transaction.</td></tr>';
+    } else {
+      sorted.forEach(function(t){
+        var tr=document.createElement('tr');
+        var isE=t.type==='entree'||t.type==='ajustement_plus';
+        var sign=isE?'+':'-';
+        var color=isE?'var(--success)':'var(--danger)';
+        var lbl=t.type==='entree'?'Entree':t.type==='depense'?'Depense':'Ajustement';
+        var cls=isE?'badge-ok':'badge-danger';
+        var delBtn=document.createElement('button');delBtn.className='btn btn-sm btn-danger';delBtn.textContent='Suppr.';
+        delBtn.onclick=(function(tid){return function(){deleteTransaction(tid);};})(t.id);
+        tr.innerHTML='<td style="color:var(--text3);font-size:12px;">'+t.date+'</td>'
+          +'<td><span class="badge '+cls+'">'+lbl+'</span></td>'
+          +'<td style="color:var(--text2);">'+t.desc+'</td>'
+          +'<td style="font-weight:700;color:'+color+';">'+sign+t.montant.toLocaleString('fr-FR')+' $</td>'
+          +'<td style="color:var(--text3);font-size:12px;">'+t.soldeApres.toLocaleString('fr-FR')+' $</td>';
+        var tdAct=document.createElement('td');tdAct.appendChild(delBtn);
+        tr.appendChild(tdAct);tbody.appendChild(tr);
+      });
+    }
+    table.appendChild(thead);table.appendChild(tbody);tw.appendChild(table);div.appendChild(tw);
+  });
+}
+
+function openEditSolde(){
+  var modal=document.getElementById('modal-edit-solde');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-edit-solde';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.maxWidth='400px';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';
+    cx.onclick=function(){closeModal('modal-edit-solde');};
+    var h3=document.createElement('h3');h3.textContent='Modifier le solde du coffre';
+    var info=document.createElement('p');info.style.cssText='font-size:12px;color:var(--text3);margin-bottom:14px;';
+    info.textContent='Un ajustement sera enregistre dans le journal.';
+    var l1=document.createElement('label');l1.className='lbl';l1.textContent='Nouveau solde ($)';
+    var i1=document.createElement('input');i1.className='input';i1.type='number';i1.id='edit-solde-input';i1.style.marginBottom='14px';
+    var l2=document.createElement('label');l2.className='lbl';l2.textContent='Motif';
+    var i2=document.createElement('input');i2.className='input';i2.id='edit-solde-desc';i2.placeholder='Ex: Ajout paies de la semaine';
+    var footer=document.createElement('div');footer.className='modal-footer';
+    var cb=document.createElement('button');cb.className='btn';cb.textContent='Annuler';cb.onclick=function(){closeModal('modal-edit-solde');};
+    var sb=document.createElement('button');sb.className='btn btn-primary';sb.textContent='Enregistrer';sb.onclick=saveEditSolde;
+    footer.appendChild(cb);footer.appendChild(sb);
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(info);mb.appendChild(l1);mb.appendChild(i1);mb.appendChild(l2);mb.appendChild(i2);mb.appendChild(footer);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-edit-solde');});
+    document.body.appendChild(modal);
+  }
+  document.getElementById('edit-solde-input').value=coffre.solde;
+  document.getElementById('edit-solde-desc').value='';
+  openModal('modal-edit-solde');
+}
+
+function saveEditSolde(){
+  var newSolde=parseFloat(document.getElementById('edit-solde-input').value)||0;
+  var desc=document.getElementById('edit-solde-desc').value.trim()||'Ajustement manuel';
+  var diff=newSolde-coffre.solde;
+  var type=diff>=0?'ajustement_plus':'ajustement_moins';
+  var t={id:Date.now(),date:new Date().toLocaleDateString('fr-FR'),type:type,desc:desc,montant:Math.abs(diff),soldeApres:newSolde};
+  coffre.transactions.push(t);coffre.solde=newSolde;
+  closeModal('modal-edit-solde');sauvegarder();renderCoffre();
+}
+
+function openTransactionModal(type){
+  var modal=document.getElementById('modal-transaction');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-transaction';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.maxWidth='420px';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';
+    cx.onclick=function(){closeModal('modal-transaction');};
+    var h3=document.createElement('h3');h3.id='modal-trans-title';
+    var l1=document.createElement('label');l1.className='lbl';l1.textContent='Montant ($)';l1.style.cssText='display:block;margin-bottom:4px;';
+    var i1=document.createElement('input');i1.className='input';i1.type='number';i1.id='trans-montant';i1.placeholder='Ex: 50000';i1.style.marginBottom='14px';
+    var l2=document.createElement('label');l2.className='lbl';l2.textContent='Description';l2.style.cssText='display:block;margin-bottom:4px;';
+    var i2=document.createElement('input');i2.className='input';i2.id='trans-desc';i2.placeholder='Ex: Achat arme, Paie membres...';i2.style.marginBottom='14px';
+    var l3=document.createElement('label');l3.className='lbl';l3.textContent='Date';l3.style.cssText='display:block;margin-bottom:4px;';
+    var i3=document.createElement('input');i3.className='input';i3.type='date';i3.id='trans-date';i3.style.marginBottom='14px';
+    var err=document.createElement('div');err.id='trans-err';err.style.cssText='font-size:12px;color:var(--danger);margin-bottom:8px;min-height:16px;';
+    var footer=document.createElement('div');footer.className='modal-footer';
+    var cb=document.createElement('button');cb.className='btn';cb.textContent='Annuler';cb.onclick=function(){closeModal('modal-transaction');};
+    var sb=document.createElement('button');sb.className='btn btn-primary';sb.textContent='Enregistrer';sb.onclick=saveTransaction;
+    footer.appendChild(cb);footer.appendChild(sb);
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(l1);mb.appendChild(i1);mb.appendChild(l2);mb.appendChild(i2);mb.appendChild(l3);mb.appendChild(i3);mb.appendChild(err);mb.appendChild(footer);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-transaction');});
+    document.body.appendChild(modal);
+  }
+  document.getElementById('modal-trans-title').textContent=type==='entree'?'Ajouter une entree':'Ajouter une depense';
+  document.getElementById('modal-trans-title').dataset.type=type;
+  document.getElementById('trans-montant').value='';
+  document.getElementById('trans-desc').value='';
+  document.getElementById('trans-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('trans-err').textContent='';
+  openModal('modal-transaction');
+}
+
+function saveTransaction(){
+  var type=document.getElementById('modal-trans-title').dataset.type;
+  var montant=parseFloat(document.getElementById('trans-montant').value)||0;
+  var desc=document.getElementById('trans-desc').value.trim();
+  var dateVal=document.getElementById('trans-date').value;
+  var err=document.getElementById('trans-err');
+  if(!montant||montant<=0){err.textContent='Montant invalide.';return;}
+  if(!desc){err.textContent='Description requise.';return;}
+  var newSolde=type==='entree'?coffre.solde+montant:coffre.solde-montant;
+  var dateLabel=dateVal?new Date(dateVal+'T12:00:00').toLocaleDateString('fr-FR'):new Date().toLocaleDateString('fr-FR');
+  var t={id:Date.now(),date:dateLabel,type:type,desc:desc,montant:montant,soldeApres:newSolde};
+  coffre.transactions.push(t);coffre.solde=newSolde;
+  closeModal('modal-transaction');sauvegarder();renderCoffre();
+}
+
+function deleteTransaction(id){
+  if(!confirm('Supprimer cette transaction ? Le solde sera recalcule.'))return;
+  var idx=coffre.transactions.findIndex(function(t){return t.id===id;});
+  if(idx<0)return;
+  coffre.transactions.splice(idx,1);
+  var running=0;
+  coffre.transactions.forEach(function(t){
+    var isE=t.type==='entree'||t.type==='ajustement_plus';
+    running=isE?running+t.montant:running-t.montant;
+    t.soldeApres=running;
+  });
+  coffre.solde=running;
+  sauvegarder();renderCoffre();
+}
+
+
+
+// ============================================================
+// RECETTE DE LA SEMAINE
+// ============================================================
+function getWeekRange(){
+  var now=new Date();
+  var day=now.getDay();
+  var diffToMon=day===0?-6:1-day;
+  var mon=new Date(now);mon.setDate(now.getDate()+diffToMon);
+  var sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  function toStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  return {start:mon,end:sun,startStr:toStr(mon),endStr:toStr(sun)};
+}
+function dateStrToDate(str){
+  // str format: DD/MM/YYYY
+  var parts=str.split('/');
+  if(parts.length===3)return new Date(parseInt(parts[2]),parseInt(parts[1])-1,parseInt(parts[0]));
+  return new Date(str);
+}
+
+function renderRecette(divId){
+  var div=document.getElementById(divId);if(!div)return;
+  div.innerHTML='';
+
+  var week=getWeekRange();
+  var weekLabel=week.start.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})
+    +' — '+week.end.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  // Collect all quota data for this week
+  var totalSpeedo=0, totalRecel=0, totalArgentSale=0;
+  var speedoByItem={}, recelByItem={};
+
+  Object.keys(quotaHistory).forEach(function(dateStr){
+    if(dateStr<week.startStr||dateStr>week.endStr)return;
+    var dayData=quotaHistory[dateStr]||{};
+    Object.values(dayData).forEach(function(mData){
+      if(!mData||!mData.submitted)return;
+      // Speedos
+      if(mData.speedos){
+        mData.speedos.forEach(function(s){
+          var item=database.find(function(x){return x.id===s.itemId;});
+          if(!item)return;
+          var val=item.valeur*s.qte;totalSpeedo+=val;
+          speedoByItem[item.nom]=(speedoByItem[item.nom]||0)+val;
+        });
+      }
+      // Recel (Recel + Drogue, hors argent sale)
+      if(mData.recel){
+        mData.recel.forEach(function(r){
+          var item=database.find(function(x){return x.id===r.itemId;});
+          if(!item)return;
+          var val=item.valeur*r.qte;
+          if(item.nom==='Argent sale'){
+            totalArgentSale+=val;
+          } else {
+            totalRecel+=val;
+            recelByItem[item.nom]=(recelByItem[item.nom]||0)+val;
+          }
+        });
+      }
+    });
+  });
+
+  var totalGeneral=totalSpeedo+totalRecel+totalArgentSale;
+
+  // ── HEADER ──
+  var hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;';
+  var titleEl=document.createElement('div');
+  titleEl.style.cssText='font-size:15px;font-weight:700;color:var(--text);';
+  titleEl.textContent='Semaine du '+weekLabel;
+  var totalBadge=document.createElement('div');
+  totalBadge.style.cssText='font-size:22px;font-weight:800;color:var(--success);';
+  totalBadge.textContent=totalGeneral.toLocaleString('fr-FR')+' $';
+  hdr.appendChild(titleEl);hdr.appendChild(totalBadge);
+  div.appendChild(hdr);
+
+  // ── CARDS ──
+  var grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:20px;';
+
+  function makeRecapCard(icon, titre, total, byItem, color){
+    var card=document.createElement('div');
+    card.className='card';card.style.borderTop='3px solid '+color;
+    var h=document.createElement('div');h.className='card-title';h.textContent=icon+' '+titre;
+    card.appendChild(h);
+    var tot=document.createElement('div');
+    tot.style.cssText='font-size:28px;font-weight:800;color:'+color+';margin-bottom:12px;';
+    tot.textContent=total.toLocaleString('fr-FR')+' $';
+    card.appendChild(tot);
+    if(byItem&&Object.keys(byItem).length){
+      Object.keys(byItem).sort(function(a,b){return byItem[b]-byItem[a];}).forEach(function(name){
+        var row=document.createElement('div');
+        row.style.cssText='display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);';
+        var nl=document.createElement('span');nl.style.color='var(--text2)';nl.textContent=name;
+        var vl=document.createElement('span');vl.style.cssText='font-weight:600;color:'+color+';';
+        vl.textContent=byItem[name].toLocaleString('fr-FR')+' $';
+        row.appendChild(nl);row.appendChild(vl);card.appendChild(row);
+      });
+    }
+    if(total===0){
+      var empty=document.createElement('p');empty.style.cssText='font-size:12px;color:var(--text3);';empty.textContent='Aucune donnée cette semaine.';card.appendChild(empty);
+    }
+    return card;
+  }
+
+  grid.appendChild(makeRecapCard('🧪','Speedos',totalSpeedo,speedoByItem,'var(--purple2)'));
+  grid.appendChild(makeRecapCard('💰','Recel',totalRecel,recelByItem,'var(--success)'));
+  grid.appendChild(makeRecapCard('💸','Argent sale',totalArgentSale,null,'var(--warning)'));
+  div.appendChild(grid);
+
+  // ── NOTE ──
+  var note=document.createElement('p');
+  note.style.cssText='font-size:11px;color:var(--text3);';
+  note.textContent='Basé sur les quotas soumis cette semaine (lundi au dimanche). Les données des membres non soumises ne sont pas comptées.';
+  div.appendChild(note);
+}
+
+
+
+// ============================================================
+// PAIE HEBDOMADAIRE
+// ============================================================
+function renderPaie(divId){
+  var div=document.getElementById(divId);if(!div)return;
+  div.innerHTML='';
+
+  var week=getWeekRange();
+  var weekLabel=week.start.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})
+    +' — '+week.end.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  // Header
+  var hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;';
+  var titleEl=document.createElement('div');
+  titleEl.innerHTML='<div style="font-size:15px;font-weight:700;color:var(--text);">Paie — semaine du '+weekLabel+'</div>'
+    +'<div style="font-size:12px;color:var(--text3);margin-top:2px;">Basé sur les quotas soumis cette semaine</div>';
+  var calcBtn=document.createElement('button');calcBtn.className='btn btn-primary';
+  calcBtn.textContent='Calculer les paies';
+  calcBtn.onclick=function(){calculerPaies(divId);};
+  hdr.appendChild(titleEl);hdr.appendChild(calcBtn);
+  div.appendChild(hdr);
+
+  var resultDiv=document.createElement('div');resultDiv.id=divId+'-result';
+  div.appendChild(resultDiv);
+}
+
+function calculerPaies(divId){
+  var resultDiv=document.getElementById(divId+'-result');
+  if(!resultDiv)return;
+  resultDiv.innerHTML='';
+
+  var week=getWeekRange();
+
+  // 1. Calcul total recel semaine + speedos par membre
+  var totalRecelSemaine=0;
+  var memberSpeedos={};
+
+  Object.keys(quotaHistory).forEach(function(dateStr){
+    if(dateStr<week.startStr||dateStr>week.endStr)return;
+    var dayData=quotaHistory[dateStr]||{};
+    Object.keys(dayData).forEach(function(mId){
+      var mData=dayData[mId];
+      if(!mData||!mData.submitted)return;
+      if(mData.recel){
+        mData.recel.forEach(function(r){
+          var item=database.find(function(x){return x.id===r.itemId;});
+          if(!item||item.nom==='Argent sale')return;
+          totalRecelSemaine+=item.valeur*r.qte;
+        });
+      }
+      if(mData.speedos){
+        mData.speedos.forEach(function(s){
+          var item=database.find(function(x){return x.id===s.itemId;});
+          if(!item)return;
+          memberSpeedos[mId]=(memberSpeedos[mId]||0)+item.valeur*s.qte;
+        });
+      }
+    });
+  });
+
+  // 2. Membres éligibles au recel = non-commandants ayant un % > 0
+  var membersList=membres.filter(function(m){return !m.pending;});
+  var eligiblesRecel=membersList.filter(function(m){
+    var rev=REVENUS_GRADE[m.grade]||{};
+    return rev.note!=='acces_direct'&&(rev.speedos||0)>0;
+  });
+
+  // Part recel = 25% du total recel divisé par le nombre de membres éligibles
+  // Le 25% correspond au "pool recel" réservé aux membres
+  // => chaque membre éligible reçoit totalRecelSemaine * 0.25 / nbEligibles
+  var poolRecelPct=25; // % du total recel mis en commun pour les membres
+  var poolRecel=Math.round(totalRecelSemaine*(poolRecelPct/100));
+  var partRecelParMembre=eligiblesRecel.length>0?Math.round(poolRecel/eligiblesRecel.length):0;
+
+  // 3. Calcul paie par membre
+  var totalPaies=0;
+  var rows=[];
+
+  membersList.forEach(function(m){
+    var rev=REVENUS_GRADE[m.grade]||{speedos:0,note:''};
+    var isDirectAccess=rev.note==='acces_direct';
+    var speedoPct=rev.speedos||0;
+    var speedoVal=memberSpeedos[m.id]||0;
+
+    // Speedos : % du total $ que CE membre a rapporté
+    var paieSpeedo=isDirectAccess?0:Math.round(speedoVal*(speedoPct/100));
+
+    // Recel : part égale du pool recel pour les membres éligibles
+    var paieRecel=0;
+    if(!isDirectAccess&&speedoPct>0){
+      paieRecel=partRecelParMembre;
+    }
+
+    var total=paieSpeedo+paieRecel;
+    totalPaies+=total;
+    rows.push({
+      membre:m,speedoPct:speedoPct,speedoVal:speedoVal,
+      paieSpeedo:paieSpeedo,paieRecel:paieRecel,total:total,
+      isDirectAccess:isDirectAccess
+    });
+  });
+
+  // 4. Render résumé
+  var summary=document.createElement('div');
+  summary.style.cssText='display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;';
+  function makeSumCard(label,val,color){
+    var c=document.createElement('div');
+    c.style.cssText='flex:1;min-width:150px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);padding:14px 18px;';
+    c.innerHTML='<div style="font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">'+label+'</div>'
+      +'<div style="font-size:20px;font-weight:800;color:'+color+';">'+val.toLocaleString('fr-FR')+' $</div>';
+    return c;
+  }
+  var totalSpeedosSemaine=Object.values(memberSpeedos).reduce(function(a,b){return a+b;},0);
+  summary.appendChild(makeSumCard('Recel semaine',totalRecelSemaine,'var(--success)'));
+  summary.appendChild(makeSumCard('Pool recel ('+poolRecelPct+'%)',poolRecel,'var(--success)'));
+  summary.appendChild(makeSumCard('Part recel / membre',partRecelParMembre,'var(--success)'));
+  summary.appendChild(makeSumCard('Speedos semaine',totalSpeedosSemaine,'var(--purple2)'));
+  summary.appendChild(makeSumCard('Total paies',totalPaies,'var(--warning)'));
+  resultDiv.appendChild(summary);
+
+  // 5. Tableau
+  var tw=document.createElement('div');tw.className='table-wrap';
+  var table=document.createElement('table');
+  var thead=document.createElement('thead');
+  thead.innerHTML='<tr><th>Membre</th><th>Grade</th><th>%</th><th>Speedos perso</th><th>Paie speedos</th><th>Paie recel</th><th style="color:var(--warning);">Total</th></tr>';
+  var tbody=document.createElement('tbody');
+
+  rows.sort(function(a,b){
+    return GRADES_ORDER.indexOf(a.membre.grade)-GRADES_ORDER.indexOf(b.membre.grade);
+  }).forEach(function(r){
+    var tr=document.createElement('tr');
+    if(r.isDirectAccess){
+      tr.innerHTML='<td style="font-weight:600;color:var(--text);">'+(r.membre.pseudo||r.membre.nom)+'</td>'
+        +'<td><span class="badge '+gradeColor(r.membre.grade)+'">'+r.membre.grade+'</span></td>'
+        +'<td colspan="5" style="color:var(--text3);font-size:12px;">Accès direct au coffre — pas de paie calculée</td>';
+    } else {
+      tr.innerHTML='<td style="font-weight:600;color:var(--text);">'+(r.membre.pseudo||r.membre.nom)+'</td>'
+        +'<td><span class="badge '+gradeColor(r.membre.grade)+'">'+r.membre.grade+'</span></td>'
+        +'<td style="color:var(--text2);">'+r.speedoPct+'%</td>'
+        +'<td style="color:var(--text3);font-size:12px;">'+r.speedoVal.toLocaleString('fr-FR')+' $</td>'
+        +'<td style="color:var(--purple2);font-weight:600;">'+r.paieSpeedo.toLocaleString('fr-FR')+' $</td>'
+        +'<td style="color:var(--success);font-weight:600;">'+r.paieRecel.toLocaleString('fr-FR')+' $</td>'
+        +'<td style="color:var(--warning);font-weight:700;font-size:14px;">'+r.total.toLocaleString('fr-FR')+' $</td>';
+    }
+    tbody.appendChild(tr);
+  });
+
+  var trTotal=document.createElement('tr');
+  trTotal.style.cssText='background:rgba(124,58,237,0.08);font-weight:700;';
+  trTotal.innerHTML='<td colspan="6" style="text-align:right;color:var(--text);padding-right:16px;">Total à verser</td>'
+    +'<td style="color:var(--warning);font-size:15px;">'+totalPaies.toLocaleString('fr-FR')+' $</td>';
+  tbody.appendChild(trTotal);
+
+  table.appendChild(thead);table.appendChild(tbody);tw.appendChild(table);
+  resultDiv.appendChild(tw);
+
+  var note=document.createElement('p');
+  note.style.cssText='font-size:11px;color:var(--text3);margin-top:12px;';
+  note.textContent='Speedos : chaque membre touche son % sur ses speedos personnels. Recel : '+poolRecelPct+'% du total recel divisé en parts égales entre les '+eligiblesRecel.length+' membres éligibles.';
+  resultDiv.appendChild(note);
+}
+
+
+
+// ============================================================
+// ACCUEIL / DASHBOARD
+// ============================================================
+function renderAccueil(){
+  var div=document.getElementById('accueil-content');if(!div)return;
+  div.innerHTML='';
+  var isAdmin=currentUser&&currentUser.role==='admin';
+  var isCmd=currentUser&&currentUser.role==='commandant';
+  var m=currentUser.membreId?membres.find(function(x){return x.id===currentUser.membreId;}):null;
+  var displayName=m?(m.pseudo||m.nom):currentUser.user;
+  var grade=m?m.grade:'';
+  var hour=new Date().getHours();
+  var greet=hour<12?'Bonjour':'Bonsoir';
+
+  // HERO HEADER
+  var hero=document.createElement('div');
+  hero.style.cssText='background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(168,85,247,0.05));border:1px solid rgba(124,58,237,0.25);border-radius:var(--radius);padding:28px 32px;margin-bottom:24px;display:flex;align-items:center;gap:24px;';
+  var avatarDiv=document.createElement('div');
+  avatarDiv.style.cssText='width:72px;height:72px;border-radius:50%;background:var(--bg3);border:2px solid rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-size:28px;color:var(--text3);';
+  if(m&&m.photo){var ai=document.createElement('img');ai.src=m.photo;ai.style.cssText='width:100%;height:100%;object-fit:cover;';avatarDiv.appendChild(ai);}
+  else{avatarDiv.textContent=displayName.charAt(0).toUpperCase();}
+  var heroText=document.createElement('div');heroText.style.flex='1';
+  var heroTitle=document.createElement('div');heroTitle.style.cssText='font-size:26px;font-weight:800;color:var(--text);margin-bottom:4px;';
+  heroTitle.textContent=greet+', '+displayName;
+  var heroSub=document.createElement('div');heroSub.style.cssText='font-size:13px;color:var(--text3);display:flex;align-items:center;gap:10px;margin-top:4px;';
+  heroSub.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  if(grade){var gb=document.createElement('span');gb.className='badge '+gradeColor(grade);gb.style.marginLeft='8px';gb.textContent=grade;heroSub.appendChild(gb);}
+  heroText.appendChild(heroTitle);heroText.appendChild(heroSub);
+  hero.appendChild(avatarDiv);hero.appendChild(heroText);
+  var freqBadge=document.createElement('div');
+  freqBadge.style.cssText='text-align:center;flex-shrink:0;padding:12px 20px;background:rgba(239,159,39,0.08);border:1px solid rgba(239,159,39,0.25);border-radius:var(--r2);';
+  freqBadge.innerHTML='<div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Frequence</div>'
+    +'<div style="font-size:24px;font-weight:800;color:var(--warning);">'+frequence.valeur+'</div>'
+    +'<div style="font-size:11px;color:var(--text3);">MHz</div>';
+  if(isAdmin){var feBtn=document.createElement('button');feBtn.className='btn btn-sm';feBtn.style.cssText='margin-top:6px;font-size:11px;width:100%;';feBtn.textContent='Modifier';feBtn.onclick=editFrequence;freqBadge.appendChild(feBtn);}
+  hero.appendChild(freqBadge);
+  div.appendChild(hero);
+
+  // MAIN GRID
+  var grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;';
+  var left=document.createElement('div');
+  var right=document.createElement('div');
+
+  // PROCHAINE REUNION (left)
+  var nextEv=getNextEvent();
+  var reunCard=document.createElement('div');reunCard.className='card';reunCard.style.cssText='margin-bottom:16px;border-color:rgba(124,58,237,0.3);';
+  var rtitle=document.createElement('div');rtitle.className='card-title';rtitle.style.marginBottom='12px';rtitle.textContent='Prochaine reunion';reunCard.appendChild(rtitle);
+  if(nextEv){
+    var MS=['Jan','Fev','Mar','Avr','Mai','Jun','Jul','Aou','Sep','Oct','Nov','Dec'];
+    var dp=nextEv.date.split('-');
+    var evInfo=document.createElement('div');
+    evInfo.style.cssText='display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:12px 16px;background:var(--bg3);border-radius:var(--r2);';
+    var dateBox=document.createElement('div');dateBox.style.cssText='text-align:center;min-width:52px;border-right:1px solid var(--border);padding-right:16px;margin-right:4px;';
+    dateBox.innerHTML='<div style="font-size:28px;font-weight:800;color:var(--purple2);">'+dp[2]+'</div>'
+      +'<div style="font-size:12px;color:var(--text3);">'+MS[parseInt(dp[1])-1]+'</div>';
+    var evDetail=document.createElement('div');
+    evDetail.innerHTML='<div style="font-weight:700;font-size:15px;color:var(--text);">'+nextEv.titre+'</div>'
+      +'<div style="font-size:13px;color:var(--text3);margin-top:4px;">'+nextEv.heure+(nextEv.desc?' — '+nextEv.desc:'')+'</div>';
+    evInfo.appendChild(dateBox);evInfo.appendChild(evDetail);reunCard.appendChild(evInfo);
+    var evPresences=presences[nextEv.id]||{};
+    if(!isAdmin&&currentUser.membreId){
+      var myVote=evPresences[currentUser.membreId]||'';
+      var bw=document.createElement('div');bw.style.cssText='display:flex;gap:8px;margin-bottom:14px;';
+      [{key:'present',label:'✅ Présent',cls:'selected-present'},
+       {key:'incertain',label:'⏳ Pas sûr',cls:'selected-incertain'},
+       {key:'absent',label:'❌ Absent',cls:'selected-absent'}].forEach(function(v){
+        var btn=document.createElement('button');
+        btn.className='presence-btn'+(myVote===v.key?' '+v.cls:'');
+        btn.textContent=v.label;btn.style.flex='1';btn.style.justifyContent='center';
+        btn.onclick=(function(eid,choice,bwrap){
+          return function(){
+            bwrap.querySelectorAll('.presence-btn').forEach(function(b){b.className='presence-btn';});
+            this.className='presence-btn '+choice.cls;
+            vote(eid,choice.key);
+            renderPresencePanel('mb-presence-panel',false);
+            renderPresencePanel('admin-presence-panel',true);
+          };
+        })(nextEv.id,v,bw);
+        bw.appendChild(btn);
+      });
+      reunCard.appendChild(bw);
+    }
+    var ml=membres.filter(function(x){return !x.pending;});
+    var pv=0,iv=0,av=0;
+    ml.forEach(function(x){var v=evPresences[x.id];if(v==='present')pv++;else if(v==='incertain')iv++;else if(v==='absent')av++;});
+    var voted=pv+iv+av;
+    var ctrs=document.createElement('div');ctrs.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;';
+    ctrs.innerHTML='<span style="padding:4px 12px;border-radius:20px;background:rgba(29,158,117,0.12);color:var(--success);font-size:12px;font-weight:600;">✅ '+pv+'</span>'
+      +'<span style="padding:4px 12px;border-radius:20px;background:rgba(239,159,39,0.12);color:var(--warning);font-size:12px;font-weight:600;">⏳ '+iv+'</span>'
+      +'<span style="padding:4px 12px;border-radius:20px;background:rgba(226,75,74,0.12);color:var(--danger);font-size:12px;font-weight:600;">❌ '+av+'</span>'
+      +'<span style="font-size:11px;color:var(--text3);margin-left:auto;">'+voted+'/'+ml.length+' ont répondu</span>';
+    reunCard.appendChild(ctrs);
+  } else {
+    var noEv=document.createElement('div');noEv.style.cssText='text-align:center;padding:16px;color:var(--text3);font-size:13px;';
+    noEv.textContent='Aucune reunion planifiee';reunCard.appendChild(noEv);
+  }
+  left.appendChild(reunCard);
+
+  // QUOTAS DU JOUR (left, non-admin)
+  if(!isAdmin){
+    var today2=getTodayStr();
+    var myData=currentUser.membreId&&quotaHistory[today2]?quotaHistory[today2][currentUser.membreId]:null;
+    var submitted2=myData&&myData.submitted;
+    var qCard=document.createElement('div');qCard.className='card';
+    var qt=document.createElement('div');qt.className='card-title';qt.style.marginBottom='12px';qt.textContent='Quotas du jour';qCard.appendChild(qt);
+    var qRow=document.createElement('div');qRow.style.cssText='display:flex;align-items:center;justify-content:space-between;';
+    var qBadge=document.createElement('span');
+    qBadge.style.cssText='padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;'+(submitted2?'background:rgba(29,158,117,0.15);color:var(--success);':'background:rgba(239,159,39,0.12);color:var(--warning);');
+    qBadge.textContent=submitted2?'Soumis':'Non soumis';
+    var qBtn=document.createElement('button');qBtn.className='btn btn-sm'+(submitted2?'':' btn-primary');
+    qBtn.textContent=submitted2?'Voir':'Remplir';
+    qBtn.onclick=function(){var b=document.querySelector('[onclick*="mb-quotas"]');if(b)b.click();};
+    qRow.appendChild(qBadge);qRow.appendChild(qBtn);qCard.appendChild(qRow);
+    left.appendChild(qCard);
+  }
+
+  // RACCOURCIS (right, admin seulement)
+  if(isAdmin){
+    var shortcuts=[
+      {icon:'👥',label:'Membres',sec:'admin-membres',color:'rgba(124,58,237,0.12)',border:'rgba(124,58,237,0.3)'},
+      {icon:'📦',label:'Quotas',sec:'admin-quotas',color:'rgba(29,158,117,0.1)',border:'rgba(29,158,117,0.3)'},
+      {icon:'💰',label:'Comptabilite',sec:'admin-compta',color:'rgba(239,159,39,0.1)',border:'rgba(239,159,39,0.3)'},
+      {icon:'📅',label:'Calendrier',sec:'admin-calendrier',color:'rgba(124,58,237,0.12)',border:'rgba(124,58,237,0.3)'},
+      {icon:'⚙️',label:'Comptes',sec:'admin-comptes',color:'rgba(136,135,128,0.1)',border:'rgba(136,135,128,0.3)'},
+    ];
+    var scCard=document.createElement('div');scCard.className='card';scCard.style.marginBottom='16px';
+    var sct=document.createElement('div');sct.className='card-title';sct.style.marginBottom='14px';sct.textContent='Acces rapide';scCard.appendChild(sct);
+    var scGrid=document.createElement('div');scGrid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+    shortcuts.forEach(function(s){
+      var btn=document.createElement('button');
+      btn.style.cssText='background:'+s.color+';border:1px solid '+s.border+';border-radius:var(--r2);padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:opacity 0.15s;';
+      btn.onmouseover=function(){this.style.opacity='0.8';};
+      btn.onmouseout=function(){this.style.opacity='1';};
+      var ic=document.createElement('span');ic.style.fontSize='22px';ic.textContent=s.icon;
+      var lb=document.createElement('span');lb.style.cssText='font-size:12px;font-weight:600;color:var(--text2);';lb.textContent=s.label;
+      btn.appendChild(ic);btn.appendChild(lb);
+      btn.onclick=(function(sec){return function(){var b=document.querySelector('[onclick*="'+sec+'"]');if(b)b.click();};})(s.sec);
+      scGrid.appendChild(btn);
+    });
+    scCard.appendChild(scGrid);right.appendChild(scCard);
+  }
+
+  // MON COMPTE (right)
+  if(m){
+    var cCard=document.createElement('div');cCard.className='card';
+    var ct=document.createElement('div');ct.className='card-title';ct.style.marginBottom='12px';ct.textContent='Mon compte';cCard.appendChild(ct);
+    if(m.tel){var tr1=document.createElement('div');tr1.style.cssText='font-size:12px;color:var(--text3);margin-bottom:5px;';tr1.textContent='Tel : '+m.tel;cCard.appendChild(tr1);}
+    if(m.discord){var tr2=document.createElement('div');tr2.style.cssText='font-size:12px;color:var(--text3);margin-bottom:5px;';tr2.textContent='Discord : '+m.discord;cCard.appendChild(tr2);}
+    if(m.date){var tr3=document.createElement('div');tr3.style.cssText='font-size:12px;color:var(--text3);margin-bottom:12px;';tr3.textContent='Depuis : '+m.date;cCard.appendChild(tr3);}
+    var gcb=document.createElement('button');gcb.className='btn btn-sm';gcb.textContent='Voir mon profil';
+    gcb.onclick=function(){var b=document.querySelector('[onclick*="mb-compte"]');if(b)b.click();};
+    cCard.appendChild(gcb);right.appendChild(cCard);
+  }
+
+  grid.appendChild(left);grid.appendChild(right);
+  div.appendChild(grid);
+}
+
+function editFrequence(){
+  var nv=prompt('Nouvelle frequence (MHz) :',frequence.valeur);
+  if(nv!==null&&nv.trim()!==''){
+    frequence.valeur=parseFloat(nv.replace(',','.'))||frequence.valeur;
+    sauvegarder();renderAccueil();
+  }
+}
+
+
+function openAccueilModal(){
+  if(!currentUser)return;
+  var prefix=currentUser.role==='admin'?'admin':'mb';
+  document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  var sec=document.getElementById('sec-'+prefix+'-accueil');
+  if(sec){sec.classList.add('active');renderAccueil();}
+}
+
+
+
+// ============================================================
+// DROPDOWN NAV
+// ============================================================
+function toggleDropdown(id){
+  var menu=document.getElementById(id+'-menu');
+  var btn=document.querySelector('#'+id+' .nav-dropdown-btn');
+  if(!menu)return;
+  var isOpen=menu.classList.contains('open');
+  closeDropdowns();
+  if(!isOpen){
+    menu.classList.add('open');
+    if(btn)btn.classList.add('open');
+  }
+}
+function closeDropdowns(){
+  document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});
+  document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.nav-dropdown'))closeDropdowns();
+});
+
+
+
+function openResetMdpMembre(membreId){
+  var m=membres.find(function(x){return x.id===membreId;});
+  if(!m)return;
+  var c=comptes.find(function(x){return x.membreId===membreId;});
+  if(!c){alert('Aucun compte lie a ce membre.');return;}
+  var newPass=prompt('Nouveau mot de passe pour '+(m.pseudo||m.nom)+' (min. 4 caracteres) :');
+  if(newPass===null)return;
+  if(newPass.length<4){alert('Mot de passe trop court (min. 4 caracteres).');return;}
+  var idx=comptes.findIndex(function(x){return x.id===c.id;});
+  if(idx>=0){comptes[idx].pass=newPass;sauvegarder();alert('Mot de passe modifie.');}
+}
+
+
+// ============================================================
+// DISPONIBILITES
+// ============================================================
+var JOURS_FULL=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+var JOURS_KEYS=['lun','mar','mer','jeu','ven','sam','dim'];
+var SLOTS_LABELS=['Matin','Aprem','Soir'];
+var SLOTS_KEYS=['matin','aprem','soir'];
+
+function openDispoModal(membreId){
+  var m=membres.find(function(x){return x.id===membreId;});
+  if(!m)return;
+  var modal=document.getElementById('modal-dispo');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-dispo';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.maxWidth='520px';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-dispo');};
+    var h3=document.createElement('h3');h3.id='modal-dispo-title';
+    var tableWrap=document.createElement('div');tableWrap.style.overflowX='auto';
+    var tbl=document.createElement('table');tbl.id='dispo-edit-table';tbl.className='dispo-table';
+    tableWrap.appendChild(tbl);
+    var footer=document.createElement('div');footer.className='modal-footer';
+    var cb=document.createElement('button');cb.className='btn';cb.textContent='Annuler';cb.onclick=function(){closeModal('modal-dispo');};
+    var sb=document.createElement('button');sb.className='btn btn-primary';sb.textContent='Enregistrer';sb.onclick=function(){saveDispo(modal.dataset.membreId);};
+    footer.appendChild(cb);footer.appendChild(sb);
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(tableWrap);mb.appendChild(footer);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-dispo');});
+    document.body.appendChild(modal);
+  }
+  modal.dataset.membreId=membreId;
+  document.getElementById('modal-dispo-title').textContent='Disponibilités — '+(m.pseudo||m.nom);
+  renderDispoTable(m.dispo||{});
+  openModal('modal-dispo');
+}
+
+function renderDispoTable(dispo){
+  var tbl=document.getElementById('dispo-edit-table');if(!tbl)return;
+  tbl.innerHTML='';
+  var thead=document.createElement('thead');
+  var hr=document.createElement('tr');
+  var thEmpty=document.createElement('th');hr.appendChild(thEmpty);
+  JOURS_FULL.forEach(function(j){var th=document.createElement('th');th.textContent=j;hr.appendChild(th);});
+  thead.appendChild(hr);tbl.appendChild(thead);
+  var tbody=document.createElement('tbody');
+  SLOTS_KEYS.forEach(function(slot,si){
+    var tr=document.createElement('tr');
+    var td0=document.createElement('td');td0.style.cssText='font-weight:600;color:var(--text3);font-size:11px;text-align:left;white-space:nowrap;';td0.textContent=SLOTS_LABELS[si];tr.appendChild(td0);
+    JOURS_KEYS.forEach(function(jour){
+      var td=document.createElement('td');
+      var lbl=document.createElement('label');
+      var cb=document.createElement('input');cb.type='checkbox';cb.className='dispo-edit-cb';cb.dataset.slot=slot+'-'+jour;
+      cb.checked=!!(dispo[slot+'-'+jour]);cb.style.cssText='accent-color:var(--purple);width:16px;height:16px;cursor:pointer;';
+      lbl.appendChild(cb);td.appendChild(lbl);tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+}
+
+function saveDispo(membreId){
+  var id=parseInt(membreId)||membreId;
+  var idx=membres.findIndex(function(x){return x.id===id;});
+  if(idx<0)return;
+  var newDispo={};
+  document.querySelectorAll('.dispo-edit-cb').forEach(function(cb){
+    newDispo[cb.dataset.slot]=cb.checked;
+  });
+  membres[idx].dispo=newDispo;
+  closeModal('modal-dispo');
+  sauvegarder();
+  renderMembres(membres);
+  renderMonCompte();
+}
+
+
+
+function openProfilMembre(membreId){
+  var m=membres.find(function(x){return x.id===membreId;});
+  if(!m)return;
+  var modal=document.getElementById('modal-profil-membre');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-profil-membre';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.cssText='max-width:560px;max-height:85vh;overflow-y:auto;';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-profil-membre');};
+    var content=document.createElement('div');content.id='profil-membre-content';
+    mb.appendChild(cx);mb.appendChild(content);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-profil-membre');});
+    document.body.appendChild(modal);
+  }
+  var content=document.getElementById('profil-membre-content');content.innerHTML='';
+  // Header
+  var header=document.createElement('div');
+  header.style.cssText='display:flex;align-items:center;gap:20px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);';
+  var av=document.createElement('div');
+  av.style.cssText='width:80px;height:80px;border-radius:50%;background:var(--bg3);border:2px solid rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-size:32px;color:var(--text3);';
+  if(m.photo){var ai=document.createElement('img');ai.src=m.photo;ai.style.cssText='width:100%;height:100%;object-fit:cover;';av.appendChild(ai);}
+  else{av.textContent=(m.pseudo||m.nom).charAt(0).toUpperCase();}
+  var hInfo=document.createElement('div');
+  var hP=document.createElement('div');hP.style.cssText='font-size:22px;font-weight:800;color:var(--text);';hP.textContent=m.pseudo||m.nom;
+  var hN=document.createElement('div');hN.style.cssText='font-size:13px;color:var(--text3);margin-top:2px;';hN.textContent=m.pseudo?m.nom:'';
+  var hG=document.createElement('span');hG.className='badge '+gradeColor(m.grade);hG.style.cssText='margin-top:6px;display:inline-block;';hG.textContent=m.grade;
+  hInfo.appendChild(hP);if(m.pseudo)hInfo.appendChild(hN);hInfo.appendChild(hG);
+  header.appendChild(av);header.appendChild(hInfo);content.appendChild(header);
+  // Info grid
+  var grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;';
+  function infoCard(label,val){
+    var c=document.createElement('div');c.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:10px 14px;';
+    c.innerHTML='<div style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">'+label+'</div>'
+      +'<div style="font-size:13px;color:var(--text2);">'+val+'</div>';
+    return c;
+  }
+  grid.appendChild(infoCard('Arrivee',m.date||'—'));
+  grid.appendChild(infoCard('Telephone',m.tel||'—'));
+  grid.appendChild(infoCard('Discord',m.discord||'—'));
+  grid.appendChild(infoCard('Absence',m.absence?'Oui':'Non'));
+  grid.appendChild(infoCard('Radio',m.radio?'Oui':'Non'));
+  grid.appendChild(infoCard('Arme',m.arme?'Oui':'Non'));
+  grid.appendChild(infoCard('Disqueuse',m.disqueuse?'Oui':'Non'));
+  content.appendChild(grid);
+  // Disponibilites
+  var JOURS_P=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  var JOURS_K=['lun','mar','mer','jeu','ven','sam','dim'];
+  var SLOTS_PL=['Matin','Apres-midi','Soir'];
+  var SLOTS_K=['matin','aprem','soir'];
+  var d=m.dispo||{};
+  var dTitle=document.createElement('div');dTitle.style.cssText='font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;';dTitle.textContent='Disponibilites';
+  content.appendChild(dTitle);
+  var dGrid=document.createElement('div');dGrid.style.cssText='display:grid;grid-template-columns:70px repeat(7,1fr);gap:3px;margin-bottom:20px;';
+  var eHdr=document.createElement('div');dGrid.appendChild(eHdr);
+  JOURS_P.forEach(function(j){var h=document.createElement('div');h.style.cssText='text-align:center;font-size:11px;font-weight:600;color:var(--text3);';h.textContent=j;dGrid.appendChild(h);});
+  SLOTS_K.forEach(function(slot,si){
+    var lbl=document.createElement('div');lbl.style.cssText='font-size:11px;color:var(--text3);display:flex;align-items:center;';lbl.textContent=SLOTS_PL[si];dGrid.appendChild(lbl);
+    JOURS_K.forEach(function(jour){
+      var cell=document.createElement('div');cell.style.cssText='height:24px;border-radius:3px;'+(d[slot+'-'+jour]?'background:rgba(124,58,237,0.4);':'background:var(--bg3);');
+      if(d[slot+'-'+jour]){var ck=document.createElement('div');ck.style.cssText='height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--purple3);';ck.textContent='v';cell.appendChild(ck);}
+      dGrid.appendChild(cell);
+    });
+  });
+  content.appendChild(dGrid);
+  // Sanctions
+  var mySancs=sanctions.filter(function(s){return s.membreId===m.id;}).sort(function(a,b){return b.date>a.date?1:-1;});
+  var sTitleDiv=document.createElement('div');sTitleDiv.style.cssText='font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;';
+  sTitleDiv.textContent='Sanctions ('+mySancs.length+')';
+  content.appendChild(sTitleDiv);
+  if(!mySancs.length){
+    var noS=document.createElement('div');noS.style.cssText='font-size:13px;color:var(--text3);margin-bottom:20px;padding:12px 14px;background:var(--bg3);border-radius:var(--r2);';noS.textContent='Aucune sanction enregistree.';content.appendChild(noS);
+  } else {
+    var gravColors={mineure:'var(--success)',intermediaire:'var(--warning)',grave:'#e05c00',critique:'var(--danger)'};
+    var gravLabels={mineure:'Mineure',intermediaire:'Intermediaire',grave:'Grave',critique:'Critique'};
+    mySancs.forEach(function(s){
+      var infraction=baremeData.find(function(b){return b.id===s.infractionId;});
+      var gravColor=gravColors[s.gravite]||'var(--danger)';
+      var gravLabel=gravLabels[s.gravite]||s.gravite||'—';
+      var sRow=document.createElement('div');
+      sRow.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:12px 16px;margin-bottom:10px;border-left:3px solid '+gravColor+';';
+      // Header: infraction name + date
+      var rowHdr=document.createElement('div');rowHdr.style.cssText='display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:12px;';
+      var infrNom=document.createElement('div');infrNom.style.cssText='font-size:13px;font-weight:700;color:var(--text);flex:1;';
+      infrNom.textContent=infraction?infraction.faute:(s.type||'Sanction');
+      var dateEl=document.createElement('div');dateEl.style.cssText='font-size:11px;color:var(--text3);white-space:nowrap;flex-shrink:0;';
+      dateEl.textContent=fmtDate(s.date);
+      rowHdr.appendChild(infrNom);rowHdr.appendChild(dateEl);sRow.appendChild(rowHdr);
+      // Tags: gravite + type
+      var tags=document.createElement('div');tags.style.cssText='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;';
+      var gTag=document.createElement('span');gTag.style.cssText='padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:'+gravColor+'22;color:'+gravColor+';';gTag.textContent=gravLabel;tags.appendChild(gTag);
+      if(s.type){var tTag=document.createElement('span');tTag.style.cssText='padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:rgba(120,80,220,0.12);color:var(--purple3);';tTag.textContent=s.type;tags.appendChild(tTag);}
+      sRow.appendChild(tags);
+      // Sanction appliquée (from barème)
+      if(infraction&&infraction.sanc1){
+        var sancAppli=document.createElement('div');sancAppli.style.cssText='font-size:12px;color:var(--text3);margin-bottom:6px;';
+        sancAppli.innerHTML='<span style="color:var(--text3);">Sanction : </span><span style="color:var(--text2);">'+infraction.sanc1+'</span>';
+        sRow.appendChild(sancAppli);
+      }
+      // Motif
+      if(s.motif){var motifEl=document.createElement('div');motifEl.style.cssText='font-size:12px;color:var(--text3);padding-top:6px;border-top:1px solid var(--border);margin-top:6px;';motifEl.innerHTML='<span style="font-weight:600;">Motif : </span>'+s.motif;sRow.appendChild(motifEl);}
+      content.appendChild(sRow);
+    });
+  }
+  // Carte ID
+  if(m.carteId){
+    var ciTitle=document.createElement('div');ciTitle.style.cssText='font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;';ciTitle.textContent='Carte ID';
+    var ciImg=document.createElement('img');ciImg.src=m.carteId;ciImg.style.cssText='max-width:100%;border-radius:var(--r2);border:1px solid var(--border);margin-bottom:20px;';
+    content.appendChild(ciTitle);content.appendChild(ciImg);
+  }
+  // Footer
+  var footer=document.createElement('div');footer.className='modal-footer';footer.style.marginTop='8px';
+  var editBtn3=document.createElement('button');editBtn3.className='btn btn-primary';editBtn3.textContent='Modifier le profil';
+  editBtn3.onclick=(function(id){return function(){closeModal('modal-profil-membre');openEditMembre(id);};})(m.id);
+  var dispoBtn2=document.createElement('button');dispoBtn2.className='btn';dispoBtn2.textContent='Modifier les dispos';
+  dispoBtn2.onclick=(function(id){return function(){closeModal('modal-profil-membre');openDispoModal(id);};})(m.id);
+  footer.appendChild(dispoBtn2);footer.appendChild(editBtn3);
+  content.appendChild(footer);
+  openModal('modal-profil-membre');
+}
+
+
+function fmtDate(d){
+  if(!d)return '—';
+  // Already DD/MM/YYYY
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(d))return d;
+  // YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(d)){var p=d.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+  return d;
+}
+
+
+function renderQuotaSubtabs(){
+  var wrap=document.getElementById('mb-quota-subtabs-wrap');
+  if(!wrap)return;
+  var isCmd=currentUser&&currentUser.role==='commandant';
+  var hasArmes=hasRole('armes');
+  if(!isCmd&&!hasArmes){wrap.innerHTML='';return;}
+  // Build subtabs - onclick uses container id as group
+  var html='<div class="subtabs" id="mb-quota-subtabs">';
+  html+='<button class="subtab active" onclick="showQuotaSubtab2(\'mbq-saisie\',this)">Mes quotas</button>';
+  if(isCmd)html+='<button class="subtab" onclick="showQuotaSubtab2(\'mbq-recap\',this)">Quotas des membres</button>';
+  if(hasArmes)html+='<button class="subtab" onclick="showQuotaSubtab2(\'mbq-armes\',this)">Armes</button>';
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
+function showQuotaSubtab2(tabId,btn){
+  // Toggle all content divs in the container
+  ['mbq-saisie','mbq-recap','mbq-armes'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.classList.remove('active');
+  });
+  // Deactivate all subtab buttons
+  var subtabs=document.getElementById('mb-quota-subtabs');
+  if(subtabs)subtabs.querySelectorAll('.subtab').forEach(function(b){b.classList.remove('active');});
+  // Activate target
+  var target=document.getElementById(tabId);
+  if(target)target.classList.add('active');
+  if(btn)btn.classList.add('active');
+  // Render content
+  if(tabId==='mbq-recap')renderQuotaRecap('mb-quota-recap-div',true);
+  if(tabId==='mbq-saisie')renderQuotaSaisie('mb-quota-saisie-div');
+}
+
+
+// ============================================================
+// MEMBRES EN LIGNE
+// ============================================================
+function pingOnline(){
+  if(!currentUser)return;
+  var payload={
+    user_id:currentUser.id,
+    user_name:currentUser.user,
+    membre_id:currentUser.membreId||null,
+    role:currentUser.role,
+    last_seen:new Date().toISOString()
+  };
+  fetch(SUPABASE_URL+'/rest/v1/s9_online',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'apikey':SUPABASE_KEY,
+      'Authorization':'Bearer '+SUPABASE_KEY,
+      'Prefer':'resolution=merge-duplicates,return=minimal'
+    },
+    body:JSON.stringify(payload)
+  }).catch(function(){});
+}
+
+function fetchOnlineUsers(callback){
+  // Get users pinged in last 2 minutes
+  var since=new Date(Date.now()-120000).toISOString();
+  fetch(SUPABASE_URL+'/rest/v1/s9_online?last_seen=gte.'+encodeURIComponent(since)+'&select=*',{
+    headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+  })
+  .then(function(r){return r.json();})
+  .then(function(rows){if(callback)callback(rows||[]);})
+  .catch(function(){if(callback)callback([]);});
+}
+
+function openOnlinePanel(){
+  var modal=document.getElementById('modal-online');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-online';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.maxWidth='400px';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-online');};
+    var h3=document.createElement('h3');h3.textContent='Membres en ligne';
+    var sub=document.createElement('div');sub.style.cssText='font-size:12px;color:var(--text3);margin-bottom:16px;';sub.textContent='Actifs dans les 2 dernières minutes';
+    var list=document.createElement('div');list.id='online-list';
+    var footer=document.createElement('div');footer.className='modal-footer';
+    var closeBtn=document.createElement('button');closeBtn.className='btn';closeBtn.textContent='Fermer';closeBtn.onclick=function(){closeModal('modal-online');};
+    footer.appendChild(closeBtn);
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(sub);mb.appendChild(list);mb.appendChild(footer);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-online');});
+    document.body.appendChild(modal);
+  }
+  var list=document.getElementById('online-list');
+  list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px 0;">Chargement...</div>';
+  openModal('modal-online');
+  fetchOnlineUsers(function(rows){
+    if(!rows.length){
+      list.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px 0;">Aucun membre en ligne.</div>';
+      return;
+    }
+    list.innerHTML='';
+    rows.sort(function(a,b){return a.role.localeCompare(b.role);}).forEach(function(u){
+      var m=u.membre_id?membres.find(function(x){return x.id===u.membre_id;}):null;
+      var displayName=m?(m.pseudo||m.nom):u.user_name;
+      var grade=m?m.grade:'';
+      var lastSeen=new Date(u.last_seen);
+      var secsAgo=Math.round((Date.now()-lastSeen.getTime())/1000);
+      var timeLabel=secsAgo<60?secsAgo+'s':''+Math.round(secsAgo/60)+'min';
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);';
+      // Green dot
+      var dot=document.createElement('div');dot.style.cssText='width:8px;height:8px;border-radius:50%;background:var(--success);flex-shrink:0;box-shadow:0 0 6px var(--success);';
+      // Avatar
+      var av=document.createElement('div');
+      av.style.cssText='width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--purple3);flex-shrink:0;overflow:hidden;';
+      if(m&&m.photo){var ai=document.createElement('img');ai.src=m.photo;ai.style.cssText='width:100%;height:100%;object-fit:cover;';av.appendChild(ai);}
+      else{av.textContent=displayName.charAt(0).toUpperCase();}
+      var info=document.createElement('div');info.style.flex='1';
+      info.innerHTML='<div style="font-weight:600;font-size:13px;color:var(--text);">'+displayName+'</div>'
+        +(grade?'<span class="badge '+gradeColor(grade)+'">'+grade+'</span>':'<span style="font-size:11px;color:var(--text3);">'+u.role+'</span>');
+      var time=document.createElement('div');time.style.cssText='font-size:11px;color:var(--text3);flex-shrink:0;';time.textContent='il y a '+timeLabel;
+      row.appendChild(dot);row.appendChild(av);row.appendChild(info);row.appendChild(time);
+      list.appendChild(row);
+    });
+    // Badge count update
+    updateOnlineBadge(rows.length);
+  });
+}
+
+function updateOnlineBadge(count){
+  var badge=document.getElementById('online-badge');
+  if(badge){badge.textContent=count;badge.style.display=count>0?'flex':'none';}
+}
+
+
+
+function resetMdpByProfileId(profileId){
+  var newPass=prompt('Nouveau mot de passe (min. 4 car.) :');
+  if(newPass===null)return;
+  if(newPass.length<4){alert('Trop court.');return;}
+  fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{
+    method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},
+    body:JSON.stringify({action:'update_password',userId:profileId,password:newPass})
+  })
+  .then(function(r){return r.json();})
+  .then(function(res){res.error?alert('Erreur: '+res.error):alert('Mot de passe modifie.');})
+  .catch(function(e){alert('Erreur: '+e.message);});
+}
+// ============================================================
+// LOCALSTORAGE
+// ============================================================
+var LS_KEY='s9_data_v4';
+var SUPABASE_URL='https://zgmvlwkegfbrnsxfbbiy.supabase.co';
+var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
+
+function sauvegarder(){
+  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence};
+  // Save to localStorage as backup
+  try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
+  // Save to Supabase via UPSERT
+  fetch(SUPABASE_URL+'/rest/v1/s9_data',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'apikey':SUPABASE_KEY,
+      'Authorization':'Bearer '+SUPABASE_KEY,
+      'Prefer':'resolution=merge-duplicates,return=minimal'
+    },
+    body:JSON.stringify({id:'main',data:payload,updated_at:new Date().toISOString()})
+  })
+  .then(function(r){
+    if(!r.ok){r.text().then(function(t){console.warn('Supabase error:',t);});return;}
+    // Get real server timestamp to avoid triggering self-refresh
+    fetch(SUPABASE_URL+'/rest/v1/s9_data?id=eq.main&select=updated_at',{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+    })
+    .then(function(r2){return r2.json();})
+    .then(function(rows){if(rows&&rows[0])lastUpdatedAt=rows[0].updated_at;})
+    .catch(function(){});
+  })
+  .catch(function(e){console.warn('Supabase save failed:',e);});
+}
+function applyData(data){
+  if(!data)return;
+  if(data.membres&&data.membres.length)membres=data.membres;
+  if(data.sanctions)sanctions=data.sanctions;
+  if(data.baremeData&&data.baremeData.length)baremeData=data.baremeData;
+  if(data.events)events=data.events;
+  if(data.todos)todos=data.todos;
+  if(data.comptes&&data.comptes.length){
+    comptes=data.comptes;
+  }
+  // Sync currentUser roles from s9_profiles
+  if(currentUser&&currentUser.id){
+    fetch(SUPABASE_URL+'/rest/v1/s9_profiles?id=eq.'+currentUser.id+'&select=roles,role,membre_id',{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+(currentUser.accessToken||SUPABASE_KEY)}
+    })
+    .then(function(r){return r.json();})
+    .then(function(profiles){
+      if(profiles&&profiles[0]){
+        var p=profiles[0];
+        var rolesChanged=JSON.stringify(p.roles)!==JSON.stringify(currentUser.roles);
+        currentUser.roles=p.roles||[];
+        currentUser.role=p.role||currentUser.role;
+        currentUser.membreId=p.membre_id||currentUser.membreId;
+        if(rolesChanged)setTimeout(function(){buildInterface();renderQuotaSubtabs();},0);
+      }
+    }).catch(function(){});
+  }
+  if(data.database&&data.database.length)database=data.database;
+  if(data.bannerText!==undefined)bannerText=data.bannerText;
+  if(data.quotaCards&&data.quotaCards.length)quotaCards=data.quotaCards;
+  if(data.presences)presences=data.presences;
+  if(data.quotaHistory)quotaHistory=data.quotaHistory;
+  if(data.coffre)coffre=data.coffre;
+  if(data.frequence)frequence=data.frequence;
+}
+
+function chargerDonnees(){
+  try{
+    var raw=localStorage.getItem(LS_KEY);
+    if(raw)applyData(JSON.parse(raw));
+  }catch(e){}
+  return true;
+}
+
+function chargerDepuisSupabase(callback){
+  fetch(SUPABASE_URL+'/rest/v1/s9_data?id=eq.main&select=data,updated_at',{
+    headers:{
+      'apikey':SUPABASE_KEY,
+      'Authorization':'Bearer '+SUPABASE_KEY
+    }
+  })
+  .then(function(r){return r.json();})
+  .then(function(rows){
+    if(rows&&rows[0]){
+      if(rows[0].data&&Object.keys(rows[0].data).length>0){
+        applyData(rows[0].data);
+        try{localStorage.setItem(LS_KEY,JSON.stringify(rows[0].data));}catch(e){}
+      }
+      // Store server timestamp so refresh knows baseline
+      if(rows[0].updated_at)lastUpdatedAt=rows[0].updated_at;
+    }
+    if(callback)callback();
+  })
+  .catch(function(e){
+    console.warn('Supabase load failed, using localStorage:',e);
+    if(callback)callback();
+  });
+}
+
+function reinitialiser(){if(!confirm('Réinitialiser toutes les données ?'))return;localStorage.removeItem(LS_KEY);location.reload();}
+
+// INIT
+chargerDonnees(); // Load localStorage first for instant display
+
+// Load from Supabase then handle session
+chargerDepuisSupabase(function(){
+  // Auto-login si session sauvegardee
+  try{
+    var sess=localStorage.getItem('s9_session');
+    if(sess){
+      var s=JSON.parse(sess);
+      if(s&&s.userId&&s.accessToken&&(Date.now()-s.ts)<30*24*60*60*1000){
+        // Verify token still valid by fetching profile
+        fetch(SUPABASE_URL+'/rest/v1/s9_profiles?id=eq.'+s.userId+'&select=*',{
+          headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+s.accessToken}
+        })
+        .then(function(r){return r.json();})
+        .then(function(profiles){
+          if(profiles&&profiles[0]){
+            var profile=profiles[0];
+            currentUser={
+              id:s.userId,
+              user:profile.user_name,
+              email:profile.email,
+              role:profile.role,
+              roles:profile.roles||[],
+              membreId:profile.membre_id,
+              accessToken:s.accessToken,
+              refreshToken:s.refresh_token
+            };
+            localStorage.setItem('s9_session',JSON.stringify({userId:s.userId,accessToken:s.accessToken,refreshToken:s.refresh_token,ts:Date.now()}));
+            doLoginSuccess();
+          } else {
+            localStorage.removeItem('s9_session');
+            document.getElementById('splash').dataset.ready='1';
+          }
+        })
+        .catch(function(){
+          localStorage.removeItem('s9_session');
+          document.getElementById('splash').dataset.ready='1';
+        });
+        return;
+      }
+      localStorage.removeItem('s9_session');
+    }
+  }catch(e){}
+  document.getElementById('splash').dataset.ready='1';
+});
+
+
+
+
+
 </script>
 </body>
 </html>
