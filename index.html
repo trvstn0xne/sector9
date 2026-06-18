@@ -1603,12 +1603,33 @@ function saveMdp(){
   var newP=document.getElementById('mdp-new').value;
   var conf=document.getElementById('mdp-confirm').value;
   var errDiv=document.getElementById('mdp-err');
-  if(actuel!==currentUser.pass){errDiv.textContent='Mot de passe actuel incorrect.';return;}
-  if(newP.length<4){errDiv.textContent='Le mot de passe doit contenir au moins 4 caractères.';return;}
+  if(newP.length<4){errDiv.textContent='Le mot de passe doit contenir au moins 4 caracteres.';return;}
   if(newP!==conf){errDiv.textContent='Les mots de passe ne correspondent pas.';return;}
-  var idx=comptes.findIndex(function(c){return c.id===currentUser.id;});
-  if(idx>=0){comptes[idx].pass=newP;currentUser.pass=newP;}
-  errDiv.textContent='';closeModal('modal-mdp');sauvegarder();alert('Mot de passe modifié avec succès !');
+  errDiv.textContent='Verification...';
+  // Verify current password via Supabase Auth
+  fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/auth/v1/token?grant_type=password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},
+    body:JSON.stringify({email:currentUser.email,password:actuel})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data.error||!data.access_token){errDiv.textContent='Mot de passe actuel incorrect.';return;}
+    // Current password OK - update via Edge Function
+    return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},
+      body:JSON.stringify({action:'update_password',userId:currentUser.id,password:newP})
+    })
+    .then(function(r2){return r2.json();})
+    .then(function(res){
+      if(res.error){errDiv.textContent='Erreur: '+res.error;return;}
+      errDiv.textContent='';
+      closeModal('modal-mdp');
+      alert('Mot de passe modifie avec succes !');
+    });
+  })
+  .catch(function(e){errDiv.textContent='Erreur: '+e.message;});
 }
 
 // ============================================================
