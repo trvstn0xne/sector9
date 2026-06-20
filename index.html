@@ -3483,6 +3483,38 @@ function renderAccueil(){
       +'<span style="padding:4px 12px;border-radius:20px;background:rgba(226,75,74,0.12);color:var(--danger);font-size:12px;font-weight:600;">❌ '+av+'</span>'
       +'<span style="font-size:11px;color:var(--text3);margin-left:auto;">'+voted+'/'+ml.length+' ont répondu</span>';
     reunCard.appendChild(ctrs);
+    // Admin: collapsible vote detail
+    if(isAdmin){
+      var VSTYLES={present:{bg:'rgba(29,158,117,0.10)',icon:'✅'},incertain:{bg:'rgba(239,159,39,0.10)',icon:'⏳'},absent:{bg:'rgba(226,75,74,0.10)',icon:'❌'},'':{bg:'var(--bg3)',icon:'—'}};
+      var togBtn=document.createElement('button');
+      togBtn.style.cssText='width:100%;text-align:left;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:7px 12px;cursor:pointer;font-size:12px;color:var(--text3);font-weight:600;display:flex;align-items:center;justify-content:space-between;margin-top:10px;';
+      var togLbl=document.createElement('span');togLbl.textContent='Voir le detail des votes';
+      var togArr=document.createElement('span');togArr.textContent='▾';togArr.style.cssText='transition:transform 0.2s;transform:rotate(-90deg);';
+      togBtn.appendChild(togLbl);togBtn.appendChild(togArr);
+      var detBody=document.createElement('div');detBody.style.cssText='display:none;margin-top:6px;';
+      ml.forEach(function(x){
+        var vk=evPresences[x.id]||'';
+        var vs=VSTYLES[vk]||VSTYLES[''];
+        var row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--r2);margin-bottom:3px;background:'+vs.bg+';';
+        var av=document.createElement('div');
+        av.style.cssText='width:24px;height:24px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--purple3);flex-shrink:0;overflow:hidden;';
+        if(x.photo){var ai=document.createElement('img');ai.src=x.photo;ai.style.cssText='width:100%;height:100%;object-fit:cover;';av.appendChild(ai);}
+        else{av.textContent=(x.pseudo||x.nom).charAt(0).toUpperCase();}
+        var nm=document.createElement('div');nm.style.cssText='flex:1;font-size:12px;font-weight:600;color:var(--text);';nm.textContent=x.pseudo||x.nom;
+        var ic=document.createElement('div');ic.style.cssText='font-size:12px;';ic.textContent=vs.icon+(vk===''?' N/A':'');
+        row.appendChild(av);row.appendChild(nm);row.appendChild(ic);
+        detBody.appendChild(row);
+      });
+      togBtn.onclick=function(){
+        var open=detBody.style.display!=='none';
+        detBody.style.display=open?'none':'block';
+        togArr.style.transform=open?'rotate(-90deg)':'rotate(0deg)';
+        togLbl.textContent=open?'Voir le detail des votes':'Masquer le detail';
+      };
+      reunCard.appendChild(togBtn);
+      reunCard.appendChild(detBody);
+    }
   } else {
     var noEv=document.createElement('div');noEv.style.cssText='text-align:center;padding:16px;color:var(--text3);font-size:13px;';
     noEv.textContent='Aucune reunion planifiee';reunCard.appendChild(noEv);
