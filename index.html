@@ -2346,6 +2346,41 @@ function renderPresencePanel(panelId, readOnly){
   footer.innerHTML='<span style="color:'+(voted===total?'var(--success)':'var(--text2)')+';">'+voted+' / '+total+'</span> ont répondu';
   card.appendChild(footer);
 
+  // Admin sees detailed list of who voted what
+  if(isAdmin){
+    var detailTitle=document.createElement('div');
+    detailTitle.style.cssText='font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 8px;';
+    detailTitle.textContent='Detail des votes';
+    card.appendChild(detailTitle);
+
+    var VOTE_STYLES={
+      present:{color:'var(--success)',bg:'rgba(29,158,117,0.10)',icon:'✅'},
+      incertain:{color:'var(--warning)',bg:'rgba(239,159,39,0.10)',icon:'⏳'},
+      absent:{color:'var(--danger)',bg:'rgba(226,75,74,0.10)',icon:'❌'},
+      '': {color:'var(--text3)',bg:'var(--bg3)',icon:'—'}
+    };
+
+    membersList.forEach(function(m){
+      var voteKey=evPresences[m.id]||'';
+      var vstyle=VOTE_STYLES[voteKey]||VOTE_STYLES[''];
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:var(--r2);margin-bottom:4px;background:'+vstyle.bg+';';
+      // Avatar
+      var av=document.createElement('div');
+      av.style.cssText='width:28px;height:28px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--purple3);flex-shrink:0;overflow:hidden;';
+      if(m.photo){var ai=document.createElement('img');ai.src=m.photo;ai.style.cssText='width:100%;height:100%;object-fit:cover;';av.appendChild(ai);}
+      else{av.textContent=(m.pseudo||m.nom).charAt(0).toUpperCase();}
+      var name=document.createElement('div');
+      name.style.cssText='flex:1;font-size:12px;font-weight:600;color:var(--text);';
+      name.textContent=m.pseudo||m.nom;
+      var badge=document.createElement('div');
+      badge.style.cssText='font-size:13px;';
+      badge.textContent=vstyle.icon+(voteKey===''?' N/A':'');
+      row.appendChild(av);row.appendChild(name);row.appendChild(badge);
+      card.appendChild(row);
+    });
+  }
+
   panel.innerHTML='';panel.appendChild(card);
 }
 
