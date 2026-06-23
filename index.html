@@ -587,7 +587,16 @@ let comptes=[];
 let presences={};
 // presences = { eventId: { membreId: 'present'|'incertain'|'absent' } }
 let quotaHistory={};
-let coffre={solde:0,transactions:[]};var paieArchives=[];var recruitQuestions=['Quel est votre pseudo ?','Avez-vous de l experience en RP ?','Pourquoi voulez-vous rejoindre Sector 9 ?','Avez-vous lu le reglement ?'];
+let coffre={solde:0,transactions:[]};var paieArchives=[];
+var accordionQuestions=[
+  {title:'Age du candidat',items:['Age en ville ?','Age IRL ?']},
+  {title:'Disponibilites',items:['Disponible la semaine ?','Disponible le weekend ?']},
+  {title:'Ancien groupe ?',items:['A-t-il deja ete dans un groupe ?','Si oui : lequel, quel role ?','Si kick : pourquoi ?']},
+  {title:'Travail legal ?',items:['A-t-il un travail legal ?','Si oui : lequel ?']},
+  {title:'Problemes avec Washington ?',items:['A-t-il eu des problemes ?','Si oui : quand ?']},
+  {title:'Motivations',items:['Pourquoi ce groupe ?','Attentes ?']},
+  {title:'Screenshot du visage',items:['Demander un screenshot du personnage.']}
+];var recruitQuestions=['Quel est votre pseudo ?','Avez-vous de l experience en RP ?','Pourquoi voulez-vous rejoindre Sector 9 ?','Avez-vous lu le reglement ?'];
 let frequence={valeur:991.2};
 let currentUser=null;
 let membreEditId=null;
@@ -844,7 +853,7 @@ function showSec(id,btn){
   if(id==='admin-quotas'||id==='mb-quotas')renderQuotaBanner();
   if(id==='admin-quotas'){setTimeout(function(){renderQuotaRecap('quota-recap-div',true);},0);}
   if(id==='mb-quotas'){setTimeout(function(){renderQuotaSubtabs();renderQuotaSaisie('mb-quota-saisie-div');},0);}
-  if(id==='mb-recrutement'||id==='admin-recrutement'){setTimeout(function(){renderRecruitQuestions();},50);}
+  if(id==='mb-recrutement'||id==='admin-recrutement'){setTimeout(function(){renderRecruitQuestions();renderAccordionQuestions();},50);}
   if(id==='admin-calendrier'){renderPresencePanel('admin-presence-panel',true);}
   if(id==='mb-calendrier'){renderPresencePanel('mb-presence-panel',false);}
 }
@@ -1109,15 +1118,11 @@ function buildRecrutementHTML(){
     +'<textarea class="market-msg" id="market-msg">📢 LA S9 RECRUTE !\nUne orga solide et disciplinée.\nSi tu veux évoluer, protéger les tiens et faire partie d\'une force qui marque la ville, tu es au bon endroit.\n\nConditions :\n🤝Loyauté\n📈Activité régulière\n🕐Dispo 21h-01h\n📝Respect de la hiérarchie</textarea>'
     +'<button class="btn btn-sm" style="margin-top:8px;width:100%;justify-content:center;" onclick="copyMarket()">Copier le message</button>'
     +'<div id="copy-ok" style="display:none;margin-top:6px;font-size:12px;color:var(--success);text-align:center;">Copié !</div></div>'
-    +'<div class="card"><div class="card-title">Questions à poser</div>'
-    +'<div class="accordion">'
-    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Âge du candidat</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>Âge en ville ?</li><li>Âge IRL ? (à voir cas par cas)</li></ul></div></div>'
-    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Disponibilités</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>Disponible la semaine ?</li><li>Disponible le weekend ?</li></ul></div></div>'
-    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Ancien groupe ?</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>A-t-il déjà été dans un groupe ?</li><li>Si oui : lequel, quel rôle ?</li><li>S\'il était haut gradé, comment vivra-t-il le retour en bas ?</li><li>S\'il s\'est fait kick : pourquoi ?</li><li>Si dissous : pourquoi ?</li></ul></div></div>'
-    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Travail légal ?</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>A-t-il un travail légal ?</li><li>Si oui : lequel ?</li></ul></div></div>'
-    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Problèmes avec Washington ?</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>A-t-il eu des problèmes avec Washington ?</li><li>Si oui : pourquoi, quand ?</li></ul></div></div>'
-    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Motivations &amp; attentes</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>Pourquoi recherche-t-il un groupe ?</li><li>Quelles sont ses attentes ?</li></ul></div></div>'
-    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Screenshot du visage</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>Demander un screenshot du visage du personnage.</li></ul></div></div>'
+    +'<div class="card" id="questions-poser-card">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+    +'<div class="card-title" style="margin-bottom:0;">Questions a poser</div>'
+    +'</div>'
+    +'<div id="accordion-questions-wrap"></div>'
     +'</div></div></div></div>';
 }
 
@@ -1488,27 +1493,33 @@ function renderMonCompte(){
     +'<div id="mc-dispo-content"></div>'
     +'<button class="btn btn-sm" style="margin-top:10px;" onclick="openDispoModal('+m.id+')">Modifier</button></div>'
     +'<div class="card" style="margin-bottom:0;"><div class="card-title">Mes sanctions</div><div id="mc-sanctions-content"></div></div>'
+    +'<div class="card" style="margin-bottom:0;"><div class="card-title">Mon absence</div><div id="mc-absence-content"></div></div>'
     +'</div>';
   // Render absence
   var absDiv=document.getElementById('mc-absence-content');
   if(absDiv&&m){
     absDiv.innerHTML='';
-    var sb=document.createElement('span');sb.className='badge '+(m.absence?'badge-abs':'badge-ok');sb.textContent=m.absence?'Absent':'Present';sb.style.marginBottom='12px';sb.style.display='inline-block';
-    absDiv.appendChild(sb);
-    var absCb=document.createElement('label');absCb.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);margin:8px 0;';
-    var absCbInp=document.createElement('input');absCbInp.type='checkbox';absCbInp.checked=m.absence||false;absCbInp.style.cssText='width:15px;height:15px;accent-color:var(--purple);';
-    absCb.appendChild(absCbInp);absCb.appendChild(document.createTextNode('Je suis absent'));
-    var dateRow=document.createElement('div');dateRow.style.cssText='display:'+(m.absence?'flex':'none')+';align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap;';
-    var dateLbl2=document.createElement('label');dateLbl2.style.cssText='font-size:12px;color:var(--text3);';dateLbl2.textContent='Retour prevu :';
-    var dateInp2=document.createElement('input');dateInp2.type='date';dateInp2.className='input';dateInp2.style.width='160px';dateInp2.value=m.absenceFin||'';
-    dateRow.appendChild(dateLbl2);dateRow.appendChild(dateInp2);
-    absCbInp.onchange=function(){dateRow.style.display=this.checked?'flex':'none';};
-    var saveAbsBtn=document.createElement('button');saveAbsBtn.className='btn btn-sm btn-primary';saveAbsBtn.textContent='Enregistrer';saveAbsBtn.style.marginTop='8px';
-    saveAbsBtn.onclick=(function(mid){return function(){var idx2=membres.findIndex(function(x){return x.id===mid;});if(idx2>=0){membres[idx2].absence=absCbInp.checked;membres[idx2].absenceFin=absCbInp.checked?dateInp2.value:'';sauvegarder();renderMonCompte();}};})(m.id);
-    absDiv.appendChild(absCb);absDiv.appendChild(dateRow);absDiv.appendChild(saveAbsBtn);
+    var aStatus=document.createElement('span');aStatus.className='badge '+(m.absence?'badge-abs':'badge-ok');aStatus.textContent=m.absence?'Absent':'Present';aStatus.style.cssText='display:inline-block;margin-bottom:8px;';
+    absDiv.appendChild(aStatus);
+    if(m.absence){
+      if(m.absenceFin){var aInf=document.createElement('div');aInf.style.cssText='font-size:11px;color:var(--text3);margin-bottom:8px;';aInf.textContent='Retour : '+fmtDate(m.absenceFin);absDiv.appendChild(aInf);}
+      var retBtn=document.createElement('button');retBtn.className='btn btn-sm btn-success';retBtn.textContent='Je suis de retour';retBtn.style.cssText='display:block;width:100%;margin-bottom:4px;';
+      retBtn.onclick=(function(mid){return function(){var ix=membres.findIndex(function(x){return x.id===mid;});if(ix>=0){membres[ix].absence=false;membres[ix].absenceFin='';sauvegarder();renderMonCompte();}};})(m.id);
+      absDiv.appendChild(retBtn);
+    } else {
+      var decBtn=document.createElement('button');decBtn.className='btn btn-sm';decBtn.textContent='Declarer absence';decBtn.style.cssText='display:block;width:100%;margin-bottom:6px;';
+      var fD=document.createElement('div');fD.style.display='none';
+      var dLbl=document.createElement('label');dLbl.style.cssText='font-size:11px;color:var(--text3);display:block;margin-bottom:4px;';dLbl.textContent='Retour prevu :';
+      var dInp=document.createElement('input');dInp.type='date';dInp.className='input';dInp.style.cssText='width:100%;margin-bottom:6px;';
+      var cBtn=document.createElement('button');cBtn.className='btn btn-sm btn-primary';cBtn.textContent='Confirmer';cBtn.style.width='100%';
+      cBtn.onclick=(function(mid){return function(){var ix=membres.findIndex(function(x){return x.id===mid;});if(ix>=0){membres[ix].absence=true;membres[ix].absenceFin=dInp.value||'';sauvegarder();renderMonCompte();}};})(m.id);
+      decBtn.onclick=function(){fD.style.display=fD.style.display==='none'?'block':'none';};
+      fD.appendChild(dLbl);fD.appendChild(dInp);fD.appendChild(cBtn);
+      absDiv.appendChild(decBtn);absDiv.appendChild(fD);
+    }
   }
 
-  // Render sanctions
+    // Render sanctions
   var sancDiv=document.getElementById('mc-sanctions-content');
   if(sancDiv){
     var mySanctions=sanctions.filter(function(s){return s.membreId===m.id;}).sort(function(a,b){return b.date>a.date?1:-1;});
@@ -3911,6 +3922,76 @@ function renderMqList(){
   });
 }
 
+
+function renderAccordionQuestions(){
+  var wrap=document.getElementById('accordion-questions-wrap');if(!wrap)return;
+  wrap.innerHTML='';
+  // Add Modifier button for admin
+  if(currentUser&&currentUser.role==='admin'){
+    var modBtn=document.createElement('button');modBtn.className='btn btn-sm';modBtn.style.cssText='font-size:12px;margin-bottom:10px;';modBtn.textContent='Modifier les questions';
+    modBtn.onclick=function(){openManageAccordion();};wrap.appendChild(modBtn);
+  }
+  var acc=document.createElement('div');acc.className='accordion';
+  (accordionQuestions||[]).forEach(function(q){
+    var item=document.createElement('div');item.className='acc-item';
+    var btn=document.createElement('button');btn.className='acc-header';
+    btn.onclick=function(){toggleAcc(this);};
+    var sp1=document.createElement('span');sp1.textContent=q.title;
+    var sp2=document.createElement('span');sp2.className='acc-arrow';sp2.textContent='v';
+    btn.appendChild(sp1);btn.appendChild(sp2);
+    var body=document.createElement('div');body.className='acc-body';
+    var ul=document.createElement('ul');
+    (q.items||[]).forEach(function(it){var li=document.createElement('li');li.textContent=it;ul.appendChild(li);});
+    body.appendChild(ul);item.appendChild(btn);item.appendChild(body);acc.appendChild(item);
+  });
+  wrap.appendChild(acc);
+}
+function openManageAccordion(){
+  var modal=document.getElementById('modal-maq');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-maq';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.cssText='max-width:560px;max-height:85vh;overflow-y:auto;';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-maq');};
+    var h3=document.createElement('h3');h3.textContent='Modifier les questions';
+    var listDiv=document.createElement('div');listDiv.id='maq-list';
+    var addBtn=document.createElement('button');addBtn.className='btn btn-sm';addBtn.style.margin='12px 0';addBtn.textContent='+ Ajouter rubrique';
+    addBtn.onclick=function(){accordionQuestions.push({title:'Nouvelle rubrique',items:['Question']});renderMaqList();};
+    var footer=document.createElement('div');footer.className='modal-footer';
+    var saveBtn=document.createElement('button');saveBtn.className='btn btn-primary';saveBtn.textContent='Enregistrer';
+    saveBtn.onclick=function(){sauvegarder();closeModal('modal-maq');renderAccordionQuestions();};
+    var closeBtn=document.createElement('button');closeBtn.className='btn';closeBtn.textContent='Annuler';closeBtn.onclick=function(){closeModal('modal-maq');};
+    footer.appendChild(closeBtn);footer.appendChild(saveBtn);
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(listDiv);mb.appendChild(addBtn);mb.appendChild(footer);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-maq');});
+    document.body.appendChild(modal);
+  }
+  renderMaqList();openModal('modal-maq');
+}
+function renderMaqList(){
+  var listDiv=document.getElementById('maq-list');if(!listDiv)return;listDiv.innerHTML='';
+  accordionQuestions.forEach(function(q,qi){
+    var card=document.createElement('div');card.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:12px;margin-bottom:10px;';
+    var tRow=document.createElement('div');tRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    var tInp=document.createElement('input');tInp.type='text';tInp.className='input';tInp.style.flex='1';tInp.style.fontWeight='600';tInp.value=q.title;
+    tInp.oninput=(function(i){return function(){accordionQuestions[i].title=this.value;};})(qi);
+    var delQ=document.createElement('button');delQ.className='btn btn-sm btn-danger';delQ.textContent='Suppr.';
+    delQ.onclick=(function(i){return function(){accordionQuestions.splice(i,1);renderMaqList();};})(qi);
+    tRow.appendChild(tInp);tRow.appendChild(delQ);card.appendChild(tRow);
+    var itemsDiv=document.createElement('div');itemsDiv.style.marginLeft='8px';
+    (q.items||[]).forEach(function(it,ii){
+      var iRow=document.createElement('div');iRow.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:6px;';
+      var iInp=document.createElement('input');iInp.type='text';iInp.className='input';iInp.style.flex='1';iInp.style.fontSize='13px';iInp.value=it;
+      iInp.oninput=(function(a,b){return function(){accordionQuestions[a].items[b]=this.value;};})(qi,ii);
+      var delI=document.createElement('button');delI.className='btn btn-sm btn-danger';delI.style.cssText='width:28px;padding:0;';delI.textContent='x';
+      delI.onclick=(function(a,b){return function(){accordionQuestions[a].items.splice(b,1);renderMaqList();};})(qi,ii);
+      iRow.appendChild(iInp);iRow.appendChild(delI);itemsDiv.appendChild(iRow);
+    });
+    var addI=document.createElement('button');addI.className='btn btn-sm';addI.style.cssText='font-size:11px;margin-top:4px;';addI.textContent='+ Question';
+    addI.onclick=(function(i){return function(){accordionQuestions[i].items.push('Nouvelle question');renderMaqList();};})(qi);
+    itemsDiv.appendChild(addI);card.appendChild(itemsDiv);listDiv.appendChild(card);
+  });
+}
+
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
@@ -3919,7 +4000,7 @@ var SUPABASE_URL='https://zgmvlwkegfbrnsxfbbiy.supabase.co';
 var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
 
 function sauvegarder(){
-  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence,paieArchives:paieArchives,recruitQuestions:recruitQuestions};
+  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence,paieArchives:paieArchives,recruitQuestions:recruitQuestions,accordionQuestions:accordionQuestions};
   // Save to localStorage as backup
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
   // Save to Supabase via UPSERT
@@ -3990,6 +4071,7 @@ function applyData(data){
   if(data.frequence)frequence=data.frequence;
   if(data.paieArchives)paieArchives=data.paieArchives;
   if(data.recruitQuestions)recruitQuestions=data.recruitQuestions;
+  if(data.accordionQuestions)accordionQuestions=data.accordionQuestions;
 }
 
 function chargerDonnees(){
