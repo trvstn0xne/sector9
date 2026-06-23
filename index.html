@@ -485,44 +485,8 @@ input[type="number"]{-moz-appearance:textfield;}input[type="number"]::-webkit-ou
   </div>
 </div>
 
-<!-- MODAL COMPTE -->
-<div class="modal-overlay" id="modal-compte">
-  <div class="modal-box" style="max-width:460px;">
-    <button class="close-x" onclick="closeModal('modal-compte')">&#x2715;</button>
-    <h3 id="modal-compte-title">Ajouter un compte</h3>
-    <div style="margin-bottom:14px;"><label class="lbl">Email</label><input class="input" id="c-user" placeholder="Ex: s9marco" autocomplete="off"/></div>
-    <div style="margin-bottom:14px;"><label class="lbl">Mot de passe</label><input class="input" type="password" id="c-pass" placeholder="Min. 4 caractères" autocomplete="new-password"/></div>
-    <div style="margin-bottom:14px;"><label class="lbl">Rôle</label>
-      <select class="input" id="c-role">
-        <option value="membre">Membre</option>
-        <option value="commandant">Commandant</option>
-        <option value="admin">Admin</option>
-      </select>
-    </div>
-    <div style="margin-bottom:14px;">
-      <label class="lbl">Rôles spéciaux</label>
-      <div style="margin-top:6px;display:flex;flex-direction:column;gap:8px;">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);">
-          <input type="checkbox" id="c-role-recruteur" style="accent-color:var(--purple);width:15px;height:15px;"/>
-          <span>Recruteur</span>
-          <span style="font-size:11px;color:var(--text3);">— accès à l'onglet Recrutement</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);">
-          <input type="checkbox" id="c-role-armes" style="accent-color:var(--purple);width:15px;height:15px;"/>
-          <span>Armes</span>
-          <span style="font-size:11px;color:var(--text3);">— accès à l'onglet Armes</span>
-        </label>
-      </div>
-    </div>
-    <div id="c-err" style="font-size:12px;color:var(--danger);min-height:16px;margin-bottom:8px;"></div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('modal-compte')">Annuler</button>
-      <button class="btn btn-primary" onclick="saveCompte()">Enregistrer</button>
-    </div>
-  </div>
-</div>
-
 <script>
+
 window.addEventListener('error', function(e){
   var d=document.createElement('div');
   d.style.cssText='position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:12px 16px;z-index:9999;font-size:13px;font-family:monospace;';
@@ -966,10 +930,7 @@ function buildAdminHTML(){
     +'<div id="sanctions-list"></div></div></div>'
 
     +'<div class="section" id="sec-admin-recrutement">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
-    +'<div class="section-title" style="margin-bottom:0;">Recrutement</div>'
-    +(isAdmin?'<button class="btn btn-sm" onclick="openManageQuestions()">⚙ Gérer les questions</button>':'')
-    +'</div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div class="section-title" style="margin-bottom:0;">Recrutement</div>'+(isAdmin?'<button class="btn btn-sm" onclick="openManageQuestions()">Gerer les questions</button>':'')+'</div>'
     +'<div class="section-sub">Procédure et formulaire de candidature</div>'
     +buildRecrutementHTML()
     +'</div>'
@@ -1057,10 +1018,7 @@ function buildMembreHTML(isCmd,isRecruit){
     +'</div>'
     +(isCmd?buildComptaHTML('cmd'):'')
     +(isRecruit?'<div class="section" id="sec-mb-recrutement">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
-    +'<div class="section-title" style="margin-bottom:0;">Recrutement</div>'
-    +(isAdmin?'<button class="btn btn-sm" onclick="openManageQuestions()">⚙ Gérer les questions</button>':'')
-    +'</div>'
+    +'<div class="section-title">Recrutement</div>'
     +'<div class="section-sub">Formulaire et procédure de recrutement</div>'
     +buildRecrutementHTML()
     +'</div>':'');
@@ -1520,10 +1478,7 @@ function renderMonCompte(){
     +'</div></div>'
     +'<button class="btn btn-sm" style="align-self:flex-start;flex-shrink:0;" onclick="openModal(\'modal-mdp\')">🔒 Changer mon mot de passe</button>'
     +'</div></div>'
-    +'<div class="card" style="margin-bottom:20px;">'
-    +'<div class="card-title">Mon absence</div>'
-    +'<div id="mc-absence-content"></div>'
-    +'</div>'
+    +'<div class="card" style="margin-bottom:20px;"><div class="card-title">Mon absence</div><div id="mc-absence-content"></div></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:4px;">'
     +'<div class="card" style="margin-bottom:0;"><div class="card-title">Revenus</div>'
     +'<div style="margin-bottom:8px;"><span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--purple3);">'+rev.categorie+'</span></div>'
@@ -1536,41 +1491,21 @@ function renderMonCompte(){
     +'</div>';
   // Render absence
   var absDiv=document.getElementById('mc-absence-content');
-  if(absDiv){
+  if(absDiv&&m){
     absDiv.innerHTML='';
-    var absForm=document.createElement('div');
-    // Current status
-    var statusRow=document.createElement('div');statusRow.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;';
-    var statusLabel=document.createElement('div');statusLabel.style.cssText='font-size:13px;color:var(--text2);';
-    statusLabel.textContent=m.absence?('Absent jusqu au : '+(m.absenceFin?fmtDate(m.absenceFin):'date inconnue')):'Aucune absence en cours.';
-    var statusBadge=document.createElement('span');
-    statusBadge.className='badge '+(m.absence?'badge-abs':'badge-ok');
-    statusBadge.textContent=m.absence?'Absent':'Présent';
-    statusRow.appendChild(statusBadge);statusRow.appendChild(statusLabel);
-    absForm.appendChild(statusRow);
-    // Toggle checkbox
-    var row2=document.createElement('div');row2.style.cssText='display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
-    var cbLabel=document.createElement('label');cbLabel.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);';
-    var cbAbs=document.createElement('input');cbAbs.type='checkbox';cbAbs.checked=m.absence||false;cbAbs.style.cssText='width:15px;height:15px;accent-color:var(--purple);';
-    cbLabel.appendChild(cbAbs);cbLabel.appendChild(document.createTextNode('Je suis absent'));
-    var dateWrap=document.createElement('div');dateWrap.style.cssText='display:flex;align-items:center;gap:8px;'+(m.absence?'':'display:none;');
-    var dateLbl=document.createElement('label');dateLbl.style.cssText='font-size:12px;color:var(--text3);';dateLbl.textContent='Retour prévu :';
-    var dateInp=document.createElement('input');dateInp.type='date';dateInp.className='input';dateInp.style.cssText='width:160px;';dateInp.value=m.absenceFin||'';
-    dateWrap.appendChild(dateLbl);dateWrap.appendChild(dateInp);
-    cbAbs.onchange=function(){dateWrap.style.display=this.checked?'flex':'none';};
-    row2.appendChild(cbLabel);row2.appendChild(dateWrap);
-    absForm.appendChild(row2);
-    var saveAbsBtn=document.createElement('button');saveAbsBtn.className='btn btn-sm btn-primary';saveAbsBtn.textContent='Enregistrer';saveAbsBtn.style.marginTop='12px';
-    saveAbsBtn.onclick=(function(mid){return function(){
-      var idx2=membres.findIndex(function(x){return x.id===mid;});
-      if(idx2>=0){
-        membres[idx2].absence=cbAbs.checked;
-        membres[idx2].absenceFin=cbAbs.checked?dateInp.value:'';
-        sauvegarder();renderMonCompte();
-      }
-    };})(m.id);
-    absForm.appendChild(saveAbsBtn);
-    absDiv.appendChild(absForm);
+    var sb=document.createElement('span');sb.className='badge '+(m.absence?'badge-abs':'badge-ok');sb.textContent=m.absence?'Absent':'Present';sb.style.marginBottom='12px';sb.style.display='inline-block';
+    absDiv.appendChild(sb);
+    var absCb=document.createElement('label');absCb.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);margin:8px 0;';
+    var absCbInp=document.createElement('input');absCbInp.type='checkbox';absCbInp.checked=m.absence||false;absCbInp.style.cssText='width:15px;height:15px;accent-color:var(--purple);';
+    absCb.appendChild(absCbInp);absCb.appendChild(document.createTextNode('Je suis absent'));
+    var dateRow=document.createElement('div');dateRow.style.cssText='display:'+(m.absence?'flex':'none')+';align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap;';
+    var dateLbl2=document.createElement('label');dateLbl2.style.cssText='font-size:12px;color:var(--text3);';dateLbl2.textContent='Retour prevu :';
+    var dateInp2=document.createElement('input');dateInp2.type='date';dateInp2.className='input';dateInp2.style.width='160px';dateInp2.value=m.absenceFin||'';
+    dateRow.appendChild(dateLbl2);dateRow.appendChild(dateInp2);
+    absCbInp.onchange=function(){dateRow.style.display=this.checked?'flex':'none';};
+    var saveAbsBtn=document.createElement('button');saveAbsBtn.className='btn btn-sm btn-primary';saveAbsBtn.textContent='Enregistrer';saveAbsBtn.style.marginTop='8px';
+    saveAbsBtn.onclick=(function(mid){return function(){var idx2=membres.findIndex(function(x){return x.id===mid;});if(idx2>=0){membres[idx2].absence=absCbInp.checked;membres[idx2].absenceFin=absCbInp.checked?dateInp2.value:'';sauvegarder();renderMonCompte();}};})(m.id);
+    absDiv.appendChild(absCb);absDiv.appendChild(dateRow);absDiv.appendChild(saveAbsBtn);
   }
 
   // Render sanctions
@@ -1649,12 +1584,25 @@ function saveMdp(){
   var newP=document.getElementById('mdp-new').value;
   var conf=document.getElementById('mdp-confirm').value;
   var errDiv=document.getElementById('mdp-err');
-  if(actuel!==currentUser.pass){errDiv.textContent='Mot de passe actuel incorrect.';return;}
-  if(newP.length<4){errDiv.textContent='Le mot de passe doit contenir au moins 4 caractères.';return;}
+  if(newP.length<4){errDiv.textContent='Le mot de passe doit contenir au moins 4 caracteres.';return;}
   if(newP!==conf){errDiv.textContent='Les mots de passe ne correspondent pas.';return;}
-  var idx=comptes.findIndex(function(c){return c.id===currentUser.id;});
-  if(idx>=0){comptes[idx].pass=newP;currentUser.pass=newP;}
-  errDiv.textContent='';closeModal('modal-mdp');sauvegarder();alert('Mot de passe modifié avec succès !');
+  errDiv.textContent='Verification...';
+  fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/auth/v1/token?grant_type=password',{
+    method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},
+    body:JSON.stringify({email:currentUser.email,password:actuel})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data.error||!data.access_token){errDiv.textContent='Mot de passe actuel incorrect.';return;}
+    return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{
+      method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},
+      body:JSON.stringify({action:'update_password',userId:currentUser.id,password:newP})
+    }).then(function(r2){return r2.json();})
+    .then(function(res){
+      if(res.error){errDiv.textContent='Erreur: '+res.error;return;}
+      errDiv.textContent='';closeModal('modal-mdp');alert('Mot de passe modifie avec succes !');
+    });
+  }).catch(function(e){errDiv.textContent='Erreur: '+e.message;});
 }
 
 // ============================================================
@@ -2146,8 +2094,8 @@ function renderComptes(){
       var tdAct=document.createElement('td');tdAct.style.whiteSpace='nowrap';
       var eb=document.createElement('button');eb.className='btn btn-sm';eb.textContent='Editer';eb.style.marginRight='4px';
       eb.onclick=(function(pid){return function(){openEditCompte(pid);};})(p.id);tdAct.appendChild(eb);
-      var mb=document.createElement('button');mb.className='btn btn-sm';mb.textContent='MDP';mb.style.marginRight='4px';
-      mb.onclick=(function(pid){return function(){resetMdpByProfileId(pid);};})(p.id);tdAct.appendChild(mb);
+      var mb2=document.createElement('button');mb2.className='btn btn-sm';mb2.textContent='MDP';mb2.style.marginRight='4px';
+      mb2.onclick=(function(pid){return function(){resetMdpByProfileId(pid);};})(p.id);tdAct.appendChild(mb2);
       if(!currentUser||currentUser.id!==p.id){
         var db=document.createElement('button');db.className='btn btn-sm btn-danger';db.textContent='Suppr.';
         db.onclick=(function(pid){return function(){deleteCompte(pid);};})(p.id);tdAct.appendChild(db);
@@ -2214,15 +2162,15 @@ function saveCompte(){
   errDiv.textContent='Enregistrement...';
   var token=currentUser&&currentUser.accessToken||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
   if(compteEditId){
-    fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles?id=eq.'+compteEditId,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+token,'Prefer':'return=minimal'},body:JSON.stringify({role:role,roles:roles,membre_id:membreIdVal})})
-    .then(function(){
+    fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles?id=eq.'+compteEditId,{
+      method:'PATCH',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+token,'Prefer':'return=minimal'},
+      body:JSON.stringify({role:role,roles:roles,membre_id:membreIdVal})
+    }).then(function(){
       if(pass.length>=4){return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},body:JSON.stringify({action:'update_password',userId:compteEditId,password:pass})});}
-    })
-    .then(function(){
+    }).then(function(){
       if(currentUser&&currentUser.id===compteEditId){currentUser.roles=roles;currentUser.role=role;setTimeout(function(){buildInterface();renderQuotaSubtabs();},0);}
       errDiv.textContent='';closeModal('modal-compte');renderComptes();sauvegarder();
-    })
-    .catch(function(e){errDiv.textContent='Erreur: '+e.message;});
+    }).catch(function(e){errDiv.textContent='Erreur: '+e.message;});
   } else {
     if(!email.includes('@')){errDiv.textContent='Email invalide.';return;}
     fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},body:JSON.stringify({action:'create',email:email,password:pass})})
@@ -2232,8 +2180,7 @@ function saveCompte(){
       var newId=res.data&&res.data.user&&res.data.user.id;if(!newId){errDiv.textContent='Erreur ID.';return;}
       return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Prefer':'return=minimal'},body:JSON.stringify({id:newId,email:email,user_name:email.split('@')[0],role:role,roles:roles,membre_id:membreIdVal})})
       .then(function(){errDiv.textContent='';closeModal('modal-compte');renderComptes();sauvegarder();});
-    })
-    .catch(function(e){errDiv.textContent='Erreur: '+e.message;});
+    }).catch(function(e){errDiv.textContent='Erreur: '+e.message;});
   }
 }
 function deleteCompte(id){
@@ -3921,8 +3868,7 @@ function resetMdpByProfileId(profileId){
 }
 
 function renderRecruitQuestions(){
-  var wrap=document.getElementById('r-questions-dynamic');
-  if(!wrap)return;
+  var wrap=document.getElementById('r-questions-dynamic');if(!wrap)return;
   wrap.innerHTML='';
   (recruitQuestions||[]).forEach(function(q,qi){
     var div=document.createElement('div');div.style.cssText='margin-bottom:14px;';
@@ -3931,42 +3877,35 @@ function renderRecruitQuestions(){
     div.appendChild(lbl);div.appendChild(ta);wrap.appendChild(div);
   });
 }
-
 function openManageQuestions(){
   var modal=document.getElementById('modal-manage-questions');
   if(!modal){
     modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-manage-questions';
     var mb=document.createElement('div');mb.className='modal-box';mb.style.maxWidth='500px';
     var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-manage-questions');};
-    var h3=document.createElement('h3');h3.textContent='Gérer les questions';
-    var h3sub=document.createElement('div');h3sub.style.cssText='font-size:12px;color:var(--text3);margin-bottom:16px;';h3sub.textContent='Ces questions apparaissent dans le formulaire de recrutement.';
+    var h3=document.createElement('h3');h3.textContent='Gerer les questions';
+    var sub=document.createElement('div');sub.style.cssText='font-size:12px;color:var(--text3);margin-bottom:16px;';sub.textContent='Ces questions apparaissent dans le formulaire de recrutement.';
     var listDiv=document.createElement('div');listDiv.id='mq-list';
-    var addBtn=document.createElement('button');addBtn.className='btn btn-sm';addBtn.textContent='+ Ajouter une question';addBtn.style.margin='12px 0';
-    addBtn.onclick=function(){
-      recruitQuestions.push('Nouvelle question');
-      renderMqList();
-    };
+    var addBtn=document.createElement('button');addBtn.className='btn btn-sm';addBtn.textContent='+ Ajouter une question';addBtn.style.cssText='margin:12px 0;';
+    addBtn.onclick=function(){recruitQuestions.push('Nouvelle question');renderMqList();};
     var footer=document.createElement('div');footer.className='modal-footer';
     var saveBtn=document.createElement('button');saveBtn.className='btn btn-primary';saveBtn.textContent='Enregistrer';
     saveBtn.onclick=function(){sauvegarder();closeModal('modal-manage-questions');renderRecruitQuestions();};
     var closeBtn=document.createElement('button');closeBtn.className='btn';closeBtn.textContent='Annuler';closeBtn.onclick=function(){closeModal('modal-manage-questions');};
     footer.appendChild(closeBtn);footer.appendChild(saveBtn);
-    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(h3sub);mb.appendChild(listDiv);mb.appendChild(addBtn);mb.appendChild(footer);
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(sub);mb.appendChild(listDiv);mb.appendChild(addBtn);mb.appendChild(footer);
     modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-manage-questions');});
     document.body.appendChild(modal);
   }
-  renderMqList();
-  openModal('modal-manage-questions');
+  renderMqList();openModal('modal-manage-questions');
 }
-
 function renderMqList(){
-  var listDiv=document.getElementById('mq-list');if(!listDiv)return;
-  listDiv.innerHTML='';
+  var listDiv=document.getElementById('mq-list');if(!listDiv)return;listDiv.innerHTML='';
   (recruitQuestions||[]).forEach(function(q,qi){
     var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
     var inp=document.createElement('input');inp.type='text';inp.className='input';inp.style.flex='1';inp.value=q;
     inp.oninput=(function(i){return function(){recruitQuestions[i]=this.value;};})(qi);
-    var delBtn=document.createElement('button');delBtn.className='btn btn-sm btn-danger';delBtn.textContent='✕';
+    var delBtn=document.createElement('button');delBtn.className='btn btn-sm btn-danger';delBtn.textContent='x';
     delBtn.onclick=(function(i){return function(){recruitQuestions.splice(i,1);renderMqList();};})(qi);
     row.appendChild(inp);row.appendChild(delBtn);listDiv.appendChild(row);
   });
@@ -4013,8 +3952,17 @@ function applyData(data){
   if(data.baremeData&&data.baremeData.length)baremeData=data.baremeData;
   if(data.events)events=data.events;
   if(data.todos)todos=data.todos;
-  if(data.comptes&&data.comptes.length){
-    comptes=data.comptes;
+  if(data.comptes&&data.comptes.length){comptes=data.comptes;}
+  if(currentUser&&currentUser.id&&currentUser.accessToken){
+    fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles?id=eq.'+currentUser.id+'&select=roles,role,membre_id',{
+      headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+currentUser.accessToken}
+    }).then(function(r){return r.json();}).then(function(profiles){
+      if(profiles&&profiles[0]){
+        var p=profiles[0];var rolesChanged=JSON.stringify(p.roles)!==JSON.stringify(currentUser.roles);
+        currentUser.roles=p.roles||[];currentUser.role=p.role||currentUser.role;currentUser.membreId=p.membre_id||currentUser.membreId;
+        if(rolesChanged)setTimeout(function(){buildInterface();renderQuotaSubtabs();},0);
+      }
+    }).catch(function(){});
   }
   // Sync currentUser roles from s9_profiles
   if(currentUser&&currentUser.id){
@@ -4126,6 +4074,7 @@ chargerDepuisSupabase(function(){
   }catch(e){}
   document.getElementById('splash').dataset.ready='1';
 });
+
 
 
 
