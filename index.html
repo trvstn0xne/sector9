@@ -930,7 +930,7 @@ function buildAdminHTML(){
     +'<div id="sanctions-list"></div></div></div>'
 
     +'<div class="section" id="sec-admin-recrutement">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div class="section-title" style="margin-bottom:0;">Recrutement</div>'+(isAdmin?'<button class="btn btn-sm" onclick="openManageQuestions()">Gerer les questions</button>':'')+'</div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div class="section-title" style="margin-bottom:0;">Recrutement</div>'+(currentUser&&currentUser.role==='admin'?'<button class="btn btn-sm" onclick="openManageQuestions()">Gerer les questions</button>':'')+'</div>'
     +'<div class="section-sub">Procédure et formulaire de candidature</div>'
     +buildRecrutementHTML()
     +'</div>'
