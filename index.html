@@ -35,7 +35,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .topbar .brand{font-size:22px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,#7c3aed,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .topbar nav{display:flex;gap:4px;flex:1;margin-left:16px;overflow:visible;}
 .nav-btn{padding:7px 16px;border-radius:var(--r2);border:none;background:transparent;color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;transition:background 0.15s,color 0.15s;white-space:nowrap;}
-.nav-btn:hover{background:var(--bg3);color:var(--text);}
+.nav-btn:hover{background:rgba(124,58,237,0.10);color:var(--purple2);}
 .nav-btn.active{background:rgba(124,58,237,0.15);color:var(--purple2);}
 .topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto;}
 .theme-toggle{padding:7px 12px;border-radius:var(--r2);border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px;}
@@ -179,7 +179,7 @@ label.lbl .req{color:var(--danger);margin-left:2px;}
 #photo-preview-modal .modal-box{max-width:420px;text-align:center;}
 .nav-dropdown{position:relative;display:inline-flex;align-items:center;}
 .nav-dropdown-btn{padding:0 14px;height:56px;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text2);background:none;border:none;cursor:pointer;white-space:nowrap;transition:color 0.15s;border-bottom:2px solid transparent;}
-.nav-dropdown-btn:hover{color:var(--purple3);}
+.nav-dropdown-btn:hover{color:var(--purple3);}.nav-dropdown-btn.active{color:var(--purple2);border-bottom:2px solid var(--purple);}
 .nav-dropdown-btn.open{color:var(--purple3);border-bottom:2px solid var(--purple);}
 .nav-dropdown-btn .dd-arrow{font-size:9px;opacity:0.6;transition:transform 0.2s;display:inline-block;}
 .nav-dropdown-btn.open .dd-arrow{transform:rotate(180deg);}
@@ -210,7 +210,7 @@ details>summary::-webkit-details-marker{display:none;}
 .banner-edit-btn{padding:3px 10px;border-radius:var(--r2);border:1px solid rgba(124,58,237,0.35);background:transparent;color:var(--purple3);font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .banner-edit-btn:hover{background:rgba(124,58,237,0.1);}
 
-input[type="number"]{-moz-appearance:textfield;}input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}</style>
+</style>
 </head>
 <body>
 
@@ -485,8 +485,44 @@ input[type="number"]{-moz-appearance:textfield;}input[type="number"]::-webkit-ou
   </div>
 </div>
 
-<script>
+<!-- MODAL COMPTE -->
+<div class="modal-overlay" id="modal-compte">
+  <div class="modal-box" style="max-width:460px;">
+    <button class="close-x" onclick="closeModal('modal-compte')">&#x2715;</button>
+    <h3 id="modal-compte-title">Ajouter un compte</h3>
+    <div style="margin-bottom:14px;"><label class="lbl">Email</label><input class="input" id="c-user" placeholder="Ex: s9marco" autocomplete="off"/></div>
+    <div style="margin-bottom:14px;"><label class="lbl">Mot de passe</label><input class="input" type="password" id="c-pass" placeholder="Min. 4 caractères" autocomplete="new-password"/></div>
+    <div style="margin-bottom:14px;"><label class="lbl">Rôle</label>
+      <select class="input" id="c-role">
+        <option value="membre">Membre</option>
+        <option value="commandant">Commandant</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="lbl">Rôles spéciaux</label>
+      <div style="margin-top:6px;display:flex;flex-direction:column;gap:8px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);">
+          <input type="checkbox" id="c-role-recruteur" style="accent-color:var(--purple);width:15px;height:15px;"/>
+          <span>Recruteur</span>
+          <span style="font-size:11px;color:var(--text3);">— accès à l'onglet Recrutement</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);">
+          <input type="checkbox" id="c-role-armes" style="accent-color:var(--purple);width:15px;height:15px;"/>
+          <span>Armes</span>
+          <span style="font-size:11px;color:var(--text3);">— accès à l'onglet Armes</span>
+        </label>
+      </div>
+    </div>
+    <div id="c-err" style="font-size:12px;color:var(--danger);min-height:16px;margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-compte')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveCompte()">Enregistrer</button>
+    </div>
+  </div>
+</div>
 
+<script>
 window.addEventListener('error', function(e){
   var d=document.createElement('div');
   d.style.cssText='position:fixed;top:0;left:0;right:0;background:#a00;color:#fff;padding:12px 16px;z-index:9999;font-size:13px;font-family:monospace;';
@@ -587,16 +623,7 @@ let comptes=[];
 let presences={};
 // presences = { eventId: { membreId: 'present'|'incertain'|'absent' } }
 let quotaHistory={};
-let coffre={solde:0,transactions:[]};var paieArchives=[];
-var accordionQuestions=[
-  {title:'Age du candidat',items:['Age en ville ?','Age IRL ?']},
-  {title:'Disponibilites',items:['Disponible la semaine ?','Disponible le weekend ?']},
-  {title:'Ancien groupe ?',items:['A-t-il deja ete dans un groupe ?','Si oui : lequel, quel role ?','Si kick : pourquoi ?']},
-  {title:'Travail legal ?',items:['A-t-il un travail legal ?','Si oui : lequel ?']},
-  {title:'Problemes avec Washington ?',items:['A-t-il eu des problemes ?','Si oui : quand ?']},
-  {title:'Motivations',items:['Pourquoi ce groupe ?','Attentes ?']},
-  {title:'Screenshot du visage',items:['Demander un screenshot du personnage.']}
-];var recruitQuestions=['Quel est votre pseudo ?','Avez-vous de l experience en RP ?','Pourquoi voulez-vous rejoindre Sector 9 ?','Avez-vous lu le reglement ?'];
+let coffre={solde:0,transactions:[]};
 let frequence={valeur:991.2};
 let currentUser=null;
 let membreEditId=null;
@@ -836,6 +863,8 @@ function buildInterface(){
 function showSec(id,btn){
   document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
   document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.nav-dropdown-menu button').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('active');});
   var el=document.getElementById('sec-'+id);
   if(el)el.classList.add('active');
   if(btn)btn.classList.add('active');
@@ -853,9 +882,16 @@ function showSec(id,btn){
   if(id==='admin-quotas'||id==='mb-quotas')renderQuotaBanner();
   if(id==='admin-quotas'){setTimeout(function(){renderQuotaRecap('quota-recap-div',true);},0);}
   if(id==='mb-quotas'){setTimeout(function(){renderQuotaSubtabs();renderQuotaSaisie('mb-quota-saisie-div');},0);}
-  if(id==='mb-recrutement'||id==='admin-recrutement'){setTimeout(function(){renderRecruitQuestions();renderAccordionQuestions();},50);}
+  if(id==='mb-recrutement'){}  // recrutement static HTML, no special render needed
   if(id==='admin-calendrier'){renderPresencePanel('admin-presence-panel',true);}
   if(id==='mb-calendrier'){renderPresencePanel('mb-presence-panel',false);}
+  // Highlight parent dropdown if child is active
+  setTimeout(function(){
+    document.querySelectorAll('.nav-dropdown-menu').forEach(function(menu){
+      var ac=menu.querySelector('button.active');
+      if(ac){var pb=menu.previousElementSibling;if(pb&&pb.classList.contains('nav-dropdown-btn'))pb.classList.add('active');}
+    });
+  },0);
 }
 function showSubtab(groupId,tabId,btn){
   var subtabsEl=document.getElementById(groupId);
@@ -875,7 +911,7 @@ function buildAdminHTML(){
   return '<div class="section active" id="sec-admin-accueil"><div id="accueil-content"></div></div>'
     +'<div class="section" id="sec-admin-membres">'
     +'<div class="section-title">Liste des membres</div>'
-    +'<div class="section-sub">Gérez les membres de Sector 9</div>'
+    +'<div class="section-sub">Gérez les membres de la Section 9</div>'
     +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'
     +'<input class="input" style="max-width:240px;" id="search-membre" placeholder="Rechercher..." oninput="filterMembres()"/>'
     +'<button class="btn btn-primary" onclick="openAddMembre()">+ Ajouter un membre</button></div>'
@@ -939,7 +975,7 @@ function buildAdminHTML(){
     +'<div id="sanctions-list"></div></div></div>'
 
     +'<div class="section" id="sec-admin-recrutement">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div class="section-title" style="margin-bottom:0;">Recrutement</div>'+(currentUser&&currentUser.role==='admin'?'<button class="btn btn-sm" onclick="openManageQuestions()">Gerer les questions</button>':'')+'</div>'
+    +'<div class="section-title">Recrutement</div>'
     +'<div class="section-sub">Procédure et formulaire de candidature</div>'
     +buildRecrutementHTML()
     +'</div>'
@@ -1103,8 +1139,11 @@ function buildRecrutementHTML(){
     +'</div></div>'
     +'<div style="margin-bottom:14px;"><label class="lbl">Travail légal ? <span class="req">*</span></label><input class="input" id="r-travail" placeholder="Oui — lequel / Non"/></div>'
     +'<div style="margin-bottom:14px;"><label class="lbl">Problèmes avec Washington ? <span class="req">*</span></label><input class="input" id="r-washington" placeholder="Oui — pourquoi, quand / Non"/></div>'
-    +'<div id="r-questions-dynamic"></div>'
-    
+    +'<div style="margin-bottom:14px;"><label class="lbl">Pourquoi recherche-t-il un groupe ? <span class="req">*</span></label><textarea class="input" id="r-pourquoi"></textarea></div>'
+    +'<div style="margin-bottom:14px;"><label class="lbl">Attentes vis-à-vis du groupe ? <span class="req">*</span></label><textarea class="input" id="r-attentes"></textarea></div>'
+    +'<div style="margin-bottom:14px;"><label class="lbl">Photo du visage <span class="req">*</span></label>'
+    +'<input type="file" id="r-photo-visage" accept="image/*" class="input"/>'
+    +'<img id="r-visage-preview" style="display:none;margin-top:8px;max-width:160px;border-radius:8px;border:1px solid var(--border);"/></div>'
     +'<div style="margin-bottom:18px;"><label class="lbl">Carte d\'identité <span class="req">*</span></label>'
     +'<input type="file" id="r-photo-ci" accept="image/*" class="input"/>'
     +'<img id="r-ci-preview" style="display:none;margin-top:8px;max-width:220px;border-radius:8px;border:1px solid var(--border);"/></div>'
@@ -1118,11 +1157,15 @@ function buildRecrutementHTML(){
     +'<textarea class="market-msg" id="market-msg">📢 LA S9 RECRUTE !\nUne orga solide et disciplinée.\nSi tu veux évoluer, protéger les tiens et faire partie d\'une force qui marque la ville, tu es au bon endroit.\n\nConditions :\n🤝Loyauté\n📈Activité régulière\n🕐Dispo 21h-01h\n📝Respect de la hiérarchie</textarea>'
     +'<button class="btn btn-sm" style="margin-top:8px;width:100%;justify-content:center;" onclick="copyMarket()">Copier le message</button>'
     +'<div id="copy-ok" style="display:none;margin-top:6px;font-size:12px;color:var(--success);text-align:center;">Copié !</div></div>'
-    +'<div class="card" id="questions-poser-card">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
-    +'<div class="card-title" style="margin-bottom:0;">Questions a poser</div>'
-    +'</div>'
-    +'<div id="accordion-questions-wrap"></div>'
+    +'<div class="card"><div class="card-title">Questions à poser</div>'
+    +'<div class="accordion">'
+    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Âge du candidat</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>Âge en ville ?</li><li>Âge IRL ? (à voir cas par cas)</li></ul></div></div>'
+    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Disponibilités</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>Disponible la semaine ?</li><li>Disponible le weekend ?</li></ul></div></div>'
+    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Ancien groupe ?</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>A-t-il déjà été dans un groupe ?</li><li>Si oui : lequel, quel rôle ?</li><li>S\'il était haut gradé, comment vivra-t-il le retour en bas ?</li><li>S\'il s\'est fait kick : pourquoi ?</li><li>Si dissous : pourquoi ?</li></ul></div></div>'
+    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Travail légal ?</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>A-t-il un travail légal ?</li><li>Si oui : lequel ?</li></ul></div></div>'
+    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Problèmes avec Washington ?</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>A-t-il eu des problèmes avec Washington ?</li><li>Si oui : pourquoi, quand ?</li></ul></div></div>'
+    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Motivations &amp; attentes</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>Pourquoi recherche-t-il un groupe ?</li><li>Quelles sont ses attentes ?</li></ul></div></div>'
+    +'<div class="acc-item"><button class="acc-header" onclick="toggleAcc(this)"><span>Screenshot du visage</span><span class="acc-arrow">▼</span></button><div class="acc-body"><ul><li>Demander un screenshot du visage du personnage.</li></ul></div></div>'
     +'</div></div></div></div>';
 }
 
@@ -1218,7 +1261,7 @@ function renderMembres(list){
     tbody.appendChild(tr);
   });
 }
-function filterMembres(){var q=document.getElementById('search-membre').value.toLowerCase().trim();if(!q){renderMembres(membres);return;}renderMembres(membres.filter(function(m){return m.nom.toLowerCase().includes(q)||(m.pseudo&&m.pseudo.toLowerCase().includes(q))||m.grade.toLowerCase().includes(q);}));}
+function filterMembres(){var q=document.getElementById('search-membre').value.toLowerCase();renderMembres(membres.filter(function(m){return m.nom.toLowerCase().includes(q)||m.grade.toLowerCase().includes(q);}));}
 
 // ============================================================
 // MEMBRES (VUE MEMBRE)
@@ -1483,7 +1526,7 @@ function renderMonCompte(){
     +'</div></div>'
     +'<button class="btn btn-sm" style="align-self:flex-start;flex-shrink:0;" onclick="openModal(\'modal-mdp\')">🔒 Changer mon mot de passe</button>'
     +'</div></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-top:4px;">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:4px;">'
     +'<div class="card" style="margin-bottom:0;"><div class="card-title">Revenus</div>'
     +'<div style="margin-bottom:8px;"><span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--purple3);">'+rev.categorie+'</span></div>'
     +revHtml
@@ -1492,33 +1535,8 @@ function renderMonCompte(){
     +'<div id="mc-dispo-content"></div>'
     +'<button class="btn btn-sm" style="margin-top:10px;" onclick="openDispoModal('+m.id+')">Modifier</button></div>'
     +'<div class="card" style="margin-bottom:0;"><div class="card-title">Mes sanctions</div><div id="mc-sanctions-content"></div></div>'
-    +'<div class="card" style="margin-bottom:0;"><div class="card-title">Mon absence</div><div id="mc-absence-content"></div></div>'
     +'</div>';
-  // Render absence
-  var absDiv=document.getElementById('mc-absence-content');
-  if(absDiv&&m){
-    absDiv.innerHTML='';
-    var aStatus=document.createElement('span');aStatus.className='badge '+(m.absence?'badge-abs':'badge-ok');aStatus.textContent=m.absence?'Absent':'Present';aStatus.style.cssText='display:inline-block;margin-bottom:8px;';
-    absDiv.appendChild(aStatus);
-    if(m.absence){
-      if(m.absenceFin){var aInf=document.createElement('div');aInf.style.cssText='font-size:11px;color:var(--text3);margin-bottom:8px;';aInf.textContent='Retour : '+fmtDate(m.absenceFin);absDiv.appendChild(aInf);}
-      var retBtn=document.createElement('button');retBtn.className='btn btn-sm btn-success';retBtn.textContent='Je suis de retour';retBtn.style.cssText='display:block;width:100%;margin-bottom:4px;';
-      retBtn.onclick=(function(mid){return function(){var ix=membres.findIndex(function(x){return x.id===mid;});if(ix>=0){membres[ix].absence=false;membres[ix].absenceFin='';sauvegarder();renderMonCompte();}};})(m.id);
-      absDiv.appendChild(retBtn);
-    } else {
-      var decBtn=document.createElement('button');decBtn.className='btn btn-sm';decBtn.textContent='Declarer absence';decBtn.style.cssText='display:block;width:100%;margin-bottom:6px;';
-      var fD=document.createElement('div');fD.style.display='none';
-      var dLbl=document.createElement('label');dLbl.style.cssText='font-size:11px;color:var(--text3);display:block;margin-bottom:4px;';dLbl.textContent='Retour prevu :';
-      var dInp=document.createElement('input');dInp.type='date';dInp.className='input';dInp.style.cssText='width:100%;margin-bottom:6px;';
-      var cBtn=document.createElement('button');cBtn.className='btn btn-sm btn-primary';cBtn.textContent='Confirmer';cBtn.style.width='100%';
-      cBtn.onclick=(function(mid){return function(){var ix=membres.findIndex(function(x){return x.id===mid;});if(ix>=0){membres[ix].absence=true;membres[ix].absenceFin=dInp.value||'';sauvegarder();renderMonCompte();}};})(m.id);
-      decBtn.onclick=function(){fD.style.display=fD.style.display==='none'?'block':'none';};
-      fD.appendChild(dLbl);fD.appendChild(dInp);fD.appendChild(cBtn);
-      absDiv.appendChild(decBtn);absDiv.appendChild(fD);
-    }
-  }
-
-    // Render sanctions
+  // Render sanctions
   var sancDiv=document.getElementById('mc-sanctions-content');
   if(sancDiv){
     var mySanctions=sanctions.filter(function(s){return s.membreId===m.id;}).sort(function(a,b){return b.date>a.date?1:-1;});
@@ -1594,25 +1612,12 @@ function saveMdp(){
   var newP=document.getElementById('mdp-new').value;
   var conf=document.getElementById('mdp-confirm').value;
   var errDiv=document.getElementById('mdp-err');
-  if(newP.length<4){errDiv.textContent='Le mot de passe doit contenir au moins 4 caracteres.';return;}
+  if(actuel!==currentUser.pass){errDiv.textContent='Mot de passe actuel incorrect.';return;}
+  if(newP.length<4){errDiv.textContent='Le mot de passe doit contenir au moins 4 caractères.';return;}
   if(newP!==conf){errDiv.textContent='Les mots de passe ne correspondent pas.';return;}
-  errDiv.textContent='Verification...';
-  fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/auth/v1/token?grant_type=password',{
-    method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},
-    body:JSON.stringify({email:currentUser.email,password:actuel})
-  })
-  .then(function(r){return r.json();})
-  .then(function(data){
-    if(data.error||!data.access_token){errDiv.textContent='Mot de passe actuel incorrect.';return;}
-    return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{
-      method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},
-      body:JSON.stringify({action:'update_password',userId:currentUser.id,password:newP})
-    }).then(function(r2){return r2.json();})
-    .then(function(res){
-      if(res.error){errDiv.textContent='Erreur: '+res.error;return;}
-      errDiv.textContent='';closeModal('modal-mdp');alert('Mot de passe modifie avec succes !');
-    });
-  }).catch(function(e){errDiv.textContent='Erreur: '+e.message;});
+  var idx=comptes.findIndex(function(c){return c.id===currentUser.id;});
+  if(idx>=0){comptes[idx].pass=newP;currentUser.pass=newP;}
+  errDiv.textContent='';closeModal('modal-mdp');sauvegarder();alert('Mot de passe modifié avec succès !');
 }
 
 // ============================================================
@@ -2081,40 +2086,57 @@ var ROLE_LABELS={admin:'Admin',commandant:'Commandant',membre:'Membre'};
 var ROLE_COLORS={admin:'badge-danger',commandant:'badge-warn',membre:'badge-grade'};
 function renderComptes(){
   var div=document.getElementById('comptes-list');if(!div)return;
-  div.innerHTML='<div style="color:var(--text3);font-size:13px;padding:10px;">Chargement...</div>';
-  var token=currentUser&&currentUser.accessToken||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
-  fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles?select=*&order=created_at',{headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+token}})
-  .then(function(r){return r.json();})
-  .then(function(profiles){
-    if(!profiles||!profiles.length){div.innerHTML='<p style="color:var(--text3);">Aucun compte.</p>';return;}
-    var tw=document.createElement('div');tw.className='table-wrap';
-    var table=document.createElement('table');
-    var thead=document.createElement('thead');
-    thead.innerHTML='<tr><th>Email</th><th>Pseudo</th><th>Role</th><th>Roles speciaux</th><th>Membre</th><th>Actions</th></tr>';
-    var tbody=document.createElement('tbody');
-    profiles.forEach(function(p){
-      var tr=document.createElement('tr');
-      var m=p.membre_id?membres.find(function(x){return x.id===p.membre_id;}):null;
-      var rb=(p.roles||[]).map(function(r){return '<span class="badge badge-pending" style="font-size:10px;margin-right:3px;">'+r+'</span>';}).join('');
-      tr.innerHTML='<td style="color:var(--text3);font-size:12px;">'+p.email+'</td>'
-        +'<td style="font-weight:600;color:var(--text);">'+p.user_name+'</td>'
-        +'<td><span class="badge '+gradeColor(p.role||'')+'">'+p.role+'</span></td>'
-        +'<td>'+(rb||'—')+'</td>'
-        +'<td style="font-size:12px;color:var(--text3);">'+(m?m.nom:'—')+'</td>';
-      var tdAct=document.createElement('td');tdAct.style.whiteSpace='nowrap';
-      var eb=document.createElement('button');eb.className='btn btn-sm';eb.textContent='Editer';eb.style.marginRight='4px';
-      eb.onclick=(function(pid){return function(){openEditCompte(pid);};})(p.id);tdAct.appendChild(eb);
-      var mb2=document.createElement('button');mb2.className='btn btn-sm';mb2.textContent='MDP';mb2.style.marginRight='4px';
-      mb2.onclick=(function(pid){return function(){resetMdpByProfileId(pid);};})(p.id);tdAct.appendChild(mb2);
-      if(!currentUser||currentUser.id!==p.id){
-        var db=document.createElement('button');db.className='btn btn-sm btn-danger';db.textContent='Suppr.';
-        db.onclick=(function(pid){return function(){deleteCompte(pid);};})(p.id);tdAct.appendChild(db);
-      }
-      tr.appendChild(tdAct);tbody.appendChild(tr);
-    });
-    table.appendChild(thead);table.appendChild(tbody);tw.appendChild(table);div.innerHTML='';div.appendChild(tw);
-  })
-  .catch(function(){div.innerHTML='<p style="color:var(--danger);">Erreur de chargement.</p>';});
+  var sorted=[].concat(comptes).sort(function(a,b){
+    var order={admin:0,commandant:1,membre:2};
+    return (order[a.role]||3)-(order[b.role]||3);
+  });
+  var tbody=document.createElement('tbody');
+  sorted.forEach(function(c){
+    var m=c.membreId?membres.find(function(x){return x.id===c.membreId;}):null;
+    var isMe=currentUser&&currentUser.id===c.id;
+    var tr=document.createElement('tr');
+    var tdUser=document.createElement('td');tdUser.style.cssText='font-weight:600;color:var(--text);';
+    tdUser.textContent=c.user+(isMe?' (vous)':'');
+    var tdRole=document.createElement('td');
+    var roleBadge='<span class="badge '+(ROLE_COLORS[c.role]||'')+'">'+ROLE_LABELS[c.role]+'</span>';
+    if(c.roles&&c.roles.length)roleBadge+=' <span class="badge badge-grade" style="margin-left:4px;">'+c.roles.join(', ')+'</span>';
+    tdRole.innerHTML=roleBadge;
+    var tdMembre=document.createElement('td');tdMembre.style.color='var(--text2)';
+    tdMembre.textContent=m?((m.pseudo||m.nom)+' — '+m.grade):'—';
+    var tdAct=document.createElement('td');tdAct.style.whiteSpace='nowrap';
+    var editBtn=document.createElement('button');editBtn.className='btn btn-sm';editBtn.textContent='Editer';editBtn.style.marginRight='4px';
+    editBtn.onclick=(function(cid){return function(){openEditCompte(cid);};})(c.id);
+    tdAct.appendChild(editBtn);
+    // MDP reset button — only if compte has a linked membre
+    if(c.membreId){
+      var mdpBtn2=document.createElement('button');mdpBtn2.className='btn btn-sm';mdpBtn2.textContent='MDP';mdpBtn2.style.marginRight='4px';mdpBtn2.title='Réinitialiser le mot de passe';
+      mdpBtn2.onclick=(function(cid){
+        return function(){
+          var compte=comptes.find(function(x){return x.id===cid;});
+          if(!compte)return;
+          var newPass=prompt('Nouveau mot de passe pour '+compte.user+' (min. 4 car.) :');
+          if(newPass===null)return;
+          if(newPass.length<4){alert('Trop court.');return;}
+          var idx2=comptes.findIndex(function(x){return x.id===cid;});
+          if(idx2>=0){comptes[idx2].pass=newPass;sauvegarder();alert('Mot de passe modifié.');}
+        };
+      })(c.id);
+      tdAct.appendChild(mdpBtn2);
+    }
+    if(!isMe){
+      var delBtn=document.createElement('button');delBtn.className='btn btn-sm btn-danger';delBtn.textContent='Suppr.';
+      delBtn.onclick=(function(cid){return function(){deleteCompte(cid);};})(c.id);
+      tdAct.appendChild(delBtn);
+    }
+    tr.appendChild(tdUser);tr.appendChild(tdRole);tr.appendChild(tdMembre);tr.appendChild(tdAct);
+    tbody.appendChild(tr);
+  });
+  var table=document.createElement('table');
+  var thead=document.createElement('thead');
+  thead.innerHTML='<tr><th>Identifiant</th><th>Role</th><th>Membre associe</th><th>Actions</th></tr>';
+  table.appendChild(thead);table.appendChild(tbody);
+  var wrap=document.createElement('div');wrap.className='table-wrap';wrap.appendChild(table);
+  div.innerHTML='';div.appendChild(wrap);
 }
 function populateMembreSelect(selectedId){
   var sel=document.getElementById('c-membre-id');if(!sel)return;
@@ -2137,69 +2159,56 @@ function openAddCompte(){
   populateMembreSelect(null);openModal('modal-compte');
 }
 function openEditCompte(id){
+  var c=comptes.find(function(x){return x.id===id;});if(!c)return;
   compteEditId=id;
   document.getElementById('modal-compte-title').textContent='Modifier le compte';
-  document.getElementById('c-err').textContent='Chargement...';
-  var token=currentUser&&currentUser.accessToken||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
-  fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles?id=eq.'+id+'&select=*',{headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+token}})
-  .then(function(r){return r.json();})
-  .then(function(profiles){
-    if(!profiles||!profiles[0]){document.getElementById('c-err').textContent='Profil introuvable.';return;}
-    var p=profiles[0];
-    document.getElementById('c-user').value=p.email||'';
-    document.getElementById('c-pass').value='';
-    document.getElementById('c-role').value=p.role||'membre';
-    document.getElementById('c-err').textContent='';
-    var cb=document.getElementById('c-role-recruteur');if(cb)cb.checked=(p.roles||[]).indexOf('recruteur')>=0;
-    var cbA=document.getElementById('c-role-armes');if(cbA)cbA.checked=(p.roles||[]).indexOf('armes')>=0;
-    populateMembreSelect(p.membre_id);openModal('modal-compte');
-  })
-  .catch(function(){document.getElementById('c-err').textContent='Erreur.';});
+  document.getElementById('c-user').value=c.user;
+  document.getElementById('c-pass').value=c.pass;
+  document.getElementById('c-role').value=c.role;
+  document.getElementById('c-err').textContent='';
+  var cb=document.getElementById('c-role-recruteur');
+  if(cb)cb.checked=c.roles&&c.roles.indexOf('recruteur')>=0;
+  var cbA=document.getElementById('c-role-armes');
+  if(cbA)cbA.checked=c.roles&&c.roles.indexOf('armes')>=0;
+  populateMembreSelect(c.membreId);openModal('modal-compte');
 }
 function saveCompte(){
-  var errDiv=document.getElementById('c-err');
-  var email=document.getElementById('c-user').value.trim();
+  var user=document.getElementById('c-user').value.trim().toLowerCase();
   var pass=document.getElementById('c-pass').value;
   var role=document.getElementById('c-role').value;
+  var membreIdVal=document.getElementById('c-membre-id').value;
+  var membreId=membreIdVal?parseInt(membreIdVal):null;
+  var errDiv=document.getElementById('c-err');errDiv.textContent='';
+  if(!user){errDiv.textContent='Identifiant requis.';return;}
+  if(pass.length<4){errDiv.textContent='Mot de passe : 4 caractères minimum.';return;}
+  var existing=comptes.find(function(c){return c.user===user&&c.id!==compteEditId;});
+  if(existing){errDiv.textContent='Cet identifiant est déjà utilisé.';return;}
   var cbRec=document.getElementById('c-role-recruteur');
   var cbArm=document.getElementById('c-role-armes');
   var roles=[];
   if(cbRec&&cbRec.checked)roles.push('recruteur');
   if(cbArm&&cbArm.checked)roles.push('armes');
-  var membreIdVal=parseInt(document.getElementById('c-membre-id').value)||null;
-  if(!email){errDiv.textContent='Email requis.';return;}
-  if(!compteEditId&&pass.length<4){errDiv.textContent='Mdp : 4 car. minimum.';return;}
-  errDiv.textContent='Enregistrement...';
-  var token=currentUser&&currentUser.accessToken||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
   if(compteEditId){
-    fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles?id=eq.'+compteEditId,{
-      method:'PATCH',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+token,'Prefer':'return=minimal'},
-      body:JSON.stringify({role:role,roles:roles,membre_id:membreIdVal})
-    }).then(function(){
-      if(pass.length>=4){return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},body:JSON.stringify({action:'update_password',userId:compteEditId,password:pass})});}
-    }).then(function(){
-      if(currentUser&&currentUser.id===compteEditId){currentUser.roles=roles;currentUser.role=role;setTimeout(function(){buildInterface();renderQuotaSubtabs();},0);}
-      errDiv.textContent='';closeModal('modal-compte');renderComptes();sauvegarder();
-    }).catch(function(e){errDiv.textContent='Erreur: '+e.message;});
+    var idx=comptes.findIndex(function(c){return c.id===compteEditId;});
+    comptes[idx]=Object.assign({},comptes[idx],{user:user,pass:pass,role:role,membreId:membreId,roles:roles});
+    if(currentUser&&currentUser.id===compteEditId){currentUser.user=user;currentUser.pass=pass;currentUser.role=role;currentUser.membreId=membreId;currentUser.roles=roles;}
   } else {
-    if(!email.includes('@')){errDiv.textContent='Email invalide.';return;}
-    fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},body:JSON.stringify({action:'create',email:email,password:pass})})
-    .then(function(r){return r.json();})
-    .then(function(res){
-      if(res.error){errDiv.textContent='Erreur: '+res.error;return;}
-      var newId=res.data&&res.data.user&&res.data.user.id;if(!newId){errDiv.textContent='Erreur ID.';return;}
-      return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Prefer':'return=minimal'},body:JSON.stringify({id:newId,email:email,user_name:email.split('@')[0],role:role,roles:roles,membre_id:membreIdVal})})
-      .then(function(){errDiv.textContent='';closeModal('modal-compte');renderComptes();sauvegarder();});
-    }).catch(function(e){errDiv.textContent='Erreur: '+e.message;});
+    comptes.push({id:'c_'+Date.now(),user:user,pass:pass,role:role,membreId:membreId,roles:roles});
   }
+  // If current user's account was updated, rebuild interface
+  if(currentUser&&compteEditId&&currentUser.id===compteEditId){
+    var updatedC=comptes.find(function(c){return c.id===compteEditId;});
+    if(updatedC)currentUser=updatedC;
+    buildInterface();
+  }
+  closeModal('modal-compte');renderComptes();sauvegarder();
 }
 function deleteCompte(id){
   if(currentUser&&currentUser.id===id){alert('Impossible de supprimer votre propre compte.');return;}
-  if(!confirm('Supprimer ce compte ?'))return;
-  fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},body:JSON.stringify({action:'delete',userId:id})})
-  .then(function(){return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles?id=eq.'+id,{method:'DELETE',headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'}});})
-  .then(function(){renderComptes();sauvegarder();})
-  .catch(function(e){alert('Erreur: '+e.message);});
+  var c=comptes.find(function(x){return x.id===id;});
+  if(!confirm('Supprimer le compte "'+( c?c.user:id)+'" ?'))return;
+  comptes=comptes.filter(function(x){return x.id!==id;});
+  renderComptes();sauvegarder();
 }
 
 
@@ -2599,21 +2608,11 @@ function renderQuotaForm(wrap, data, recelItems, speedoItems, divId, showPrices)
     if(showPrices)priceEl.textContent=item.valeur.toLocaleString('fr-FR')+' $/u';
     var qteInput=document.createElement('input');
     qteInput.type='number';qteInput.min='0';qteInput.max='100';
-    qteInput.style.cssText='width:52px;text-align:center;-moz-appearance:textfield;';
+    qteInput.style.cssText='width:70px;text-align:center;';
     qteInput.value=existing?existing.qte:0;
     qteInput.dataset.itemId=item.id;qteInput.className='input qf-speedo';
     qteInput.oninput=updateSpeedoTotal;
-    var sMin=document.createElement('button');sMin.type='button';
-    sMin.style.cssText='width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-    sMin.textContent='-';
-    sMin.onclick=(function(i){return function(){var v=parseInt(i.value)||0;if(v>0){i.value=v-1;updateSpeedoTotal();}}})(qteInput);
-    var sPlus=document.createElement('button');sPlus.type='button';
-    sPlus.style.cssText='width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
-    sPlus.textContent='+';
-    sPlus.onclick=(function(i){return function(){i.value=(parseInt(i.value)||0)+1;updateSpeedoTotal();}})(qteInput);
-    var sWrap=document.createElement('div');sWrap.style.cssText='display:flex;align-items:center;gap:6px;';
-    sWrap.appendChild(sMin);sWrap.appendChild(qteInput);sWrap.appendChild(sPlus);
-    row.appendChild(lbl);row.appendChild(priceEl);row.appendChild(sWrap);
+    row.appendChild(lbl);row.appendChild(priceEl);row.appendChild(qteInput);
     sCard.appendChild(row);
   });
   sCard.appendChild(speedoTotalEl);
@@ -3341,7 +3340,7 @@ function renderAccueil(){
   else{avatarDiv.textContent=displayName.charAt(0).toUpperCase();}
   var heroText=document.createElement('div');heroText.style.flex='1';
   var heroTitle=document.createElement('div');heroTitle.style.cssText='font-size:26px;font-weight:800;color:var(--text);margin-bottom:4px;';
-  heroTitle.textContent='Bienvenue, '+displayName+' ! ✨';
+  heroTitle.textContent=greet+', '+displayName;
   var heroSub=document.createElement('div');heroSub.style.cssText='font-size:13px;color:var(--text3);display:flex;align-items:center;gap:10px;margin-top:4px;';
   heroSub.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   if(grade){var gb=document.createElement('span');gb.className='badge '+gradeColor(grade);gb.style.marginLeft='8px';gb.textContent=grade;heroSub.appendChild(gb);}
@@ -3644,14 +3643,13 @@ function openProfilMembre(membreId){
       +'<div style="font-size:13px;color:var(--text2);">'+val+'</div>';
     return c;
   }
-  grid.appendChild(infoCard('Arrivee',fmtDate(m.date)));
+  grid.appendChild(infoCard('Arrivee',m.date||'—'));
   grid.appendChild(infoCard('Telephone',m.tel||'—'));
   grid.appendChild(infoCard('Discord',m.discord||'—'));
-  grid.appendChild(infoCard('Absence',m.absence?(m.absenceFin?'Jusqu au '+fmtDate(m.absenceFin):'Indetermine'):'Non'));
+  grid.appendChild(infoCard('Absence',m.absence?'Oui':'Non'));
   grid.appendChild(infoCard('Radio',m.radio?'Oui':'Non'));
   grid.appendChild(infoCard('Arme',m.arme?'Oui':'Non'));
   grid.appendChild(infoCard('Disqueuse',m.disqueuse?'Oui':'Non'));
-  grid.appendChild(infoCard('PPA',m.ppa?'Oui':'Non'));
   content.appendChild(grid);
   // Disponibilites
   var JOURS_P=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
@@ -3714,10 +3712,9 @@ function openProfilMembre(membreId){
   }
   // Carte ID
   if(m.carteId){
-    var ciTitleDiv=document.createElement('div');ciTitleDiv.style.cssText='font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;';ciTitleDiv.textContent='Carte ID';
-    var ciViewBtn=document.createElement('button');ciViewBtn.className='btn btn-sm';ciViewBtn.textContent='Voir la carte ID';ciViewBtn.style.marginBottom='20px';
-    ciViewBtn.onclick=(function(src){return function(){var ov=document.createElement('div');ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer;';var ig=document.createElement('img');ig.src=src;ig.style.cssText='max-width:90%;max-height:85vh;border-radius:var(--r2);box-shadow:0 20px 60px rgba(0,0,0,0.8);';ov.appendChild(ig);ov.onclick=function(){document.body.removeChild(ov);};document.body.appendChild(ov);};})(m.carteId);
-    content.appendChild(ciTitleDiv);content.appendChild(ciViewBtn);
+    var ciTitle=document.createElement('div');ciTitle.style.cssText='font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;';ciTitle.textContent='Carte ID';
+    var ciImg=document.createElement('img');ciImg.src=m.carteId;ciImg.style.cssText='max-width:100%;border-radius:var(--r2);border:1px solid var(--border);margin-bottom:20px;';
+    content.appendChild(ciTitle);content.appendChild(ciImg);
   }
   // Footer
   var footer=document.createElement('div');footer.className='modal-footer';footer.style.marginTop='8px';
@@ -3869,128 +3866,6 @@ function updateOnlineBadge(count){
 }
 
 
-
-function resetMdpByProfileId(profileId){
-  var newPass=prompt('Nouveau mot de passe (min. 4 car.) :');
-  if(newPass===null)return;if(newPass.length<4){alert('Trop court.');return;}
-  fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},body:JSON.stringify({action:'update_password',userId:profileId,password:newPass})})
-  .then(function(r){return r.json();}).then(function(res){res.error?alert('Erreur: '+res.error):alert('Mot de passe modifie.');}).catch(function(e){alert('Erreur: '+e.message);});
-}
-
-function renderRecruitQuestions(){
-  var wrap=document.getElementById('r-questions-dynamic');if(!wrap)return;
-  wrap.innerHTML='';
-  (recruitQuestions||[]).forEach(function(q,qi){
-    var div=document.createElement('div');div.style.cssText='margin-bottom:14px;';
-    var lbl=document.createElement('label');lbl.className='lbl';lbl.textContent=q;
-    var ta=document.createElement('textarea');ta.className='input';ta.id='r-q-'+qi;ta.rows=2;
-    div.appendChild(lbl);div.appendChild(ta);wrap.appendChild(div);
-  });
-}
-function openManageQuestions(){
-  var modal=document.getElementById('modal-manage-questions');
-  if(!modal){
-    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-manage-questions';
-    var mb=document.createElement('div');mb.className='modal-box';mb.style.maxWidth='500px';
-    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-manage-questions');};
-    var h3=document.createElement('h3');h3.textContent='Gerer les questions';
-    var sub=document.createElement('div');sub.style.cssText='font-size:12px;color:var(--text3);margin-bottom:16px;';sub.textContent='Ces questions apparaissent dans le formulaire de recrutement.';
-    var listDiv=document.createElement('div');listDiv.id='mq-list';
-    var addBtn=document.createElement('button');addBtn.className='btn btn-sm';addBtn.textContent='+ Ajouter une question';addBtn.style.cssText='margin:12px 0;';
-    addBtn.onclick=function(){recruitQuestions.push('Nouvelle question');renderMqList();};
-    var footer=document.createElement('div');footer.className='modal-footer';
-    var saveBtn=document.createElement('button');saveBtn.className='btn btn-primary';saveBtn.textContent='Enregistrer';
-    saveBtn.onclick=function(){sauvegarder();closeModal('modal-manage-questions');renderRecruitQuestions();};
-    var closeBtn=document.createElement('button');closeBtn.className='btn';closeBtn.textContent='Annuler';closeBtn.onclick=function(){closeModal('modal-manage-questions');};
-    footer.appendChild(closeBtn);footer.appendChild(saveBtn);
-    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(sub);mb.appendChild(listDiv);mb.appendChild(addBtn);mb.appendChild(footer);
-    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-manage-questions');});
-    document.body.appendChild(modal);
-  }
-  renderMqList();openModal('modal-manage-questions');
-}
-function renderMqList(){
-  var listDiv=document.getElementById('mq-list');if(!listDiv)return;listDiv.innerHTML='';
-  (recruitQuestions||[]).forEach(function(q,qi){
-    var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
-    var inp=document.createElement('input');inp.type='text';inp.className='input';inp.style.flex='1';inp.value=q;
-    inp.oninput=(function(i){return function(){recruitQuestions[i]=this.value;};})(qi);
-    var delBtn=document.createElement('button');delBtn.className='btn btn-sm btn-danger';delBtn.textContent='x';
-    delBtn.onclick=(function(i){return function(){recruitQuestions.splice(i,1);renderMqList();};})(qi);
-    row.appendChild(inp);row.appendChild(delBtn);listDiv.appendChild(row);
-  });
-}
-
-
-function renderAccordionQuestions(){
-  var wrap=document.getElementById('accordion-questions-wrap');if(!wrap)return;
-  wrap.innerHTML='';
-  // Add Modifier button for admin
-  if(currentUser&&currentUser.role==='admin'){
-    var modBtn=document.createElement('button');modBtn.className='btn btn-sm';modBtn.style.cssText='font-size:12px;margin-bottom:10px;';modBtn.textContent='Modifier les questions';
-    modBtn.onclick=function(){openManageAccordion();};wrap.appendChild(modBtn);
-  }
-  var acc=document.createElement('div');acc.className='accordion';
-  (accordionQuestions||[]).forEach(function(q){
-    var item=document.createElement('div');item.className='acc-item';
-    var btn=document.createElement('button');btn.className='acc-header';
-    btn.onclick=function(){toggleAcc(this);};
-    var sp1=document.createElement('span');sp1.textContent=q.title;
-    var sp2=document.createElement('span');sp2.className='acc-arrow';sp2.textContent='v';
-    btn.appendChild(sp1);btn.appendChild(sp2);
-    var body=document.createElement('div');body.className='acc-body';
-    var ul=document.createElement('ul');
-    (q.items||[]).forEach(function(it){var li=document.createElement('li');li.textContent=it;ul.appendChild(li);});
-    body.appendChild(ul);item.appendChild(btn);item.appendChild(body);acc.appendChild(item);
-  });
-  wrap.appendChild(acc);
-}
-function openManageAccordion(){
-  var modal=document.getElementById('modal-maq');
-  if(!modal){
-    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-maq';
-    var mb=document.createElement('div');mb.className='modal-box';mb.style.cssText='max-width:560px;max-height:85vh;overflow-y:auto;';
-    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-maq');};
-    var h3=document.createElement('h3');h3.textContent='Modifier les questions';
-    var listDiv=document.createElement('div');listDiv.id='maq-list';
-    var addBtn=document.createElement('button');addBtn.className='btn btn-sm';addBtn.style.margin='12px 0';addBtn.textContent='+ Ajouter rubrique';
-    addBtn.onclick=function(){accordionQuestions.push({title:'Nouvelle rubrique',items:['Question']});renderMaqList();};
-    var footer=document.createElement('div');footer.className='modal-footer';
-    var saveBtn=document.createElement('button');saveBtn.className='btn btn-primary';saveBtn.textContent='Enregistrer';
-    saveBtn.onclick=function(){sauvegarder();closeModal('modal-maq');renderAccordionQuestions();};
-    var closeBtn=document.createElement('button');closeBtn.className='btn';closeBtn.textContent='Annuler';closeBtn.onclick=function(){closeModal('modal-maq');};
-    footer.appendChild(closeBtn);footer.appendChild(saveBtn);
-    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(listDiv);mb.appendChild(addBtn);mb.appendChild(footer);
-    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-maq');});
-    document.body.appendChild(modal);
-  }
-  renderMaqList();openModal('modal-maq');
-}
-function renderMaqList(){
-  var listDiv=document.getElementById('maq-list');if(!listDiv)return;listDiv.innerHTML='';
-  accordionQuestions.forEach(function(q,qi){
-    var card=document.createElement('div');card.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:12px;margin-bottom:10px;';
-    var tRow=document.createElement('div');tRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
-    var tInp=document.createElement('input');tInp.type='text';tInp.className='input';tInp.style.flex='1';tInp.style.fontWeight='600';tInp.value=q.title;
-    tInp.oninput=(function(i){return function(){accordionQuestions[i].title=this.value;};})(qi);
-    var delQ=document.createElement('button');delQ.className='btn btn-sm btn-danger';delQ.textContent='Suppr.';
-    delQ.onclick=(function(i){return function(){accordionQuestions.splice(i,1);renderMaqList();};})(qi);
-    tRow.appendChild(tInp);tRow.appendChild(delQ);card.appendChild(tRow);
-    var itemsDiv=document.createElement('div');itemsDiv.style.marginLeft='8px';
-    (q.items||[]).forEach(function(it,ii){
-      var iRow=document.createElement('div');iRow.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:6px;';
-      var iInp=document.createElement('input');iInp.type='text';iInp.className='input';iInp.style.flex='1';iInp.style.fontSize='13px';iInp.value=it;
-      iInp.oninput=(function(a,b){return function(){accordionQuestions[a].items[b]=this.value;};})(qi,ii);
-      var delI=document.createElement('button');delI.className='btn btn-sm btn-danger';delI.style.cssText='width:28px;padding:0;';delI.textContent='x';
-      delI.onclick=(function(a,b){return function(){accordionQuestions[a].items.splice(b,1);renderMaqList();};})(qi,ii);
-      iRow.appendChild(iInp);iRow.appendChild(delI);itemsDiv.appendChild(iRow);
-    });
-    var addI=document.createElement('button');addI.className='btn btn-sm';addI.style.cssText='font-size:11px;margin-top:4px;';addI.textContent='+ Question';
-    addI.onclick=(function(i){return function(){accordionQuestions[i].items.push('Nouvelle question');renderMaqList();};})(qi);
-    itemsDiv.appendChild(addI);card.appendChild(itemsDiv);listDiv.appendChild(card);
-  });
-}
-
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
@@ -3999,7 +3874,7 @@ var SUPABASE_URL='https://zgmvlwkegfbrnsxfbbiy.supabase.co';
 var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
 
 function sauvegarder(){
-  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence,paieArchives:paieArchives,recruitQuestions:recruitQuestions,accordionQuestions:accordionQuestions};
+  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence};
   // Save to localStorage as backup
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
   // Save to Supabase via UPSERT
@@ -4032,17 +3907,8 @@ function applyData(data){
   if(data.baremeData&&data.baremeData.length)baremeData=data.baremeData;
   if(data.events)events=data.events;
   if(data.todos)todos=data.todos;
-  if(data.comptes&&data.comptes.length){comptes=data.comptes;}
-  if(currentUser&&currentUser.id&&currentUser.accessToken){
-    fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles?id=eq.'+currentUser.id+'&select=roles,role,membre_id',{
-      headers:{'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+currentUser.accessToken}
-    }).then(function(r){return r.json();}).then(function(profiles){
-      if(profiles&&profiles[0]){
-        var p=profiles[0];var rolesChanged=JSON.stringify(p.roles)!==JSON.stringify(currentUser.roles);
-        currentUser.roles=p.roles||[];currentUser.role=p.role||currentUser.role;currentUser.membreId=p.membre_id||currentUser.membreId;
-        if(rolesChanged)setTimeout(function(){buildInterface();renderQuotaSubtabs();},0);
-      }
-    }).catch(function(){});
+  if(data.comptes&&data.comptes.length){
+    comptes=data.comptes;
   }
   // Sync currentUser roles from s9_profiles
   if(currentUser&&currentUser.id){
@@ -4068,9 +3934,6 @@ function applyData(data){
   if(data.quotaHistory)quotaHistory=data.quotaHistory;
   if(data.coffre)coffre=data.coffre;
   if(data.frequence)frequence=data.frequence;
-  if(data.paieArchives)paieArchives=data.paieArchives;
-  if(data.recruitQuestions)recruitQuestions=data.recruitQuestions;
-  if(data.accordionQuestions)accordionQuestions=data.accordionQuestions;
 }
 
 function chargerDonnees(){
@@ -4155,7 +4018,6 @@ chargerDepuisSupabase(function(){
   }catch(e){}
   document.getElementById('splash').dataset.ready='1';
 });
-
 
 
 
