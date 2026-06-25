@@ -1214,7 +1214,7 @@ function renderMembres(list){
   thead.innerHTML='<tr><th>Photo</th><th>Pseudo / Nom</th><th>Grade</th><th>Arrivee</th><th>Sanctions</th><th>Absence</th><th>Actions</th></tr>';
   var tbody=document.createElement('tbody');tbody.id='membres-tbody';
   table.appendChild(thead);table.appendChild(tbody);tableDiv.appendChild(table);wrap.appendChild(tableDiv);
-  var GRADE_ORD=['Commandant','Capitaine','Lieutenant','Sergent','Operateur','Recrue'];
+  var GRADE_ORD=['Commandant','Capitaine','Lieutenant','Sergent Chef','Sergent','Caporal','Opérateur','Recrue'];
   var sorted=[].concat(list).sort(function(a,b){
     if(a.pending&&!b.pending)return 1;
     if(!a.pending&&b.pending)return -1;
@@ -4145,7 +4145,7 @@ function apRenderMembres(list){
   var thead=document.createElement('thead');
   thead.innerHTML='<tr><th>Photo</th><th>Pseudo / Nom</th><th>Grade</th><th>Arrivee</th><th>Sanctions</th><th>Absence</th><th>Actions</th></tr>';
   var tbody=document.createElement('tbody');
-  var GRADES_AP=['Commandant','Capitaine','Lieutenant','Sergent','Operateur','Recrue'];
+  var GRADES_AP=['Commandant','Capitaine','Lieutenant','Sergent Chef','Sergent','Caporal','Opérateur','Recrue'];
   var sorted=[].concat(list).sort(function(a,b){
     if(a.pending&&!b.pending)return 1;if(!a.pending&&b.pending)return -1;
     if(_apMembreSort==='pseudo')return (a.pseudo||a.nom).localeCompare(b.pseudo||b.nom);
