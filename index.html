@@ -4004,96 +4004,163 @@ function renderMaqList(){
 
 function openAdminPanel(){
   var overlay=document.getElementById('admin-panel-overlay');
-  if(!overlay){
-    overlay=document.createElement('div');overlay.id='admin-panel-overlay';
-    overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;overflow:hidden;';
+  if(overlay){overlay.style.display='flex';apShowSection('ap-membres');return;}
 
-    // Top bar
-    var topbar=document.createElement('div');
-    topbar.style.cssText='height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;';
-    var brand=document.createElement('div');brand.style.cssText='font-size:16px;font-weight:800;background:linear-gradient(135deg,#7c3aed,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap;';brand.textContent='SECTOR 9 — Admin';
-    var nav=document.createElement('div');nav.id='admin-panel-nav';nav.style.cssText='display:flex;gap:2px;flex:1;margin-left:12px;align-items:center;overflow:visible;';
-    var closeBtn=document.createElement('button');closeBtn.className='btn btn-sm';closeBtn.style.cssText='margin-left:auto;flex-shrink:0;';closeBtn.textContent='✕ Fermer';
-    closeBtn.onclick=function(){overlay.style.display='none';};
-    topbar.appendChild(brand);topbar.appendChild(nav);topbar.appendChild(closeBtn);
+  overlay=document.createElement('div');overlay.id='admin-panel-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;overflow:hidden;';
 
-    // Content area
-    var content=document.createElement('div');content.id='admin-panel-content';content.style.cssText='flex:1;overflow-y:auto;padding:20px 24px;';
+  // Topbar
+  var tb=document.createElement('div');tb.style.cssText='height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;position:relative;z-index:501;';
+  var brand=document.createElement('span');brand.style.cssText='font-size:15px;font-weight:800;background:linear-gradient(135deg,#7c3aed,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap;';brand.textContent='SECTOR 9 — Admin';
 
-    overlay.appendChild(topbar);overlay.appendChild(content);
-    document.body.appendChild(overlay);
+  // Nav buttons
+  var navDiv=document.createElement('div');navDiv.style.cssText='display:flex;align-items:center;gap:4px;flex:1;margin-left:16px;';
 
-    // Build admin HTML in the panel
-    content.innerHTML=buildAdminHTML();
+  function apNavBtn(label, section){
+    var b=document.createElement('button');b.className='nav-btn';b.textContent=label;
+    b.onclick=function(){apShowSection(section);apSetActive(b);};
+    navDiv.appendChild(b);return b;
+  }
 
-    // Build nav
-    nav.innerHTML=''
-      +'<div class="nav-dropdown" id="apdd-membres" style="position:relative;">'
-      +'<button class="nav-dropdown-btn" onclick="toggleApDropdown(\'apdd-membres\')">Gestion membres <span class="dd-arrow">▾</span></button>'
-      +'<div class="nav-dropdown-menu" id="apdd-membres-menu" style="z-index:9999;">'
-      +'<button onclick="showApSec(\'admin-membres\',this)">Liste des membres</button>'
-      +'<button onclick="showApSec(\'admin-quotas\',this)">Quotas</button>'
-      +'<button onclick="showApSec(\'admin-sanctions\',this)">Sanctions</button>'
-      +'<button onclick="showApSec(\'admin-recrutement\',this)">Recrutement</button>'
-      +'</div></div>'
-      +'<div class="nav-dropdown" id="apdd-site" style="position:relative;">'
-      +'<button class="nav-dropdown-btn" onclick="toggleApDropdown(\'apdd-site\')">Gestion site <span class="dd-arrow">▾</span></button>'
-      +'<div class="nav-dropdown-menu" id="apdd-site-menu" style="z-index:9999;">'
-      +'<button onclick="showApSec(\'admin-database\',this)">Database</button>'
-      +'<button onclick="showApSec(\'admin-comptes\',this)">Comptes</button>'
-      +'</div></div>'
-      +'<button class="nav-btn" onclick="showApSec(\'admin-calendrier\',this)">Calendrier</button>'
-      +'<button class="nav-btn" onclick="showApSec(\'admin-compta\',this)">Comptabilité</button>';
+  function apDropdown(label, items){
+    var wrap=document.createElement('div');wrap.style.cssText='position:relative;';
+    var btn=document.createElement('button');btn.className='nav-dropdown-btn';
+    btn.innerHTML=label+' <span class="dd-arrow">▾</span>';
+    var menu=document.createElement('div');menu.className='nav-dropdown-menu';menu.style.display='none';
+    items.forEach(function(item){
+      var mb=document.createElement('button');mb.textContent=item.label;
+      mb.onclick=function(){menu.style.display='none';apShowSection(item.sec);apSetActive(btn);};
+      menu.appendChild(mb);
+    });
+    btn.onclick=function(e){e.stopPropagation();menu.style.display=menu.style.display==='block'?'none':'block';};
+    wrap.appendChild(btn);wrap.appendChild(menu);navDiv.appendChild(wrap);
+    document.addEventListener('click',function(){menu.style.display='none';});
+    return btn;
+  }
 
-    // Init admin sections then show accueil
-    // First activate accueil section directly
-    var accSec=content.querySelector('#sec-admin-accueil');
-    if(accSec)accSec.classList.add('active');
-    initAdmin();
-  } else {
-    overlay.style.display='flex';
-    // Re-activate accueil
-    var content2=document.getElementById('admin-panel-content');
-    if(content2){
-      content2.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
-      var accSec2=content2.querySelector('#sec-admin-accueil');
-      if(accSec2){accSec2.classList.add('active');renderAccueil();}
+  var activeNavBtn=null;
+  function apSetActive(btn){if(activeNavBtn)activeNavBtn.classList.remove('active');activeNavBtn=btn;btn.classList.add('active');}
+
+  var ddMembers=apDropdown('Gestion membres',[
+    {label:'Liste des membres',sec:'ap-membres'},
+    {label:'Quotas',sec:'ap-quotas'},
+    {label:'Sanctions',sec:'ap-sanctions'},
+    {label:'Recrutement',sec:'ap-recrutement'}
+  ]);
+  var ddSite=apDropdown('Gestion site',[
+    {label:'Database',sec:'ap-database'},
+    {label:'Comptes',sec:'ap-comptes'}
+  ]);
+  apNavBtn('Calendrier','ap-calendrier');
+  apNavBtn('Comptabilité','ap-compta');
+
+  var closeBtn=document.createElement('button');closeBtn.className='btn btn-sm';closeBtn.style.marginLeft='auto';closeBtn.textContent='✕ Fermer';
+  closeBtn.onclick=function(){overlay.style.display='none';};
+  tb.appendChild(brand);tb.appendChild(navDiv);tb.appendChild(closeBtn);
+
+  // Content
+  var content=document.createElement('div');content.id='ap-content';content.style.cssText='flex:1;overflow-y:auto;padding:24px;';
+
+  overlay.appendChild(tb);overlay.appendChild(content);document.body.appendChild(overlay);
+
+  // Show membres by default
+  apShowSection('ap-membres');
+  apSetActive(ddMembers);
+}
+
+function apShowSection(sec){
+  var content=document.getElementById('ap-content');if(!content)return;
+  content.innerHTML='<div class="section active" id="'+sec+'-wrap" style="padding:0;"></div>';
+  var wrap=content.querySelector('#'+sec+'-wrap');
+
+  if(sec==='ap-membres'){
+    wrap.innerHTML='<div class="section-title">Liste des membres</div><div class="section-sub">Gerer les membres de Sector 9</div>'
+      +'<div style="display:flex;gap:10px;margin-bottom:16px;"><input class="input" style="max-width:240px;" id="ap-search-membre" placeholder="Rechercher..." oninput="apFilterMembres()"/>'
+      +'<button class="btn btn-primary" onclick="openAddMembre()">+ Ajouter un membre</button></div>'
+      +'<div id="ap-membres-table-wrap"></div>';
+    apRenderMembres(membres);
+  } else if(sec==='ap-sanctions'){
+    wrap.innerHTML='<div class="section-title">Sanctions</div><div id="ap-sanc-wrap"></div>';
+    renderSancMembres();
+    setTimeout(function(){var s=document.getElementById('sancmembres-list');if(s)document.getElementById('ap-sanc-wrap').appendChild(s.cloneNode(true));},100);
+    wrap.innerHTML='<div class="section-title">Sanctions</div><div class="section-sub">Gestion des sanctions</div><div id="ap-sanc-list"></div>';
+    var container=wrap.querySelector('#ap-sanc-list');
+    var isAdmin2=true;renderSancMembresInto(container,isAdmin2);
+  } else if(sec==='ap-quotas'){
+    wrap.innerHTML='<div class="section-title">Quotas</div><div class="section-sub">Suivi des quotas</div><div id="quota-recap-div"></div><div id="quota-banner-wrap"></div>';
+    setTimeout(function(){renderQuotaRecap('quota-recap-div',false);},50);
+  } else if(sec==='ap-database'){
+    wrap.innerHTML='<div class="section-title">Database</div><div id="ap-database-content"></div>';
+    setTimeout(function(){renderDatabaseInto(wrap.querySelector('#ap-database-content'));},50);
+  } else if(sec==='ap-comptes'){
+    wrap.innerHTML='<div class="section-title">Gestion des comptes</div><div id="comptes-list"></div><div style="margin-top:16px;"><button class="btn btn-primary" onclick="openAddCompte()">+ Ajouter un compte</button></div>';
+    renderComptes();
+  } else if(sec==='ap-calendrier'){
+    wrap.innerHTML='<div class="section-title">Calendrier</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 320px;gap:20px;"><div><div class="card"><div id="ap-cal-days-names"></div><div id="ap-cal-cells"></div></div><div id="ap-events-list"></div></div>'
+      +'<div><div id="ap-presence-panel"></div></div></div>';
+    setTimeout(function(){renderCal('ap-cal-cells','ap-cal-days-names','ap-cal-title','ap-events-list',false);renderPresencePanel('ap-presence-panel',true);},50);
+  } else if(sec==='ap-compta'){
+    wrap.innerHTML=buildComptaHTML('admin');
+    setTimeout(function(){renderCoffre();},50);
+  } else if(sec==='ap-recrutement'){
+    wrap.innerHTML=buildAdminHTML().match(/id="sec-admin-recrutement"[^>]*>([\s\S]*?)<\/div>\s*<div class="section" id="sec-admin-comptes"/)||'';
+    wrap.innerHTML='<div class="section-title">Recrutement</div><div id="ap-recrut-list"></div>';
+    setTimeout(function(){renderRecruitements();renderAccordionQuestions();},50);
+  }
+}
+
+function apRenderMembres(list){
+  var wrap=document.getElementById('ap-membres-table-wrap');if(!wrap)return;
+  wrap.innerHTML='';
+  var tableDiv=document.createElement('div');tableDiv.className='table-wrap';
+  var table=document.createElement('table');
+  var thead=document.createElement('thead');
+  thead.innerHTML='<tr><th>Photo</th><th>Pseudo / Nom</th><th>Grade</th><th>Arrivee</th><th>Sanctions</th><th>Absence</th><th>Actions</th></tr>';
+  var tbody=document.createElement('tbody');
+  var sorted=[].concat(list).sort(function(a,b){return (a.pending?1:0)-(b.pending?1:0)||gradeOrder(a.grade)-gradeOrder(b.grade);});
+  sorted.forEach(function(m){
+    var tr=document.createElement('tr');
+    var sl=getMemberSanctions(m.id);
+    var sancHtml=sl.length?'<span class="badge badge-warn">&#9888; '+sl.length+' sanction'+(sl.length>1?'s':'')+'</span>':'<span style="color:var(--text3);font-size:12px;">Aucune</span>';
+    var absHtml=m.absence?'<span class="badge badge-abs">Absence'+(m.absenceFin?' - '+fmtDate(m.absenceFin):'')+'</span>':'<span style="color:var(--text3);font-size:12px;">Non</span>';
+    function mkTd(h,s){var t=document.createElement('td');if(s)t.style.cssText=s;t.innerHTML=h;return t;}
+    // Photo
+    var tdPh=document.createElement('td');var phDiv=document.createElement('div');phDiv.className='photo-thumb';
+    if(m.photo){var img=document.createElement('img');img.src=m.photo;phDiv.appendChild(img);}else{phDiv.textContent='+';}
+    tdPh.appendChild(phDiv);tr.appendChild(tdPh);
+    // Name
+    var nomCell=document.createElement('td');
+    var pEl=document.createElement('div');pEl.style.cssText='font-weight:700;color:var(--text);';pEl.textContent=m.pseudo||m.nom;
+    if(m.pseudo){var nEl=document.createElement('div');nEl.style.cssText='font-size:11px;color:var(--text3);';nEl.textContent=m.nom;nomCell.appendChild(pEl);nomCell.appendChild(nEl);}
+    else{nomCell.appendChild(pEl);}tr.appendChild(nomCell);
+    tr.appendChild(mkTd('<span class="badge '+gradeColor(m.grade)+'">'+m.grade+'</span>'));
+    tr.appendChild(mkTd(fmtDate(m.date),'font-size:12px;color:var(--text3);'));
+    tr.appendChild(mkTd(sancHtml));
+    tr.appendChild(mkTd(absHtml));
+    // Actions
+    var tdAct=document.createElement('td');tdAct.style.whiteSpace='nowrap';
+    var pb=document.createElement('button');pb.className='btn btn-sm btn-primary';pb.textContent='Profil';pb.style.marginRight='4px';
+    pb.onclick=(function(id){return function(){openProfilMembre(id);};})(m.id);tdAct.appendChild(pb);
+    if(m.pending){
+      var vb=document.createElement('button');vb.className='btn btn-sm btn-success';vb.textContent='Valider';vb.style.marginRight='4px';vb.onclick=(function(id){return function(){openValidate(id);};})(m.id);tdAct.appendChild(vb);
+      var rb=document.createElement('button');rb.className='btn btn-sm btn-danger';rb.textContent='Refuser';rb.onclick=(function(id){return function(){deleteMembre(id);};})(m.id);tdAct.appendChild(rb);
+    } else {
+      var eb=document.createElement('button');eb.className='btn btn-sm';eb.textContent='Editer';eb.style.marginRight='4px';eb.onclick=(function(id){return function(){openEditMembre(id);};})(m.id);tdAct.appendChild(eb);
+      var db=document.createElement('button');db.className='btn btn-sm btn-danger';db.textContent='Suppr.';db.onclick=(function(id){return function(){deleteMembre(id);};})(m.id);tdAct.appendChild(db);
     }
-  }
+    tr.appendChild(tdAct);tbody.appendChild(tr);
+  });
+  table.appendChild(thead);table.appendChild(tbody);tableDiv.appendChild(table);wrap.appendChild(tableDiv);
 }
 
-function showApSec(id, btn){
-  var content=document.getElementById('admin-panel-content');if(!content)return;
-  content.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
-  var sec=content.querySelector('#sec-'+id);
-  if(sec)sec.classList.add('active');
-  else{sec=document.getElementById('sec-'+id);if(sec)sec.classList.add('active');}
-  // Nav active states
-  var nav=document.getElementById('admin-panel-nav');
-  if(nav){
-    nav.querySelectorAll('.nav-btn,.nav-dropdown-btn').forEach(function(b){b.classList.remove('active');});
-    nav.querySelectorAll('.nav-dropdown-menu button').forEach(function(b){b.classList.remove('active');});
-    if(btn){btn.classList.add('active');var parent=btn.closest('.nav-dropdown');if(parent){var pb=parent.querySelector('.nav-dropdown-btn');if(pb)pb.classList.add('active');}}
-  }
-  // Close dropdowns
-  document.querySelectorAll('[id^="apdd-"][id$="-menu"]').forEach(function(m){m.style.display='none';});
-  // Trigger renders
-  if(id==='admin-membres')renderMembres(membres);
-  if(id==='admin-sanctions')renderSancMembres();
-  if(id==='admin-database')renderDatabase();
-  if(id==='admin-comptes')renderComptes();
-  if(id==='admin-accueil')renderAccueil();
-  if(id==='admin-calendrier'){renderCal('cal-cells','cal-days-names','cal-title','events-list',false);renderPresencePanel('admin-presence-panel',true);}
-  if(id==='admin-compta')renderCoffre();
-  if(id==='admin-recrutement'){setTimeout(function(){renderAccordionQuestions();},50);}
+function apFilterMembres(){
+  var q=document.getElementById('ap-search-membre');if(!q)return;
+  var val=q.value.toLowerCase().trim();
+  var filtered=val?membres.filter(function(m){return m.nom.toLowerCase().includes(val)||(m.pseudo&&m.pseudo.toLowerCase().includes(val));}):membres;
+  apRenderMembres(filtered);
 }
 
-function toggleApDropdown(id){
-  var menu=document.getElementById(id+'-menu');if(!menu)return;
-  var isOpen=menu.style.display==='block';
-  document.querySelectorAll('[id^="apdd-"][id$="-menu"]').forEach(function(m){m.style.display='none';});
-  if(!isOpen)menu.style.display='block';
-}
 
 // ============================================================
 // LOCALSTORAGE
