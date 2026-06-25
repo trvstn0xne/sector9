@@ -756,7 +756,7 @@ function refreshCurrentSection(){
   renderBanner();
   // Refresh active section
   if(id==='admin-accueil'||id==='mb-accueil')renderAccueil();
-  if(id==='admin-membres'||id==='mb-membres'){if(currentUser.role==='admin')renderMembres(membres);else renderMembresMb();}
+  if(id==='admin-membres'||id==='mb-membres'){if(currentUser.role==='admin'||currentUser.role==='commandant')renderMembres(membres);else renderMembresMb();}
   if(id==='admin-calendrier'){renderCal('cal-cells','cal-days-names','cal-title','events-list',false);}
   if(id==='mb-calendrier'){renderCal('mb-cal-cells','mb-cal-days-names','mb-cal-title','mb-events-list',true);}
   if(id==='mb-quotas'){setTimeout(function(){renderQuotaSubtabs();renderQuotaSaisie('mb-quota-saisie-div');},0);}
@@ -833,7 +833,7 @@ function isRecruteur(){return isAdminOrCmd()||hasRole('recruteur');}
 // INTERFACE BUILDER
 // ============================================================
 function buildInterface(){
-  var isAdmin=currentUser.role==='admin';
+  var isAdmin=currentUser.role==='admin'||currentUser.role==='commandant';
   var isCmd=currentUser.role==='commandant';
   var nav=document.getElementById('topbar-nav');
   var content=document.getElementById('main-content');
@@ -1524,7 +1524,7 @@ function renderMonCompte(){
     +'</div></div>'
     +'<button class="btn btn-sm" style="align-self:flex-start;flex-shrink:0;" onclick="openModal(\'modal-mdp\')">🔒 Changer mon mot de passe</button>'
     +'</div></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:4px;">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-top:4px;">'
     +'<div class="card" style="margin-bottom:0;"><div class="card-title">Revenus</div>'
     +'<div style="margin-bottom:8px;"><span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--purple3);">'+rev.categorie+'</span></div>'
     +revHtml
@@ -1660,7 +1660,7 @@ function renderDatabase(){
   var div=document.getElementById('database-content');if(!div)return;
   var q=(document.getElementById('db-search')&&document.getElementById('db-search').value||'').toLowerCase();
   var filtCat=document.getElementById('db-filtre-cat')&&document.getElementById('db-filtre-cat').value||'';
-  var canEdit=currentUser&&currentUser.role==='admin';
+  var canEdit=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
   var items=database.filter(function(x){
     return (!q||x.nom.toLowerCase().includes(q)||x.souscat.toLowerCase().includes(q))&&(!filtCat||x.cat===filtCat);
   });
@@ -2002,7 +2002,7 @@ function renderBanner(){
   var txt=document.getElementById('banner-text');
   var editBtn=document.getElementById('banner-edit-btn');
   var closeBtn=document.getElementById('banner-close-btn');
-  var isAdmin=currentUser&&currentUser.role==='admin';
+  var isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
   if(bannerText){
     if(txt){txt.textContent=bannerText;txt.style.opacity='1';}
     bar.classList.add('show');
@@ -2023,7 +2023,7 @@ function renderBanner(){
 // ============================================================
 function renderQuotaBanner(){
   document.querySelectorAll('#quota-banner-wrap').forEach(function(div){
-    var isAdmin=currentUser&&currentUser.role==='admin';
+    var isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
     var cards=quotaCards.map(function(c){
       var el=document.createElement('div');
       el.style.cssText='display:flex;flex-direction:column;padding:16px 20px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);min-width:180px;flex:1;';
@@ -2239,7 +2239,7 @@ function renderPresencePanel(panelId, readOnly){
   sub.textContent=nextEv.titre+' — '+dateLabel+' à '+nextEv.heure;
   card.appendChild(sub);
 
-  var isAdmin=currentUser&&currentUser.role==='admin';
+  var isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
 
   // Boutons de vote — membres et commandants seulement
   if(!isAdmin&&currentUser&&currentUser.membreId){
@@ -2346,7 +2346,7 @@ function renderQuotaSaisie(divId,forceDate){
   var div=document.getElementById(divId);if(!div)return;
   var today=forceDate||getTodayStr();
   var isCmd=currentUser&&currentUser.role==='commandant';
-  var isAdmin=currentUser&&currentUser.role==='admin';
+  var isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
   var data=(quotaHistory[today]&&quotaHistory[today][currentUser.membreId])||{};
   var submitted=data&&data.submitted;
 
@@ -3386,7 +3386,7 @@ function calculerPaies(divId){
 function renderAccueil(){
   var div=document.getElementById('accueil-content');if(!div)return;
   div.innerHTML='';
-  var isAdmin=currentUser&&currentUser.role==='admin';
+  var isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
   var isCmd=currentUser&&currentUser.role==='commandant';
   var m=currentUser.membreId?membres.find(function(x){return x.id===currentUser.membreId;}):null;
   var displayName=m?(m.pseudo||m.nom):currentUser.user;
@@ -3550,7 +3550,7 @@ function editFrequence(){
 
 function openAccueilModal(){
   if(!currentUser)return;
-  var prefix=currentUser.role==='admin'?'admin':'mb';
+  var prefix=(currentUser.role==='admin'||currentUser.role==='commandant')?'admin':'mb';
   document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
   document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
   var sec=document.getElementById('sec-'+prefix+'-accueil');
@@ -3941,7 +3941,7 @@ function resetMdpByProfileId(profileId){
 
 function renderAccordionQuestions(){
   var wrap=document.getElementById('accordion-questions-wrap');if(!wrap)return;wrap.innerHTML='';
-  if(currentUser&&currentUser.role==='admin'){var modBtn=document.createElement('button');modBtn.className='btn btn-sm';modBtn.style.cssText='font-size:12px;margin-bottom:10px;';modBtn.textContent='Modifier les questions';modBtn.onclick=function(){openManageAccordion();};wrap.appendChild(modBtn);}
+  if(currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant')){var modBtn=document.createElement('button');modBtn.className='btn btn-sm';modBtn.style.cssText='font-size:12px;margin-bottom:10px;';modBtn.textContent='Modifier les questions';modBtn.onclick=function(){openManageAccordion();};wrap.appendChild(modBtn);}
   var acc=document.createElement('div');acc.className='accordion';
   (accordionQuestions||[]).forEach(function(q){
     var item=document.createElement('div');item.className='acc-item';
