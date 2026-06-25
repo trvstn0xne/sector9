@@ -1218,8 +1218,8 @@ function renderMembres(list){
   var sorted=[].concat(list).sort(function(a,b){
     if(a.pending&&!b.pending)return 1;
     if(!a.pending&&b.pending)return -1;
-    if(_membreSort==='pseudo'){return (a.pseudo||a.nom).localeCompare(b.pseudo||b.nom);}
-    return GRADES_ORDER.indexOf(a.grade)-GRADES_ORDER.indexOf(b.grade);
+    if(_membreSort==='pseudo')return (a.pseudo||a.nom).localeCompare(b.pseudo||b.nom);
+    return GRADE_ORD.indexOf(a.grade)-GRADE_ORD.indexOf(b.grade);
   });
   sorted.forEach(function(m){
     var tr=document.createElement('tr');
