@@ -756,7 +756,7 @@ function refreshCurrentSection(){
   renderBanner();
   // Refresh active section
   if(id==='admin-accueil'||id==='mb-accueil')renderAccueil();
-  if(id==='admin-membres'||id==='mb-membres'){if(currentUser.role==='admin'||currentUser.role==='commandant')renderMembres(membres);else renderMembresMb();}
+  if(id==='admin-membres'||id==='mb-membres'){if(currentUser.role==='admin')renderMembres(membres);else renderMembresMb();}
   if(id==='admin-calendrier'){renderCal('cal-cells','cal-days-names','cal-title','events-list',false);}
   if(id==='mb-calendrier'){renderCal('mb-cal-cells','mb-cal-days-names','mb-cal-title','mb-events-list',true);}
   if(id==='mb-quotas'){setTimeout(function(){renderQuotaSubtabs();renderQuotaSaisie('mb-quota-saisie-div');},0);}
@@ -833,7 +833,7 @@ function isRecruteur(){return isAdminOrCmd()||hasRole('recruteur');}
 // INTERFACE BUILDER
 // ============================================================
 function buildInterface(){
-  var isAdmin=currentUser.role==='admin'||currentUser.role==='commandant';
+  var isAdmin=currentUser.role==='admin';
   var isCmd=currentUser.role==='commandant';
   var nav=document.getElementById('topbar-nav');
   var content=document.getElementById('main-content');
@@ -864,7 +864,8 @@ function buildInterface(){
       +'<button class="nav-btn" onclick="showSec(\'mb-calendrier\',this)">Calendrier</button>'
       +(isRecruteur()?'<button class="nav-btn" onclick="showSec(\'mb-recrutement\',this)">Recrutement</button>':'')
       +(isCmd?'<button class="nav-btn" onclick="showSec(\'mb-compta\',this)">Comptabilit&#233;</button>':'')
-      +'<button class="nav-btn" onclick="showSec(\'mb-compte\',this)">Mon compte</button>';
+      +'<button class="nav-btn" onclick="showSec(\'mb-compte\',this)">Mon compte</button>'
+      +(isCmd?'<button class="nav-btn" style="margin-left:12px;border:1px solid rgba(124,58,237,0.4);color:var(--purple3);" onclick="openAdminPanel()">⚙ Admin</button>':'');
     content.innerHTML=buildMembreHTML(isCmd,isRecruteur());
     initMembre();
   }
@@ -1660,7 +1661,7 @@ function renderDatabase(){
   var div=document.getElementById('database-content');if(!div)return;
   var q=(document.getElementById('db-search')&&document.getElementById('db-search').value||'').toLowerCase();
   var filtCat=document.getElementById('db-filtre-cat')&&document.getElementById('db-filtre-cat').value||'';
-  var canEdit=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
+  var canEdit=currentUser&&currentUser.role==='admin';
   var items=database.filter(function(x){
     return (!q||x.nom.toLowerCase().includes(q)||x.souscat.toLowerCase().includes(q))&&(!filtCat||x.cat===filtCat);
   });
@@ -2002,7 +2003,7 @@ function renderBanner(){
   var txt=document.getElementById('banner-text');
   var editBtn=document.getElementById('banner-edit-btn');
   var closeBtn=document.getElementById('banner-close-btn');
-  var isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
+  var isAdmin=currentUser&&currentUser.role==='admin';
   if(bannerText){
     if(txt){txt.textContent=bannerText;txt.style.opacity='1';}
     bar.classList.add('show');
@@ -2023,7 +2024,7 @@ function renderBanner(){
 // ============================================================
 function renderQuotaBanner(){
   document.querySelectorAll('#quota-banner-wrap').forEach(function(div){
-    var isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
+    var isAdmin=currentUser&&currentUser.role==='admin';
     var cards=quotaCards.map(function(c){
       var el=document.createElement('div');
       el.style.cssText='display:flex;flex-direction:column;padding:16px 20px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);min-width:180px;flex:1;';
@@ -2239,7 +2240,7 @@ function renderPresencePanel(panelId, readOnly){
   sub.textContent=nextEv.titre+' — '+dateLabel+' à '+nextEv.heure;
   card.appendChild(sub);
 
-  var isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
+  var isAdmin=currentUser&&currentUser.role==='admin';
 
   // Boutons de vote — membres et commandants seulement
   if(!isAdmin&&currentUser&&currentUser.membreId){
@@ -2346,7 +2347,7 @@ function renderQuotaSaisie(divId,forceDate){
   var div=document.getElementById(divId);if(!div)return;
   var today=forceDate||getTodayStr();
   var isCmd=currentUser&&currentUser.role==='commandant';
-  var isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
+  var isAdmin=currentUser&&currentUser.role==='admin';
   var data=(quotaHistory[today]&&quotaHistory[today][currentUser.membreId])||{};
   var submitted=data&&data.submitted;
 
@@ -3386,7 +3387,7 @@ function calculerPaies(divId){
 function renderAccueil(){
   var div=document.getElementById('accueil-content');if(!div)return;
   div.innerHTML='';
-  var isAdmin=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
+  var isAdmin=currentUser&&currentUser.role==='admin';
   var isCmd=currentUser&&currentUser.role==='commandant';
   var m=currentUser.membreId?membres.find(function(x){return x.id===currentUser.membreId;}):null;
   var displayName=m?(m.pseudo||m.nom):currentUser.user;
@@ -3550,7 +3551,7 @@ function editFrequence(){
 
 function openAccueilModal(){
   if(!currentUser)return;
-  var prefix=(currentUser.role==='admin'||currentUser.role==='commandant')?'admin':'mb';
+  var prefix=currentUser.role==='admin'?'admin':'mb';
   document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
   document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
   var sec=document.getElementById('sec-'+prefix+'-accueil');
@@ -3941,7 +3942,7 @@ function resetMdpByProfileId(profileId){
 
 function renderAccordionQuestions(){
   var wrap=document.getElementById('accordion-questions-wrap');if(!wrap)return;wrap.innerHTML='';
-  if(currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant')){var modBtn=document.createElement('button');modBtn.className='btn btn-sm';modBtn.style.cssText='font-size:12px;margin-bottom:10px;';modBtn.textContent='Modifier les questions';modBtn.onclick=function(){openManageAccordion();};wrap.appendChild(modBtn);}
+  if(currentUser&&currentUser.role==='admin'){var modBtn=document.createElement('button');modBtn.className='btn btn-sm';modBtn.style.cssText='font-size:12px;margin-bottom:10px;';modBtn.textContent='Modifier les questions';modBtn.onclick=function(){openManageAccordion();};wrap.appendChild(modBtn);}
   var acc=document.createElement('div');acc.className='accordion';
   (accordionQuestions||[]).forEach(function(q){
     var item=document.createElement('div');item.className='acc-item';
@@ -3998,6 +3999,89 @@ function renderMaqList(){
     addI.onclick=(function(i){return function(){accordionQuestions[i].items.push('Nouvelle question');renderMaqList();};})(qi);
     itemsDiv.appendChild(addI);card.appendChild(itemsDiv);listDiv.appendChild(card);
   });
+}
+
+
+function openAdminPanel(){
+  var overlay=document.getElementById('admin-panel-overlay');
+  if(!overlay){
+    overlay=document.createElement('div');overlay.id='admin-panel-overlay';
+    overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;overflow:hidden;';
+
+    // Top bar
+    var topbar=document.createElement('div');
+    topbar.style.cssText='height:56px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;flex-shrink:0;';
+    var brand=document.createElement('div');brand.style.cssText='font-size:18px;font-weight:800;background:linear-gradient(135deg,#7c3aed,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;';brand.textContent='SECTOR 9 — Admin';
+    var nav=document.createElement('div');nav.id='admin-panel-nav';nav.style.cssText='display:flex;gap:4px;flex:1;margin-left:16px;align-items:center;overflow:visible;';
+    var closeBtn=document.createElement('button');closeBtn.className='btn btn-sm';closeBtn.style.cssText='margin-left:auto;';closeBtn.textContent='✕ Fermer';
+    closeBtn.onclick=function(){document.body.removeChild(overlay);};
+    topbar.appendChild(brand);topbar.appendChild(nav);topbar.appendChild(closeBtn);
+
+    // Content area
+    var content=document.createElement('div');content.id='admin-panel-content';content.style.cssText='flex:1;overflow-y:auto;padding:24px;';
+
+    overlay.appendChild(topbar);overlay.appendChild(content);
+    document.body.appendChild(overlay);
+
+    // Build admin HTML in the panel
+    content.innerHTML=buildAdminHTML();
+
+    // Build nav
+    nav.innerHTML=''
+      +'<div class="nav-dropdown" id="apdd-membres" style="position:relative;">'
+      +'<button class="nav-dropdown-btn" onclick="toggleApDropdown(\'apdd-membres\')">Gestion membres <span class="dd-arrow">▾</span></button>'
+      +'<div class="nav-dropdown-menu" id="apdd-membres-menu" style="z-index:9999;">'
+      +'<button onclick="showApSec(\'admin-membres\',this)">Liste des membres</button>'
+      +'<button onclick="showApSec(\'admin-quotas\',this)">Quotas</button>'
+      +'<button onclick="showApSec(\'admin-sanctions\',this)">Sanctions</button>'
+      +'<button onclick="showApSec(\'admin-recrutement\',this)">Recrutement</button>'
+      +'</div></div>'
+      +'<div class="nav-dropdown" id="apdd-site" style="position:relative;">'
+      +'<button class="nav-dropdown-btn" onclick="toggleApDropdown(\'apdd-site\')">Gestion site <span class="dd-arrow">▾</span></button>'
+      +'<div class="nav-dropdown-menu" id="apdd-site-menu" style="z-index:9999;">'
+      +'<button onclick="showApSec(\'admin-database\',this)">Database</button>'
+      +'<button onclick="showApSec(\'admin-comptes\',this)">Comptes</button>'
+      +'</div></div>'
+      +'<button class="nav-btn" onclick="showApSec(\'admin-calendrier\',this)">Calendrier</button>'
+      +'<button class="nav-btn" onclick="showApSec(\'admin-compta\',this)">Comptabilité</button>';
+
+    // Init admin sections
+    initAdmin();
+  } else {
+    document.body.appendChild(overlay);
+  }
+  // Show accueil by default
+  showApSec('admin-accueil', null);
+}
+
+function showApSec(id, btn){
+  var content=document.getElementById('admin-panel-content');if(!content)return;
+  content.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+  var sec=document.getElementById('sec-'+id);if(sec)sec.classList.add('active');
+  // Nav active states
+  var nav=document.getElementById('admin-panel-nav');
+  if(nav){
+    nav.querySelectorAll('.nav-btn,.nav-dropdown-btn').forEach(function(b){b.classList.remove('active');});
+    nav.querySelectorAll('.nav-dropdown-menu button').forEach(function(b){b.classList.remove('active');});
+    if(btn){btn.classList.add('active');var parent=btn.closest('.nav-dropdown');if(parent){var pb=parent.querySelector('.nav-dropdown-btn');if(pb)pb.classList.add('active');}}
+  }
+  // Close dropdowns
+  document.querySelectorAll('[id^="apdd-"][id$="-menu"]').forEach(function(m){m.style.display='none';});
+  // Trigger renders
+  if(id==='admin-membres')renderMembres(membres);
+  if(id==='admin-sanctions')renderSancMembres();
+  if(id==='admin-database')renderDatabase();
+  if(id==='admin-comptes')renderComptes();
+  if(id==='admin-calendrier'){renderCal('cal-cells','cal-days-names','cal-title','events-list',false);renderPresencePanel('admin-presence-panel',true);}
+  if(id==='admin-compta')renderCoffre();
+  if(id==='admin-recrutement'){setTimeout(function(){renderAccordionQuestions();},50);}
+}
+
+function toggleApDropdown(id){
+  var menu=document.getElementById(id+'-menu');if(!menu)return;
+  var isOpen=menu.style.display==='block';
+  document.querySelectorAll('[id^="apdd-"][id$="-menu"]').forEach(function(m){m.style.display='none';});
+  if(!isOpen)menu.style.display='block';
 }
 
 // ============================================================
