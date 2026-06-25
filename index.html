@@ -4118,7 +4118,7 @@ function apRenderMembres(list){
   var thead=document.createElement('thead');
   thead.innerHTML='<tr><th>Photo</th><th>Pseudo / Nom</th><th>Grade</th><th>Arrivee</th><th>Sanctions</th><th>Absence</th><th>Actions</th></tr>';
   var tbody=document.createElement('tbody');
-  var sorted=[].concat(list).sort(function(a,b){return (a.pending?1:0)-(b.pending?1:0)||gradeOrder(a.grade)-gradeOrder(b.grade);});
+  var GRADES=['Commandant','Capitaine','Lieutenant','Sergent','Operateur','Recrue'];var sorted=[].concat(list).sort(function(a,b){return (a.pending?1:0)-(b.pending?1:0)||(GRADES.indexOf(a.grade)-GRADES.indexOf(b.grade));});
   sorted.forEach(function(m){
     var tr=document.createElement('tr');
     var sl=getMemberSanctions(m.id);
