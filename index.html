@@ -4046,21 +4046,28 @@ function openAdminPanel(){
       +'<button class="nav-btn" onclick="showApSec(\'admin-compta\',this)">Comptabilité</button>';
 
     // Init admin sections then show accueil
+    // First activate accueil section directly
+    var accSec=content.querySelector('#sec-admin-accueil');
+    if(accSec)accSec.classList.add('active');
     initAdmin();
-    setTimeout(function(){showApSec('admin-accueil',null);},50);
   } else {
     overlay.style.display='flex';
-    setTimeout(function(){showApSec('admin-accueil',null);},50);
+    // Re-activate accueil
+    var content2=document.getElementById('admin-panel-content');
+    if(content2){
+      content2.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+      var accSec2=content2.querySelector('#sec-admin-accueil');
+      if(accSec2){accSec2.classList.add('active');renderAccueil();}
+    }
   }
 }
 
 function showApSec(id, btn){
   var content=document.getElementById('admin-panel-content');if(!content)return;
   content.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
-  // sec-admin-accueil etc are direct children
   var sec=content.querySelector('#sec-'+id);
-  if(!sec)sec=document.getElementById('sec-'+id);
   if(sec)sec.classList.add('active');
+  else{sec=document.getElementById('sec-'+id);if(sec)sec.classList.add('active');}
   // Nav active states
   var nav=document.getElementById('admin-panel-nav');
   if(nav){
@@ -4075,6 +4082,7 @@ function showApSec(id, btn){
   if(id==='admin-sanctions')renderSancMembres();
   if(id==='admin-database')renderDatabase();
   if(id==='admin-comptes')renderComptes();
+  if(id==='admin-accueil')renderAccueil();
   if(id==='admin-calendrier'){renderCal('cal-cells','cal-days-names','cal-title','events-list',false);renderPresencePanel('admin-presence-panel',true);}
   if(id==='admin-compta')renderCoffre();
   if(id==='admin-recrutement'){setTimeout(function(){renderAccordionQuestions();},50);}
