@@ -868,7 +868,7 @@ function buildInterface(){
       +(isRecruteur()?'<button class="nav-btn" onclick="showSec(\'mb-recrutement\',this)">Recrutement</button>':'')
       +(isCmd?'<button class="nav-btn" onclick="showSec(\'mb-compta\',this)">Comptabilit&#233;</button>':'')
       +'<button class="nav-btn" onclick="showSec(\'mb-compte\',this)">Mon compte</button>'
-      +(isCmd?'<button class="nav-btn" style="margin-left:12px;border:1px solid rgba(124,58,237,0.4);color:var(--purple3);" onclick="openAdminPanel()">⚙ Admin</button>':'');
+;
     content.innerHTML=buildMembreHTML(isCmd,isRecruteur());
     initMembre();
   }
@@ -1837,8 +1837,7 @@ function submitRecruit(){
         pending:true
       };
       membres.push(newMembre);
-      sauvegarder();
-      // Show success message
+      // Show success toast IMMEDIATELY (don't wait for Supabase)
       var rokEl=getEl('recruit-ok');
       if(rokEl){
         rokEl.innerHTML='<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:20px;">✅</span><div><div style="font-weight:700;color:var(--success);">Candidature enregistrée !</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">Le candidat a été ajouté en liste d\'attente.</div></div></div>';
@@ -1850,8 +1849,10 @@ function submitRecruit(){
         toast.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:16px 20px;z-index:9999;display:flex;align-items:center;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
         toast.innerHTML='<span style="font-size:22px;">✅</span><div><div style="font-weight:700;color:var(--success);font-size:14px;">Candidature enregistrée !</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">Le candidat a été ajouté en liste d\'attente.</div></div>';
         document.body.appendChild(toast);
-        setTimeout(function(){document.body.removeChild(toast);},4000);
+        setTimeout(function(){if(toast.parentNode)document.body.removeChild(toast);},4000);
       }
+      // Save after showing confirmation
+      sauvegarder();
     });
   });
 }
@@ -4088,266 +4089,6 @@ function renderMaqList(){
 }
 
 
-function openAdminPanel(){
-  var overlay=document.getElementById('admin-panel-overlay');
-  if(overlay){overlay.style.display='flex';apShowSection('ap-membres');return;}
-
-  overlay=document.createElement('div');overlay.id='admin-panel-overlay';
-  overlay.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;overflow:hidden;';
-
-  // Topbar
-  var tb=document.createElement('div');tb.style.cssText='height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;position:relative;z-index:501;';
-  var brand=document.createElement('span');brand.style.cssText='font-size:15px;font-weight:800;background:linear-gradient(135deg,#7c3aed,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap;';brand.textContent='SECTOR 9 — Admin';
-
-  // Nav buttons
-  var navDiv=document.createElement('div');navDiv.style.cssText='display:flex;align-items:center;gap:4px;flex:1;margin-left:16px;';
-
-  function apNavBtn(label, section){
-    var b=document.createElement('button');b.className='nav-btn';b.textContent=label;
-    b.onclick=function(){apShowSection(section);apSetActive(b);};
-    navDiv.appendChild(b);return b;
-  }
-
-  function apDropdown(label, items){
-    var wrap=document.createElement('div');wrap.style.cssText='position:relative;';
-    var btn=document.createElement('button');btn.className='nav-dropdown-btn';
-    btn.innerHTML=label+' <span class="dd-arrow">▾</span>';
-    var menu=document.createElement('div');menu.className='nav-dropdown-menu';menu.style.display='none';
-    items.forEach(function(item){
-      var mb=document.createElement('button');mb.textContent=item.label;
-      mb.onclick=function(){menu.style.display='none';apShowSection(item.sec);apSetActive(btn);};
-      menu.appendChild(mb);
-    });
-    btn.onclick=function(e){e.stopPropagation();menu.style.display=menu.style.display==='block'?'none':'block';};
-    wrap.appendChild(btn);wrap.appendChild(menu);navDiv.appendChild(wrap);
-    document.addEventListener('click',function(){menu.style.display='none';});
-    return btn;
-  }
-
-  var activeNavBtn=null;
-  function apSetActive(btn){if(activeNavBtn)activeNavBtn.classList.remove('active');activeNavBtn=btn;btn.classList.add('active');}
-
-  var ddMembers=apDropdown('Gestion membres',[
-    {label:'Liste des membres',sec:'ap-membres'},
-    {label:'Quotas',sec:'ap-quotas'},
-    {label:'Sanctions',sec:'ap-sanctions'},
-    {label:'Recrutement',sec:'ap-recrutement'}
-  ]);
-  var ddSite=apDropdown('Gestion site',[
-    {label:'Database',sec:'ap-database'},
-    {label:'Comptes',sec:'ap-comptes'}
-  ]);
-  apNavBtn('Calendrier','ap-calendrier');
-  apNavBtn('Comptabilité','ap-compta');
-
-  var closeBtn=document.createElement('button');closeBtn.className='btn btn-sm';closeBtn.style.marginLeft='auto';closeBtn.textContent='✕ Fermer';
-  closeBtn.onclick=function(){overlay.style.display='none';};
-  tb.appendChild(brand);tb.appendChild(navDiv);tb.appendChild(closeBtn);
-
-  // Content
-  var content=document.createElement('div');content.id='ap-content';content.style.cssText='flex:1;overflow-y:auto;';
-  // Inner wrapper for max-width
-  var inner=document.createElement('div');inner.id='ap-inner';inner.style.cssText='padding:28px 32px;max-width:1400px;width:100%;margin:0 auto;';content.appendChild(inner);
-
-  overlay.appendChild(tb);overlay.appendChild(content);document.body.appendChild(overlay);
-
-  // Show membres by default
-  apShowSection('ap-membres');
-  apSetActive(ddMembers);
-}
-
-function apShowSection(sec){
-  var inner=document.getElementById('ap-inner');if(!inner)return;
-  inner.innerHTML='<div id="'+sec+'-wrap" style="padding:0;"></div>';
-  var wrap=inner.querySelector('#'+sec+'-wrap');
-
-  if(sec==='ap-membres'){
-    wrap.innerHTML='<div class="section-title">Liste des membres</div>'
-      +'<div class="section-sub">Gestion des membres</div>'
-      +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">'
-      +'<input class="input" style="max-width:240px;" id="ap-search-membre" placeholder="Rechercher..." oninput="apFilterMembres()"/>'
-      +'<div style="display:flex;gap:6px;align-items:center;">'
-      +'<span style="font-size:11px;color:var(--text3);font-weight:600;">Trier :</span>'
-      +'<button class="btn btn-sm" id="ap-sort-grade-btn" onclick="setApSortMembres(\'grade\')" style="background:rgba(124,58,237,0.15);color:var(--purple2);">Grade</button>'
-      +'<button class="btn btn-sm" id="ap-sort-pseudo-btn" onclick="setApSortMembres(\'pseudo\')">Pseudo</button>'
-      +'</div>'
-      +'<button class="btn btn-primary" style="margin-left:auto;" onclick="openAddMembre()">+ Ajouter un membre</button></div>'
-      +'<div id="ap-membres-table-wrap"></div>';
-    apRenderMembres(membres);
-  } else if(sec==='ap-sanctions'){
-    wrap.innerHTML='<div class="section-title">Sanctions</div>'
-      +'<div class="section-sub">Bareme disciplinaire et suivi des sanctions</div>'
-      +'<div class="subtabs" id="sanctions-subtabs">'
-      +'<button class="subtab active" onclick="showSubtab(\'sanctions-subtabs\',\'sub-bareme\',this)">Bareme disciplinaire</button>'
-      +'<button class="subtab" onclick="showSubtab(\'sanctions-subtabs\',\'sub-sanc-membres\',this)">Sanctions des membres</button>'
-      +'</div>'
-      +'<div id="sub-bareme" class="subtab-content active">'
-      +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'
-      +'<details style="flex:1;min-width:200px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;">'
-      +'<summary style="padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:var(--purple3);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;user-select:none;">Niveaux de gravite <span style="font-size:10px;color:var(--text3);">▼</span></summary>'
-      +'<div style="padding:12px;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">'
-      +'<div class="sanc-item"><div class="sanc-name" style="color:var(--success);">Mineure</div><div class="sanc-desc">Ecart mineur ou comportement a corriger</div></div>'
-      +'<div class="sanc-item"><div class="sanc-name" style="color:var(--warning);">Intermediaire</div><div class="sanc-desc">Comportement problematique ou repete</div></div>'
-      +'<div class="sanc-item"><div class="sanc-name" style="color:#e05c00;">Grave</div><div class="sanc-desc">Faute impactant le groupe entier</div></div>'
-      +'<div class="sanc-item"><div class="sanc-name" style="color:var(--danger);">Critique</div><div class="sanc-desc">Mise en danger ou trahison du groupe</div></div>'
-      +'</div></details>'
-      +'<details style="flex:1;min-width:200px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;">'
-      +'<summary style="padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:var(--purple3);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;user-select:none;">Lexique des sanctions <span style="font-size:10px;color:var(--text3);">▼</span></summary>'
-      +'<div style="padding:12px;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">'
-      +'<div class="sanc-item"><div class="sanc-name">Rappel a l\'ordre</div><div class="sanc-desc">Avertissement oral et/ou ecrit</div></div>'
-      +'<div class="sanc-item"><div class="sanc-name">Convocation</div><div class="sanc-desc">Entretien avec les leads</div></div>'
-      +'<div class="sanc-item"><div class="sanc-name">Surveillance</div><div class="sanc-desc">Membre actif sous observation</div></div>'
-      +'<div class="sanc-item"><div class="sanc-name">Mise a pied</div><div class="sanc-desc">Suspension temporaire</div></div>'
-      +'<div class="sanc-item"><div class="sanc-name">Demote temporaire</div><div class="sanc-desc">Retrogradation provisoire</div></div>'
-      +'<div class="sanc-item"><div class="sanc-name">Kick</div><div class="sanc-desc">Exclusion definitive</div></div>'
-      +'</div></details></div>'
-      +'<button class="btn btn-primary" style="margin-bottom:14px;" onclick="openAddBareme()">+ Ajouter une infraction</button>'
-      +'<div class="table-wrap"><table><thead><tr><th>Code</th><th>Infraction</th><th>Gravite</th><th>1ere sanction</th><th>Recidive</th><th>Sanction max.</th><th>Actions</th></tr></thead><tbody id="bareme-tbody"></tbody></table></div>'
-      +'</div>'
-      +'<div id="sub-sanc-membres" class="subtab-content">'
-      +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">'
-      +'<select class="input" id="sanc-filtre-membre" style="max-width:220px;" onchange="renderSancMembres()"><option value="">Tous les membres</option></select>'
-      +'<button class="btn btn-primary" onclick="openAddSanction()">+ Ajouter une sanction</button></div>'
-      +'<div id="sanctions-list"></div></div>';
-    setTimeout(function(){renderBareme();renderSancMembres();},50);
-  } else if(sec==='ap-quotas'){
-    wrap.innerHTML='<div class="section-title">Quotas hebdomadaires</div>'
-      +'<div class="section-sub">Objectifs minimum par membre</div>'
-      +'<div id="quota-banner-wrap"></div>'
-      +'<div class="subtabs" id="admin-quota-subtabs">'
-      +'<button class="subtab active" onclick="showQuotaSubtab(\'admin-quota-subtabs\',\'aq-recap\',this)">Recap membres</button>'
-      +'<button class="btn btn-sm" style="margin-left:auto;" onclick="openQuotaEdit()">⚙ Modifier les objectifs</button>'
-      +'</div>'
-      +'<div id="aq-recap" class="subtab-content active"><div id="quota-recap-div"></div></div>';
-    setTimeout(function(){renderQuotaBanner();renderQuotaRecap('quota-recap-div',true);},50);
-  } else if(sec==='ap-database'){
-    wrap.innerHTML='<div class="section-title">Database</div>'
-      +'<div class="section-sub">Catalogue des objets — prix modifiables en temps réel</div>'
-      +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">'
-      +'<input class="input" style="max-width:220px;" id="db-search" placeholder="Rechercher un objet..." oninput="renderDatabase()"/>'
-      +'<select class="input" style="max-width:180px;" id="db-filtre-cat" onchange="renderDatabase()"><option value="">Toutes les catégories</option></select>'
-      +'<button class="btn btn-primary" onclick="openAddItem()">+ Ajouter un objet</button></div>'
-      +'<div id="database-content"></div>';
-    setTimeout(function(){populateDbFiltre();renderDatabase();},50);
-  } else if(sec==='ap-comptes'){
-    wrap.innerHTML='<div class="section-title">Gestion des comptes</div>'
-      +'<div id="comptes-list"></div>'
-      +'<div style="margin-top:16px;"><button class="btn btn-primary" onclick="openAddCompte()">+ Ajouter un compte</button></div>';
-    renderComptes();
-  } else if(sec==='ap-calendrier'){
-    wrap.innerHTML='<div class="section-title">Calendrier</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;">'
-      +'<div><div class="card"><div id="ap-cal-title" style="font-weight:700;margin-bottom:12px;"></div>'
-      +'<div id="ap-cal-days-names" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;"></div>'
-      +'<div id="ap-cal-cells" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div></div>'
-      +'<div id="ap-events-list" style="margin-top:12px;"></div></div>'
-      +'<div><div id="ap-presence-panel"></div></div></div>';
-    setTimeout(function(){renderCal('ap-cal-cells','ap-cal-days-names','ap-cal-title','ap-events-list',false);renderPresencePanel('ap-presence-panel',true);},50);
-  } else if(sec==='ap-compta'){
-    wrap.innerHTML=buildComptaHTML('ap');
-    setTimeout(function(){renderCoffre();},50);
-  } else if(sec==='ap-recrutement'){
-    wrap.innerHTML=buildRecrutementHTML();
-    setTimeout(function(){
-      // Render accordion questions directly into the wrap element
-      var aqWrap=wrap.querySelector('#accordion-questions-wrap');
-      if(!aqWrap)return;
-      aqWrap.innerHTML='';
-      var isCmd=currentUser&&(currentUser.role==='admin'||currentUser.role==='commandant');
-      if(isCmd){
-        var modBtn=document.createElement('button');modBtn.className='btn btn-sm';modBtn.style.cssText='font-size:12px;margin-bottom:10px;';modBtn.textContent='Modifier les questions';modBtn.onclick=function(){openManageAccordion();};aqWrap.appendChild(modBtn);
-      }
-      var qs=accordionQuestions&&accordionQuestions.length?accordionQuestions:[
-        {title:'Age du candidat',items:['Age en ville ?','Age IRL ?']},
-        {title:'Disponibilites',items:['Disponible la semaine ?','Disponible le weekend ?']},
-        {title:'Ancien groupe ?',items:['A-t-il deja ete dans un groupe ?','Si oui : lequel ?']},
-        {title:'Travail legal ?',items:['A-t-il un travail legal ?']},
-        {title:'Problemes avec Washington ?',items:['A-t-il eu des problemes ?']},
-        {title:'Motivations',items:['Pourquoi ce groupe ?','Attentes ?']},
-        {title:'Screenshot du visage',items:['Demander un screenshot du personnage.']}
-      ];
-      var acc=document.createElement('div');acc.className='accordion';
-      qs.forEach(function(q){
-        var item=document.createElement('div');item.className='acc-item';
-        var btn=document.createElement('button');btn.className='acc-header';btn.onclick=function(){toggleAcc(this);};
-        var sp1=document.createElement('span');sp1.textContent=q.title;
-        var sp2=document.createElement('span');sp2.className='acc-arrow';sp2.textContent='v';
-        btn.appendChild(sp1);btn.appendChild(sp2);
-        var body=document.createElement('div');body.className='acc-body';
-        var ul=document.createElement('ul');
-        (q.items||[]).forEach(function(it){var li=document.createElement('li');li.textContent=it;ul.appendChild(li);});
-        body.appendChild(ul);item.appendChild(btn);item.appendChild(body);acc.appendChild(item);
-      });
-      aqWrap.appendChild(acc);
-    },100);
-  }
-}
-
-function apRenderMembres(list){
-  var wrap=document.getElementById('ap-membres-table-wrap');if(!wrap)return;
-  wrap.innerHTML='';
-  var tableDiv=document.createElement('div');tableDiv.className='table-wrap';
-  var table=document.createElement('table');
-  var thead=document.createElement('thead');
-  thead.innerHTML='<tr><th>Photo</th><th>Pseudo / Nom</th><th>Grade</th><th>Arrivee</th><th>Sanctions</th><th>Absence</th><th>Actions</th></tr>';
-  var tbody=document.createElement('tbody');
-  var GRADES_AP=['Commandant','Capitaine','Lieutenant','Sergent Chef','Sergent','Caporal','Opérateur','Recrue'];
-  var sorted=[].concat(list).sort(function(a,b){
-    if(a.pending&&!b.pending)return 1;if(!a.pending&&b.pending)return -1;
-    if(_apMembreSort==='pseudo')return (a.pseudo||a.nom).localeCompare(b.pseudo||b.nom);
-    return GRADES_AP.indexOf(a.grade)-GRADES_AP.indexOf(b.grade);
-  });
-  sorted.forEach(function(m){
-    var tr=document.createElement('tr');
-    var sl=getMemberSanctions(m.id);
-    var sancHtml=sl.length?'<span class="badge badge-warn">&#9888; '+sl.length+' sanction'+(sl.length>1?'s':'')+'</span>':'<span style="color:var(--text3);font-size:12px;">Aucune</span>';
-    var absHtml=m.absence?'<span class="badge badge-abs">Absence'+(m.absenceFin?' - '+fmtDate(m.absenceFin):'')+'</span>':'<span style="color:var(--text3);font-size:12px;">Non</span>';
-    function mkTd(h,s){var t=document.createElement('td');if(s)t.style.cssText=s;t.innerHTML=h;return t;}
-    // Photo
-    var tdPh=document.createElement('td');var phDiv=document.createElement('div');phDiv.className='photo-thumb';
-    if(m.photo){var img=document.createElement('img');img.src=m.photo;phDiv.appendChild(img);}else{phDiv.textContent='+';}
-    tdPh.appendChild(phDiv);tr.appendChild(tdPh);
-    // Name
-    var nomCell=document.createElement('td');
-    var pEl=document.createElement('div');pEl.style.cssText='font-weight:700;color:var(--text);';pEl.textContent=m.pseudo||m.nom;
-    if(m.pseudo){var nEl=document.createElement('div');nEl.style.cssText='font-size:11px;color:var(--text3);';nEl.textContent=m.nom;nomCell.appendChild(pEl);nomCell.appendChild(nEl);}
-    else{nomCell.appendChild(pEl);}tr.appendChild(nomCell);
-    tr.appendChild(mkTd('<span class="badge '+gradeColor(m.grade)+'">'+m.grade+'</span>'));
-    tr.appendChild(mkTd(fmtDate(m.date),'font-size:12px;color:var(--text3);'));
-    tr.appendChild(mkTd(sancHtml));
-    tr.appendChild(mkTd(absHtml));
-    // Actions
-    var tdAct=document.createElement('td');tdAct.style.whiteSpace='nowrap';
-    var pb=document.createElement('button');pb.className='btn btn-sm btn-primary';pb.textContent='Profil';pb.style.marginRight='4px';
-    pb.onclick=(function(id){return function(){openProfilMembre(id);};})(m.id);tdAct.appendChild(pb);
-    if(m.pending){
-      var vb=document.createElement('button');vb.className='btn btn-sm btn-success';vb.textContent='Valider';vb.style.marginRight='4px';vb.onclick=(function(id){return function(){openValidate(id);};})(m.id);tdAct.appendChild(vb);
-      var rb=document.createElement('button');rb.className='btn btn-sm btn-danger';rb.textContent='Refuser';rb.onclick=(function(id){return function(){deleteMembre(id);};})(m.id);tdAct.appendChild(rb);
-    } else {
-      var eb=document.createElement('button');eb.className='btn btn-sm';eb.textContent='Editer';eb.style.marginRight='4px';eb.onclick=(function(id){return function(){openEditMembre(id);};})(m.id);tdAct.appendChild(eb);
-      var db=document.createElement('button');db.className='btn btn-sm btn-danger';db.textContent='Suppr.';db.onclick=(function(id){return function(){deleteMembre(id);};})(m.id);tdAct.appendChild(db);
-    }
-    tr.appendChild(tdAct);tbody.appendChild(tr);
-  });
-  table.appendChild(thead);table.appendChild(tbody);tableDiv.appendChild(table);wrap.appendChild(tableDiv);
-}
-
-var _apMembreSort='grade';
-function apFilterMembres(){
-  var q=document.getElementById('ap-search-membre');if(!q)return;
-  var val=q.value.toLowerCase().trim();
-  var filtered=val?membres.filter(function(m){return m.nom.toLowerCase().includes(val)||(m.pseudo&&m.pseudo.toLowerCase().includes(val));}):membres;
-  apRenderMembres(filtered);
-}
-function setApSortMembres(type){
-  _apMembreSort=type;
-  var bg=document.getElementById('ap-sort-grade-btn');var bp=document.getElementById('ap-sort-pseudo-btn');
-  if(bg)bg.style.cssText=type==='grade'?'background:rgba(124,58,237,0.15);color:var(--purple2);':'';
-  if(bp)bp.style.cssText=type==='pseudo'?'background:rgba(124,58,237,0.15);color:var(--purple2);':'';
-  apFilterMembres();
-}
-
-
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
@@ -4361,7 +4102,10 @@ function sauvegarder(){
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
   // For Supabase: strip large base64 photos to reduce payload size
   var membresLight=membres.map(function(m){var mc=Object.assign({},m);if(mc.photo&&mc.photo.length>500)mc.photo='';if(mc.carteId&&mc.carteId.length>500)mc.carteId='';return mc;});
-  var payloadLight=Object.assign({},payload,{membres:membresLight});
+  // Also trim quotaHistory to last 14 days for Supabase
+  var cutoff=new Date();cutoff.setDate(cutoff.getDate()-14);var cutStr=cutoff.toISOString().slice(0,10);
+  var quotaHistoryLight={};Object.keys(quotaHistory).forEach(function(d){if(d>=cutStr)quotaHistoryLight[d]=quotaHistory[d];});
+  var payloadLight=Object.assign({},payload,{membres:membresLight,quotaHistory:quotaHistoryLight});
   // Save to Supabase via UPSERT
   fetch(SUPABASE_URL+'/rest/v1/s9_data',{
     method:'POST',
