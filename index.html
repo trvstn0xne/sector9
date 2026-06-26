@@ -4094,11 +4094,12 @@ function openAdminPanel(){
 
 function apShowSection(sec){
   var inner=document.getElementById('ap-inner');if(!inner)return;
-  inner.innerHTML='<div class="section active" id="'+sec+'-wrap" style="padding:0;"></div>';
+  inner.innerHTML='<div id="'+sec+'-wrap" style="padding:0;"></div>';
   var wrap=inner.querySelector('#'+sec+'-wrap');
 
   if(sec==='ap-membres'){
-    wrap.innerHTML='<div class="section-title">Liste des membres</div><div class="section-sub">Gerer les membres de Sector 9</div>'
+    wrap.innerHTML='<div class="section-title">Liste des membres</div>'
+      +'<div class="section-sub">Gestion des membres</div>'
       +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">'
       +'<input class="input" style="max-width:240px;" id="ap-search-membre" placeholder="Rechercher..." oninput="apFilterMembres()"/>'
       +'<div style="display:flex;gap:6px;align-items:center;">'
@@ -4110,33 +4111,52 @@ function apShowSection(sec){
       +'<div id="ap-membres-table-wrap"></div>';
     apRenderMembres(membres);
   } else if(sec==='ap-sanctions'){
-    wrap.innerHTML='<div class="section-title">Sanctions</div><div id="ap-sanc-wrap"></div>';
+    wrap.innerHTML='<div class="section-title">Sanctions</div>'
+      +'<div class="section-sub">Gestion des sanctions</div>'
+      +'<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">'
+      +'<select class="input" style="max-width:200px;" id="sanc-filtre-membre" onchange="renderSancMembres()">'
+      +'<option value="">Tous les membres</option></select>'
+      +'<button class="btn btn-primary btn-sm" onclick="openAddSanction()">+ Ajouter</button></div>'
+      +'<div id="sancmembres-list"></div>';
+    var sel=document.getElementById('sanc-filtre-membre');
+    membres.filter(function(m){return !m.pending;}).forEach(function(m){
+      var opt=document.createElement('option');opt.value=m.id;opt.textContent=m.pseudo||m.nom;sel.appendChild(opt);
+    });
     renderSancMembres();
-    setTimeout(function(){var s=document.getElementById('sancmembres-list');if(s)document.getElementById('ap-sanc-wrap').appendChild(s.cloneNode(true));},100);
-    wrap.innerHTML='<div class="section-title">Sanctions</div><div class="section-sub">Gestion des sanctions</div><div id="ap-sanc-list"></div>';
-    var container=wrap.querySelector('#ap-sanc-list');
-    var isAdmin2=true;renderSancMembresInto(container,isAdmin2);
   } else if(sec==='ap-quotas'){
-    wrap.innerHTML='<div class="section-title">Quotas</div><div class="section-sub">Suivi des quotas</div><div id="quota-recap-div"></div><div id="quota-banner-wrap"></div>';
-    setTimeout(function(){renderQuotaRecap('quota-recap-div',false);},50);
+    wrap.innerHTML='<div class="section-title">Quotas</div>'
+      +'<div class="section-sub">Suivi des quotas membres</div>'
+      +'<div id="quota-recap-div"></div>';
+    setTimeout(function(){renderQuotaRecap('quota-recap-div',true);},50);
   } else if(sec==='ap-database'){
-    wrap.innerHTML='<div class="section-title">Database</div><div id="ap-database-content"></div>';
-    setTimeout(function(){renderDatabaseInto(wrap.querySelector('#ap-database-content'));},50);
+    wrap.innerHTML='<div class="section-title">Database</div>'
+      +'<div class="section-sub">Catalogue des objets — prix modifiables en temps réel</div>'
+      +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">'
+      +'<input class="input" style="max-width:220px;" id="db-search" placeholder="Rechercher un objet..." oninput="renderDatabase()"/>'
+      +'<select class="input" style="max-width:180px;" id="db-filtre-cat" onchange="renderDatabase()"><option value="">Toutes les catégories</option></select>'
+      +'<button class="btn btn-primary" onclick="openAddItem()">+ Ajouter un objet</button></div>'
+      +'<div id="database-content"></div>';
+    setTimeout(function(){populateDbFiltre();renderDatabase();},50);
   } else if(sec==='ap-comptes'){
-    wrap.innerHTML='<div class="section-title">Gestion des comptes</div><div id="comptes-list"></div><div style="margin-top:16px;"><button class="btn btn-primary" onclick="openAddCompte()">+ Ajouter un compte</button></div>';
+    wrap.innerHTML='<div class="section-title">Gestion des comptes</div>'
+      +'<div id="comptes-list"></div>'
+      +'<div style="margin-top:16px;"><button class="btn btn-primary" onclick="openAddCompte()">+ Ajouter un compte</button></div>';
     renderComptes();
   } else if(sec==='ap-calendrier'){
     wrap.innerHTML='<div class="section-title">Calendrier</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 320px;gap:20px;"><div><div class="card"><div id="ap-cal-days-names"></div><div id="ap-cal-cells"></div></div><div id="ap-events-list"></div></div>'
+      +'<div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;">'
+      +'<div><div class="card"><div id="ap-cal-title" style="font-weight:700;margin-bottom:12px;"></div>'
+      +'<div id="ap-cal-days-names" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;"></div>'
+      +'<div id="ap-cal-cells" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div></div>'
+      +'<div id="ap-events-list" style="margin-top:12px;"></div></div>'
       +'<div><div id="ap-presence-panel"></div></div></div>';
     setTimeout(function(){renderCal('ap-cal-cells','ap-cal-days-names','ap-cal-title','ap-events-list',false);renderPresencePanel('ap-presence-panel',true);},50);
   } else if(sec==='ap-compta'){
-    wrap.innerHTML=buildComptaHTML('admin');
+    wrap.innerHTML=buildComptaHTML('ap');
     setTimeout(function(){renderCoffre();},50);
   } else if(sec==='ap-recrutement'){
-    wrap.innerHTML=buildAdminHTML().match(/id="sec-admin-recrutement"[^>]*>([\s\S]*?)<\/div>\s*<div class="section" id="sec-admin-comptes"/)||'';
-    wrap.innerHTML='<div class="section-title">Recrutement</div><div id="ap-recrut-list"></div>';
-    setTimeout(function(){renderRecruitements();renderAccordionQuestions();},50);
+    wrap.innerHTML=buildRecrutementHTML();
+    setTimeout(function(){renderAccordionQuestions();},50);
   }
 }
 
