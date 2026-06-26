@@ -1758,39 +1758,83 @@ function deleteItem(id){if(!confirm('Supprimer cet objet de la database ?'))retu
 function toggleGroupeDetails(){var oui=document.getElementById('r-groupe-oui')&&document.getElementById('r-groupe-oui').checked;var el=document.getElementById('groupe-details');if(el)el.style.display=oui?'block':'none';}
 function copyMarket(){var text=document.getElementById('market-msg').value;navigator.clipboard.writeText(text).then(function(){var ok=document.getElementById('copy-ok');ok.style.display='block';setTimeout(function(){ok.style.display='none';},2000);});}
 function submitRecruit(){
-  var errDiv=document.getElementById('r-form-err');errDiv.style.display='none';
+  var errDiv=document.getElementById('r-form-err');
+  if(!errDiv){console.warn('r-form-err not found');return;}
+  errDiv.style.display='none';
   var errors=[];
-  function req(id,label){var v=document.getElementById(id)&&document.getElementById(id).value&&document.getElementById(id).value.trim();if(!v)errors.push(label);return v;}
-  var nom=req('r-nom','Nom du candidat');var pseudo=req('r-pseudo','Pseudo')||'';req('r-tel','Téléphone');req('r-discord','Discord');req('r-age-ville','Âge en ville');req('r-date','Date d\'arrivée');req('r-travail','Travail légal');req('r-washington','Problèmes avec Washington');// dynamic questions - no fixed fields required
-  if(document.querySelectorAll('.dispo-cb:checked').length===0)errors.push('Disponibilités');
-  if(!document.getElementById('r-groupe-oui').checked&&!document.getElementById('r-groupe-non').checked)errors.push('Ancien groupe');
-  if(document.getElementById('r-groupe-oui').checked){req('r-ancien-nom','Nom de l\'ancien groupe');req('r-ancien-role','Rôle');if(!document.querySelector('input[name="r-haut-grade"]:checked'))errors.push('Était-il haut gradé ?');if(!document.querySelector('input[name="r-kick"]:checked'))errors.push('A-t-il été kick ?');req('r-dissous','Dissolution');}
-  var rVisage=document.getElementById('r-photo-visage');if(rVisage&&!rVisage.files[0])errors.push('Photo du visage');
-  if(!document.getElementById('r-photo-ci').files[0])errors.push('Carte d\'identité');
-  if(errors.length>0){errDiv.style.display='block';errDiv.innerHTML='Champs manquants :<br>• '+errors.join('<br>• ');return;}
-    // Read disponibilités
-  var dispoData={};
-  document.querySelectorAll('.dispo-cb').forEach(function(cb){
-    dispoData[cb.dataset.slot]=cb.checked;
-  });
-  // Read photos async then push
-  function readFileB64(input,cb){
-    if(input&&input.files&&input.files[0]){
-      var r=new FileReader();r.onload=function(e){cb(e.target.result);};r.readAsDataURL(input.files[0]);
-    } else cb('');
+  function req(id,label){var el=document.getElementById(id);var v=el&&el.value&&el.value.trim();if(!v)errors.push(label);return v||'';}
+  function getEl(id){return document.getElementById(id);}
+
+  var nom=req('r-nom','Nom du candidat');
+  var pseudo=req('r-pseudo','Pseudo')||'';
+  req('r-tel','Telephone');
+  req('r-discord','Discord');
+  req('r-age-ville','Age en ville');
+  req('r-date','Date d\'arrivee');
+
+  // Disponibilites
+  if(document.querySelectorAll('.dispo-cb:checked').length===0)errors.push('Disponibilites');
+
+  // Ancien groupe
+  var grpOui=getEl('r-groupe-oui');var grpNon=getEl('r-groupe-non');
+  if(grpOui&&grpNon&&!grpOui.checked&&!grpNon.checked)errors.push('Ancien groupe');
+  if(grpOui&&grpOui.checked){
+    req('r-ancien-nom','Nom de l\'ancien groupe');req('r-ancien-role','Role');
+    if(!document.querySelector('input[name="r-haut-grade"]:checked'))errors.push('Etait-il haut grade ?');
+    if(!document.querySelector('input[name="r-kick"]:checked'))errors.push('A-t-il ete kick ?');
+    req('r-dissous','Dissolution');
   }
-  var visageInput=document.getElementById('r-photo-visage');
-  var ciInput=document.getElementById('r-photo-ci');
+
+  // Carte ID (required)
+  var ciInput=getEl('r-photo-ci');
+  if(!ciInput||!ciInput.files||!ciInput.files[0])errors.push('Carte d\'identite');
+
+  if(errors.length>0){
+    errDiv.style.display='block';
+    errDiv.innerHTML='Champs manquants :<br>• '+errors.join('<br>• ');
+    return;
+  }
+
+  // Read disponibilités
+  var dispoData={};
+  document.querySelectorAll('.dispo-cb').forEach(function(cb){dispoData[cb.dataset.slot]=cb.checked;});
+
+  function readFileB64(input,cb){
+    if(input&&input.files&&input.files[0]){var r=new FileReader();r.onload=function(e){cb(e.target.result);};r.readAsDataURL(input.files[0]);}
+    else cb('');
+  }
+
+  var visageInput=getEl('r-photo-visage');
   readFileB64(visageInput,function(photoB64){
     readFileB64(ciInput,function(ciB64){
-      membres.push({id:Date.now(),nom:nom||'Candidat',pseudo:pseudo||'',date:document.getElementById('r-date').value,tel:document.getElementById('r-tel').value.trim(),discord:document.getElementById('r-discord').value.trim(),grade:'Recrue',radio:false,arme:document.getElementById('r-arme')&&document.getElementById('r-arme').checked||false,disqueuse:false,absence:false,absenceFin:'',photo:photoB64,carteId:ciB64,dispo:dispoData,ppa:document.getElementById('r-ppa')&&document.getElementById('r-ppa').checked||false,pending:true});
+      var newMembre={
+        id:Date.now(),
+        nom:nom||'Candidat',
+        pseudo:pseudo,
+        date:req('r-date','')||'',
+        tel:(getEl('r-tel')&&getEl('r-tel').value.trim())||'',
+        discord:(getEl('r-discord')&&getEl('r-discord').value.trim())||'',
+        grade:'Recrue',
+        radio:false,
+        arme:(getEl('r-arme')&&getEl('r-arme').checked)||false,
+        disqueuse:false,
+        absence:false,
+        absenceFin:'',
+        photo:photoB64,
+        carteId:ciB64,
+        dispo:dispoData,
+        ppa:(getEl('r-ppa')&&getEl('r-ppa').checked)||false,
+        pending:true
+      };
+      membres.push(newMembre);
       sauvegarder();
-      var rokEl=document.getElementById('recruit-ok');if(rokEl){rokEl.style.display='block';setTimeout(function(){rokEl.style.display='none';},5000);} else{alert('Candidature enregistrée !');}  
+      var rokEl=getEl('recruit-ok');
+      if(rokEl){rokEl.style.display='block';setTimeout(function(){rokEl.style.display='none';},5000);}
+      else{alert('Candidature enregistree avec succes !');}
     });
   });
-  return;
-
 }
+
 
 // ============================================================
 // CALENDRIER
