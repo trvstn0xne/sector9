@@ -1765,7 +1765,7 @@ function submitRecruit(){
   if(document.querySelectorAll('.dispo-cb:checked').length===0)errors.push('Disponibilités');
   if(!document.getElementById('r-groupe-oui').checked&&!document.getElementById('r-groupe-non').checked)errors.push('Ancien groupe');
   if(document.getElementById('r-groupe-oui').checked){req('r-ancien-nom','Nom de l\'ancien groupe');req('r-ancien-role','Rôle');if(!document.querySelector('input[name="r-haut-grade"]:checked'))errors.push('Était-il haut gradé ?');if(!document.querySelector('input[name="r-kick"]:checked'))errors.push('A-t-il été kick ?');req('r-dissous','Dissolution');}
-  if(!document.getElementById('r-photo-visage').files[0])errors.push('Photo du visage');
+  var rVisage=document.getElementById('r-photo-visage');if(rVisage&&!rVisage.files[0])errors.push('Photo du visage');
   if(!document.getElementById('r-photo-ci').files[0])errors.push('Carte d\'identité');
   if(errors.length>0){errDiv.style.display='block';errDiv.innerHTML='Champs manquants :<br>• '+errors.join('<br>• ');return;}
     // Read disponibilités
