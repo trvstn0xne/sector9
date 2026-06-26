@@ -1759,12 +1759,23 @@ function toggleGroupeDetails(){var oui=document.getElementById('r-groupe-oui')&&
 function copyMarket(){var text=document.getElementById('market-msg').value;navigator.clipboard.writeText(text).then(function(){var ok=document.getElementById('copy-ok');ok.style.display='block';setTimeout(function(){ok.style.display='none';},2000);});}
 function submitRecruit(){
   console.log('[RECRUIT] submitRecruit called');
-  var errDiv=document.getElementById('r-form-err');
+  // Find the VISIBLE form container (could be in admin panel or member page)
+  var formRoot=null;
+  var allForms=document.querySelectorAll('#r-nom');
+  allForms.forEach(function(el){if(el.offsetParent!==null)formRoot=el.closest('.recruit-grid')||el.closest('.section')||document;});
+  if(!formRoot)formRoot=document;
+  console.log('[RECRUIT] formRoot:', formRoot.id||formRoot.className||'document');
+  var errDiv=formRoot===document?document.getElementById('r-form-err'):formRoot.querySelector('#r-form-err')||document.getElementById('r-form-err');
   if(!errDiv){console.warn('[RECRUIT] r-form-err not found');return;}
   errDiv.style.display='none';
   var errors=[];
-  function req(id,label){var el=document.getElementById(id);var v=el&&el.value&&el.value.trim();if(!v)errors.push(label);return v||'';}
-  function getEl(id){return document.getElementById(id);}
+  function getEl(id){
+    // Find visible element with this id
+    var els=document.querySelectorAll('#'+id);
+    for(var i=0;i<els.length;i++){if(els[i].offsetParent!==null)return els[i];}
+    return els[0]||null;
+  }
+  function req(id,label){var el=getEl(id);var v=el&&el.value&&el.value.trim();if(!v)errors.push(label);return v||'';}
 
   var nom=req('r-nom','Nom du candidat');
   var pseudo=req('r-pseudo','Pseudo')||'';
