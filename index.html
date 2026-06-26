@@ -4112,17 +4112,40 @@ function apShowSection(sec){
     apRenderMembres(membres);
   } else if(sec==='ap-sanctions'){
     wrap.innerHTML='<div class="section-title">Sanctions</div>'
-      +'<div class="section-sub">Gestion des sanctions</div>'
-      +'<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">'
-      +'<select class="input" style="max-width:200px;" id="sanc-filtre-membre" onchange="renderSancMembres()">'
-      +'<option value="">Tous les membres</option></select>'
-      +'<button class="btn btn-primary btn-sm" onclick="openAddSanction()">+ Ajouter</button></div>'
-      +'<div id="sancmembres-list"></div>';
-    var sel=document.getElementById('sanc-filtre-membre');
-    membres.filter(function(m){return !m.pending;}).forEach(function(m){
-      var opt=document.createElement('option');opt.value=m.id;opt.textContent=m.pseudo||m.nom;sel.appendChild(opt);
-    });
-    renderSancMembres();
+      +'<div class="section-sub">Bareme disciplinaire et suivi des sanctions</div>'
+      +'<div class="subtabs" id="sanctions-subtabs">'
+      +'<button class="subtab active" onclick="showSubtab(\'sanctions-subtabs\',\'sub-bareme\',this)">Bareme disciplinaire</button>'
+      +'<button class="subtab" onclick="showSubtab(\'sanctions-subtabs\',\'sub-sanc-membres\',this)">Sanctions des membres</button>'
+      +'</div>'
+      +'<div id="sub-bareme" class="subtab-content active">'
+      +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'
+      +'<details style="flex:1;min-width:200px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;">'
+      +'<summary style="padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:var(--purple3);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;user-select:none;">Niveaux de gravite <span style="font-size:10px;color:var(--text3);">▼</span></summary>'
+      +'<div style="padding:12px;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">'
+      +'<div class="sanc-item"><div class="sanc-name" style="color:var(--success);">Mineure</div><div class="sanc-desc">Ecart mineur ou comportement a corriger</div></div>'
+      +'<div class="sanc-item"><div class="sanc-name" style="color:var(--warning);">Intermediaire</div><div class="sanc-desc">Comportement problematique ou repete</div></div>'
+      +'<div class="sanc-item"><div class="sanc-name" style="color:#e05c00;">Grave</div><div class="sanc-desc">Faute impactant le groupe entier</div></div>'
+      +'<div class="sanc-item"><div class="sanc-name" style="color:var(--danger);">Critique</div><div class="sanc-desc">Mise en danger ou trahison du groupe</div></div>'
+      +'</div></details>'
+      +'<details style="flex:1;min-width:200px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;">'
+      +'<summary style="padding:11px 16px;cursor:pointer;font-size:13px;font-weight:600;color:var(--purple3);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;justify-content:space-between;user-select:none;">Lexique des sanctions <span style="font-size:10px;color:var(--text3);">▼</span></summary>'
+      +'<div style="padding:12px;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">'
+      +'<div class="sanc-item"><div class="sanc-name">Rappel a l\'ordre</div><div class="sanc-desc">Avertissement oral et/ou ecrit</div></div>'
+      +'<div class="sanc-item"><div class="sanc-name">Convocation</div><div class="sanc-desc">Entretien avec les leads</div></div>'
+      +'<div class="sanc-item"><div class="sanc-name">Surveillance</div><div class="sanc-desc">Membre actif sous observation</div></div>'
+      +'<div class="sanc-item"><div class="sanc-name">Mise a pied</div><div class="sanc-desc">Suspension temporaire</div></div>'
+      +'<div class="sanc-item"><div class="sanc-name">Demote temporaire</div><div class="sanc-desc">Retrogradation provisoire</div></div>'
+      +'<div class="sanc-item"><div class="sanc-name">Kick</div><div class="sanc-desc">Exclusion definitive</div></div>'
+      +'</div></details></div>'
+      +'<button class="btn btn-primary" style="margin-bottom:14px;" onclick="openAddBareme()">+ Ajouter une infraction</button>'
+      +'<div class="table-wrap"><table><thead><tr><th>Code</th><th>Infraction</th><th>Gravite</th><th>1ere sanction</th><th>Recidive</th><th>Sanction max.</th><th>Actions</th></tr></thead><tbody id="bareme-tbody"></tbody></table></div>'
+      +'</div>'
+      +'<div id="sub-sanc-membres" class="subtab-content">'
+      +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">'
+      +'<select class="input" id="sanc-filtre-membre" style="max-width:220px;" onchange="renderSancMembres()"><option value="">Tous les membres</option></select>'
+      +'<button class="btn btn-primary" onclick="openAddSanction()">+ Ajouter une sanction</button></div>'
+      +'<div id="sanctions-list"></div></div>';
+    setTimeout(function(){renderBareme();renderSancMembres();},50);
   } else if(sec==='ap-quotas'){
     wrap.innerHTML='<div class="section-title">Quotas hebdomadaires</div>'
       +'<div class="section-sub">Objectifs minimum par membre</div>'
