@@ -1758,8 +1758,9 @@ function deleteItem(id){if(!confirm('Supprimer cet objet de la database ?'))retu
 function toggleGroupeDetails(){var oui=document.getElementById('r-groupe-oui')&&document.getElementById('r-groupe-oui').checked;var el=document.getElementById('groupe-details');if(el)el.style.display=oui?'block':'none';}
 function copyMarket(){var text=document.getElementById('market-msg').value;navigator.clipboard.writeText(text).then(function(){var ok=document.getElementById('copy-ok');ok.style.display='block';setTimeout(function(){ok.style.display='none';},2000);});}
 function submitRecruit(){
+  console.log('[RECRUIT] submitRecruit called');
   var errDiv=document.getElementById('r-form-err');
-  if(!errDiv){console.warn('r-form-err not found');return;}
+  if(!errDiv){console.warn('[RECRUIT] r-form-err not found');return;}
   errDiv.style.display='none';
   var errors=[];
   function req(id,label){var el=document.getElementById(id);var v=el&&el.value&&el.value.trim();if(!v)errors.push(label);return v||'';}
@@ -1789,6 +1790,7 @@ function submitRecruit(){
   var ciInput=getEl('r-photo-ci');
   if(!ciInput||!ciInput.files||!ciInput.files[0])errors.push('Carte d\'identite');
 
+  console.log('[RECRUIT] errors:', errors);
   if(errors.length>0){
     errDiv.style.display='block';
     errDiv.innerHTML='Champs manquants :<br>• '+errors.join('<br>• ');
@@ -1826,6 +1828,7 @@ function submitRecruit(){
         ppa:(getEl('r-ppa')&&getEl('r-ppa').checked)||false,
         pending:true
       };
+      console.log('[RECRUIT] pushing membre:', newMembre.nom);
       membres.push(newMembre);
       sauvegarder();
       var rokEl=getEl('recruit-ok');
