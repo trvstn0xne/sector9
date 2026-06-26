@@ -4357,8 +4357,11 @@ var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 function sauvegarder(){
   var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence,paieArchives:paieArchives,accordionQuestions:accordionQuestions};
-  // Save to localStorage as backup
+  // Save full payload (with photos) to localStorage
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
+  // For Supabase: strip large base64 photos to reduce payload size
+  var membresLight=membres.map(function(m){var mc=Object.assign({},m);if(mc.photo&&mc.photo.length>500)mc.photo='';if(mc.carteId&&mc.carteId.length>500)mc.carteId='';return mc;});
+  var payloadLight=Object.assign({},payload,{membres:membresLight});
   // Save to Supabase via UPSERT
   fetch(SUPABASE_URL+'/rest/v1/s9_data',{
     method:'POST',
@@ -4368,7 +4371,7 @@ function sauvegarder(){
       'Authorization':'Bearer '+SUPABASE_KEY,
       'Prefer':'resolution=merge-duplicates,return=minimal'
     },
-    body:JSON.stringify({id:'main',data:payload,updated_at:new Date().toISOString()})
+    body:JSON.stringify({id:'main',data:payloadLight,updated_at:new Date().toISOString()})
   })
   .then(function(r){
     if(!r.ok){r.text().then(function(t){console.warn('Supabase error:',t);});return;}
