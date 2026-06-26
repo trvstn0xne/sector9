@@ -1761,7 +1761,7 @@ function submitRecruit(){
   var errDiv=document.getElementById('r-form-err');errDiv.style.display='none';
   var errors=[];
   function req(id,label){var v=document.getElementById(id)&&document.getElementById(id).value&&document.getElementById(id).value.trim();if(!v)errors.push(label);return v;}
-  var nom=req('r-nom','Nom du candidat');req('r-pseudo','Pseudo');req('r-tel','Téléphone');req('r-discord','Discord');req('r-age-ville','Âge en ville');req('r-date','Date d\'arrivée');req('r-travail','Travail légal');req('r-washington','Problèmes avec Washington');req('r-pourquoi','Pourquoi recherche-t-il un groupe');req('r-attentes','Attentes');
+  var nom=req('r-nom','Nom du candidat');var pseudo=req('r-pseudo','Pseudo')||'';req('r-tel','Téléphone');req('r-discord','Discord');req('r-age-ville','Âge en ville');req('r-date','Date d\'arrivée');req('r-travail','Travail légal');req('r-washington','Problèmes avec Washington');// dynamic questions - no fixed fields required
   if(document.querySelectorAll('.dispo-cb:checked').length===0)errors.push('Disponibilités');
   if(!document.getElementById('r-groupe-oui').checked&&!document.getElementById('r-groupe-non').checked)errors.push('Ancien groupe');
   if(document.getElementById('r-groupe-oui').checked){req('r-ancien-nom','Nom de l\'ancien groupe');req('r-ancien-role','Rôle');if(!document.querySelector('input[name="r-haut-grade"]:checked'))errors.push('Était-il haut gradé ?');if(!document.querySelector('input[name="r-kick"]:checked'))errors.push('A-t-il été kick ?');req('r-dissous','Dissolution');}
@@ -1783,10 +1783,9 @@ function submitRecruit(){
   var ciInput=document.getElementById('r-photo-ci');
   readFileB64(visageInput,function(photoB64){
     readFileB64(ciInput,function(ciB64){
-      membres.push({id:Date.now(),nom:nom||'Candidat',pseudo:'',date:document.getElementById('r-date').value,tel:document.getElementById('r-tel').value.trim(),discord:document.getElementById('r-discord').value.trim(),grade:'Recrue',radio:false,arme:document.getElementById('r-arme')&&document.getElementById('r-arme').checked||false,disqueuse:false,absence:false,absenceFin:'',photo:photoB64,carteId:ciB64,dispo:dispoData,ppa:document.getElementById('r-ppa')&&document.getElementById('r-ppa').checked||false,pending:true});
+      membres.push({id:Date.now(),nom:nom||'Candidat',pseudo:pseudo||'',date:document.getElementById('r-date').value,tel:document.getElementById('r-tel').value.trim(),discord:document.getElementById('r-discord').value.trim(),grade:'Recrue',radio:false,arme:document.getElementById('r-arme')&&document.getElementById('r-arme').checked||false,disqueuse:false,absence:false,absenceFin:'',photo:photoB64,carteId:ciB64,dispo:dispoData,ppa:document.getElementById('r-ppa')&&document.getElementById('r-ppa').checked||false,pending:true});
       sauvegarder();
-      document.getElementById('recruit-ok').style.display='block';
-      setTimeout(function(){document.getElementById('recruit-ok').style.display='none';},5000);
+      var rokEl=document.getElementById('recruit-ok');if(rokEl){rokEl.style.display='block';setTimeout(function(){rokEl.style.display='none';},5000);} else{alert('Candidature enregistrée !');}  
     });
   });
   return;
