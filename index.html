@@ -4124,10 +4124,15 @@ function apShowSection(sec){
     });
     renderSancMembres();
   } else if(sec==='ap-quotas'){
-    wrap.innerHTML='<div class="section-title">Quotas</div>'
-      +'<div class="section-sub">Suivi des quotas membres</div>'
-      +'<div id="quota-recap-div"></div>';
-    setTimeout(function(){renderQuotaRecap('quota-recap-div',true);},50);
+    wrap.innerHTML='<div class="section-title">Quotas hebdomadaires</div>'
+      +'<div class="section-sub">Objectifs minimum par membre</div>'
+      +'<div id="quota-banner-wrap"></div>'
+      +'<div class="subtabs" id="admin-quota-subtabs">'
+      +'<button class="subtab active" onclick="showQuotaSubtab(\'admin-quota-subtabs\',\'aq-recap\',this)">Recap membres</button>'
+      +'<button class="btn btn-sm" style="margin-left:auto;" onclick="openQuotaEdit()">⚙ Modifier les objectifs</button>'
+      +'</div>'
+      +'<div id="aq-recap" class="subtab-content active"><div id="quota-recap-div"></div></div>';
+    setTimeout(function(){renderQuotaBanner();renderQuotaRecap('quota-recap-div',true);},50);
   } else if(sec==='ap-database'){
     wrap.innerHTML='<div class="section-title">Database</div>'
       +'<div class="section-sub">Catalogue des objets — prix modifiables en temps réel</div>'
