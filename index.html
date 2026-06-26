@@ -4184,7 +4184,20 @@ function apShowSection(sec){
     setTimeout(function(){renderCoffre();},50);
   } else if(sec==='ap-recrutement'){
     wrap.innerHTML=buildRecrutementHTML();
-    setTimeout(function(){renderAccordionQuestions();},50);
+    setTimeout(function(){
+      if(!accordionQuestions||!accordionQuestions.length){
+        accordionQuestions=[
+          {title:'Age du candidat',items:['Age en ville ?','Age IRL ?']},
+          {title:'Disponibilites',items:['Disponible la semaine ?','Disponible le weekend ?']},
+          {title:'Ancien groupe ?',items:['A-t-il deja ete dans un groupe ?','Si oui : lequel ?']},
+          {title:'Travail legal ?',items:['A-t-il un travail legal ?']},
+          {title:'Problemes avec Washington ?',items:['A-t-il eu des problemes ?']},
+          {title:'Motivations',items:['Pourquoi ce groupe ?','Attentes ?']},
+          {title:'Screenshot du visage',items:['Demander un screenshot du personnage.']}
+        ];
+      }
+      renderAccordionQuestions();
+    },100);
   }
 }
 
