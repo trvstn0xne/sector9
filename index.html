@@ -1368,9 +1368,29 @@ function saveMembre(){
     carteId:document.getElementById('m-ci-url').value.trim()
   };
   if(!data.nom){alert('Veuillez entrer un nom.');return;}
+  var membId=membreEditId||Date.now();
   if(membreEditId){var idx=membres.findIndex(function(x){return x.id===membreEditId;});membres[idx]=Object.assign({},membres[idx],data);}
-  else membres.push(Object.assign({id:Date.now(),pending:false},data));
-  closeModal('modal-membre');renderMembres(membres);sauvegarder();
+  else membres.push(Object.assign({id:membId,pending:false},data));
+  closeModal('modal-membre');renderMembres(membres);
+  
+  // Upload photos to Storage if they're base64
+  var m=membres.find(function(x){return x.id===membId;});
+  if(!m){sauvegarder();return;}
+  var uploadCount=0;var doneCount=0;
+  function checkDone(){doneCount++;if(doneCount>=uploadCount)sauvegarder();}
+  if(m.photo&&m.photo.startsWith('data:')){
+    uploadCount++;
+    uploadToStorage('member-photos','member-'+membId+'-photo.jpg',m.photo,'image/jpeg',function(url){
+      if(url)m.photo=url;checkDone();
+    });
+  }
+  if(m.carteId&&m.carteId.startsWith('data:')){
+    uploadCount++;
+    uploadToStorage('member-cards','member-'+membId+'-ci.jpg',m.carteId,'image/jpeg',function(url){
+      if(url)m.carteId=url;checkDone();
+    });
+  }
+  if(uploadCount===0)sauvegarder();
 }
 function deleteMembre(id){if(!confirm('Supprimer ce membre ?'))return;membres=membres.filter(function(x){return x.id!==id;});renderMembres(membres);sauvegarder();}
 function openValidate(id){pendingValidateId=id;var m=membres.find(function(x){return x.id===id;});document.getElementById('modal-validate-title').textContent='Valider — '+(m?m.nom:'');openModal('modal-validate');}
@@ -1518,7 +1538,7 @@ function renderMonCompte(){
   var isOk=currentUser&&(currentUser.role==='membre'||currentUser.role==='commandant');
   if(!isOk){div.innerHTML='';return;}
   var m=membres.find(function(x){return x.id===currentUser.membreId;});
-  if(!m){div.innerHTML='<p style="color:var(--text3);">Profil introuvable. Demandez à un admin de lier votre compte.</p>';return;}
+  if(!m){div.innerHTML='<p style="color:var(--text3);">Profil non associé — Contactez un admin pour lier votre compte à un profil membre.</p>';return;}
   var rev=REVENUS_GRADE[m.grade]||{categorie:'',speedos:0,note:''};
   var pseudo=m.pseudo||m.nom;
   var avatarInner=m.photo?'<img src="'+m.photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>':'<span style="font-size:40px;line-height:1;">'+pseudo.charAt(0).toUpperCase()+'</span>';
@@ -1636,8 +1656,17 @@ function changeMaPhoto(input){
   reader.onload=function(e){
     var src=e.target.result;
     if(!currentUser||currentUser.role==='admin')return;
-    var idx=membres.findIndex(function(x){return x.id===currentUser.membreId;});
-    if(idx>=0){membres[idx].photo=src;sauvegarder();renderMonCompte();renderMembresMb();}
+    var membId=currentUser.membreId;
+    var idx=membres.findIndex(function(x){return x.id===membId;});
+    if(idx<0)return;
+    // Update preview immediately with base64
+    membres[idx].photo=src;renderMonCompte();renderMembresMb();
+    // Upload to Supabase Storage
+    var path='member-'+membId+'-photo.jpg';
+    uploadToStorage('member-photos',path,src,input.files[0].type||'image/jpeg',function(url){
+      if(url){membres[idx].photo=url;}
+      sauvegarder();
+    });
   };
   reader.readAsDataURL(input.files[0]);
 }
@@ -2268,7 +2297,8 @@ function saveCompte(){
   errDiv.textContent='Enregistrement...';var token=currentUser&&currentUser.accessToken||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
   if(compteEditId){
     fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles?id=eq.'+compteEditId,{method:'PATCH',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+token,'Prefer':'return=minimal'},body:JSON.stringify({role:role,roles:roles,membre_id:membreIdVal})})
-    .then(function(){if(pass.length>=4){return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},body:JSON.stringify({action:'update_password',userId:compteEditId,password:pass})});}})
+    .then(function(pr){if(!pr||!pr.ok){return pr.text().then(function(t){errDiv.textContent='Erreur PATCH: '+t;throw new Error(t);});}
+    if(pass.length>=4){return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/functions/v1/manage-auth',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM'},body:JSON.stringify({action:'update_password',userId:compteEditId,password:pass})});}})
     .then(function(){if(currentUser&&currentUser.id===compteEditId){currentUser.roles=roles;currentUser.role=role;setTimeout(function(){buildInterface();renderQuotaSubtabs();},0);}errDiv.textContent='';closeModal('modal-compte');renderComptes();sauvegarder();})
     .catch(function(e){errDiv.textContent='Erreur: '+e.message;});
   } else {
@@ -4577,6 +4607,27 @@ function archiverPaieArmes(divId){
   sauvegarder();alert('Semaine armes archivee !');renderPaieArmes(divId);
 }
 
+
+function uploadToStorage(bucket, path, base64data, contentType, callback){
+  // Convert base64 to blob
+  var byteStr=atob(base64data.split(',')[1]);
+  var ab=new ArrayBuffer(byteStr.length);
+  var ia=new Uint8Array(ab);
+  for(var i=0;i<byteStr.length;i++)ia[i]=byteStr.charCodeAt(i);
+  var blob=new Blob([ab],{type:contentType||'image/jpeg'});
+  var token=currentUser&&currentUser.accessToken?currentUser.accessToken:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
+  fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/storage/v1/object/'+bucket+'/'+path,{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+token,'apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','x-upsert':'true'},
+    body:blob
+  }).then(function(r){return r.json();})
+  .then(function(res){
+    if(res.error||res.statusCode){console.warn('Storage error:',res);callback(null);return;}
+    var url='https://zgmvlwkegfbrnsxfbbiy.supabase.co/storage/v1/object/public/'+bucket+'/'+path;
+    callback(url);
+  }).catch(function(e){console.warn('Storage upload failed:',e);callback(null);});
+}
+
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
@@ -4589,7 +4640,7 @@ function sauvegarder(){
   // Save full payload (with photos) to localStorage
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
   // For Supabase: strip large base64 photos to reduce payload size
-  var membresLight=membres.map(function(m){var mc=Object.assign({},m);if(mc.photo&&mc.photo.length>500)mc.photo='';if(mc.carteId&&mc.carteId.length>500)mc.carteId='';return mc;});
+  var membresLight=membres.map(function(m){var mc=Object.assign({},m);if(mc.photo&&mc.photo.startsWith('data:'))mc.photo='';if(mc.carteId&&mc.carteId.startsWith('data:'))mc.carteId='';return mc;});
   // Also trim quotaHistory to last 14 days for Supabase
   var cutoff=new Date();cutoff.setDate(cutoff.getDate()-14);var cutStr=cutoff.toISOString().slice(0,10);
   var quotaHistoryLight={};Object.keys(quotaHistory).forEach(function(d){if(d>=cutStr)quotaHistoryLight[d]=quotaHistory[d];});
@@ -4739,6 +4790,9 @@ chargerDepuisSupabase(function(){
     }
   }catch(e){}
   document.getElementById('splash').dataset.ready='1';
+});
+
+aset.ready='1';
 });
 
 </script>
