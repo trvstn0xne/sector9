@@ -4219,118 +4219,53 @@ function renderArmesQuota(){
   var weekKey=getWeekStartStr();
   if(!armesData[weekKey])armesData[weekKey]={};
   var weekData=armesData[weekKey];
-
-  // Get armes items from database
-  var armesItems=database.filter(function(x){return x.cat==='Armement'||x.cat==='Arme';});
-  var munItems=database.filter(function(x){return x.souscat==='Munitions'||x.souscat==='Munition';});
-
-  // Header buttons
-  var topRow=document.createElement('div');topRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;';
-  var configBtn=document.createElement('button');configBtn.className='btn btn-sm';configBtn.textContent='⚙ Configurer les lieux';
-  configBtn.onclick=function(){openArmesLieux();};
-  topRow.appendChild(configBtn);
-  wrap.appendChild(topRow);
-
-  // Table container
-  var tableWrap=document.createElement('div');tableWrap.style.cssText='overflow-x:auto;';
-  var table=document.createElement('table');
-  table.style.cssText='border-collapse:collapse;width:100%;min-width:700px;font-size:13px;';
-
-  // Build header
-  var thead=document.createElement('thead');
-  // Row 1
-  var r1=document.createElement('tr');
-  function th(txt,rs,cs,bg){
-    var t=document.createElement('th');t.textContent=txt;
-    t.style.cssText='background:'+(bg||'var(--bg3)')+';color:var(--text);padding:8px 10px;border:1px solid var(--border);text-align:center;white-space:nowrap;';
-    if(rs>1)t.rowSpan=rs;if(cs>1)t.colSpan=cs;return t;
-  }
-  r1.appendChild(th('Matricule',2,1));
-  r1.appendChild(th('Nom',2,1,'var(--purple)'));
-  r1.appendChild(th('PPA',2,1));
-  // Lieux headers
-  armesLieux.forEach(function(l){r1.appendChild(th('Liste des Ammun. — '+l,1,2));});
-  r1.appendChild(th('Quota',2,1));
-  thead.appendChild(r1);
-  // Row 2
-  var r2=document.createElement('tr');
-  armesLieux.forEach(function(){
-    var tA=document.createElement('th');tA.textContent='Armes';tA.style.cssText='background:var(--bg3);color:var(--text2);padding:6px 8px;border:1px solid var(--border);text-align:center;font-size:12px;';
-    var tM=document.createElement('th');tM.textContent='Munitions';tM.style.cssText='background:var(--bg3);color:var(--purple2);padding:6px 8px;border:1px solid var(--border);text-align:center;font-size:12px;';
-    r2.appendChild(tA);r2.appendChild(tM);
-  });
-  thead.appendChild(r2);
-  table.appendChild(thead);
-
-  // Body - one row per member with armes role
-  var tbody=document.createElement('tbody');
-  var armesMembers=membres.filter(function(m){
-    if(m.pending)return false;
-    // Check if this member has armes role via their compte
-    return true; // show all non-pending members for now; admin sees all
-  });
-
-  // For member view: only show current user's row
-  var isAdmin2=currentUser&&(currentUser.role==='admin');
   var myId=currentUser&&currentUser.membreId;
+  if(!myId){wrap.innerHTML='<p style="color:var(--text3);padding:20px;">Aucun profil membre associe.</p>';return;}
+  if(!weekData[myId])weekData[myId]={quota:false,lieux:armesLieux.map(function(l){return {nom:l,arme:null,munition:false};})};
+  var mData=weekData[myId];
+  while(mData.lieux.length<armesLieux.length)mData.lieux.push({nom:armesLieux[mData.lieux.length]||'',arme:null,munition:false});
+  var armesItems=database.filter(function(x){return x.cat==='Armement'||x.cat==='Arme';});
 
-  var displayMembers=isAdmin2?armesMembers:armesMembers.filter(function(m){return m.id===myId;});
+  // Header
+  var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;';
+  var titleEl=document.createElement('div');
+  titleEl.innerHTML='<div style="font-size:15px;font-weight:700;color:var(--text);">Mes armes — semaine du '+fmtDate(weekKey)+'</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">Reset automatique tous les dimanches a 22h</div>';
+  var configBtn=document.createElement('button');configBtn.className='btn btn-sm';configBtn.textContent='Lieux';configBtn.onclick=function(){openArmesLieux();};
+  hdr.appendChild(titleEl);hdr.appendChild(configBtn);wrap.appendChild(hdr);
 
-  displayMembers.forEach(function(m,mi){
-    if(!weekData[m.id])weekData[m.id]={ppa:'NON',quota:false,lieux:armesLieux.map(function(l){return {nom:l,arme:null,munition:null};})};
-    var mData=weekData[m.id];
-    // Ensure lieux array matches current armesLieux
-    while(mData.lieux.length<armesLieux.length)mData.lieux.push({nom:armesLieux[mData.lieux.length]||'',arme:null,munition:null});
+  // Quota checkbox banner
+  var quotaBanner=document.createElement('div');quotaBanner.style.cssText='display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;margin-bottom:20px;';
+  var quotaCb=document.createElement('input');quotaCb.type='checkbox';quotaCb.style.cssText='width:18px;height:18px;accent-color:var(--success);cursor:pointer;flex-shrink:0;';
+  quotaCb.checked=!!mData.quota;quotaCb.onchange=function(){mData.quota=this.checked;};
+  var quotaLbl=document.createElement('label');quotaLbl.style.cssText='font-size:13px;color:var(--text2);cursor:pointer;font-weight:500;';
+  quotaLbl.textContent='J ai recupere tous mes quotas d armes cette semaine';
+  quotaBanner.appendChild(quotaCb);quotaBanner.appendChild(quotaLbl);wrap.appendChild(quotaBanner);
 
-    var tr=document.createElement('tr');tr.style.background=mi%2===0?'var(--bg)':'var(--bg2)';
-
-    // Matricule
-    var tdNum=document.createElement('td');tdNum.textContent=m.id;tdNum.style.cssText='text-align:center;padding:8px;border:1px solid var(--border);color:var(--text3);font-size:12px;';tr.appendChild(tdNum);
-
-    // Nom
-    var tdNom=document.createElement('td');tdNom.style.cssText='padding:8px 12px;border:1px solid var(--border);font-weight:700;color:var(--text);white-space:nowrap;';tdNom.textContent=m.pseudo||m.nom;tr.appendChild(tdNom);
-
-    // PPA
-    var tdPpa=document.createElement('td');tdPpa.style.cssText='text-align:center;padding:6px;border:1px solid var(--border);';
-    var ppaSelect=document.createElement('select');ppaSelect.className='input';ppaSelect.style.cssText='font-size:12px;padding:3px 6px;width:70px;';
-    ['OUI','NON','INC'].forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;if((mData.ppa||'NON')===v)o.selected=true;ppaSelect.appendChild(o);});
-    ppaSelect.onchange=(function(id,wd){return function(){wd[id].ppa=this.value;};})(m.id,weekData);
-    tdPpa.appendChild(ppaSelect);tr.appendChild(tdPpa);
-
-    // Lieux cols
-    armesLieux.forEach(function(l,li){
-      // Arme select
-      var tdA=document.createElement('td');tdA.style.cssText='padding:6px;border:1px solid var(--border);text-align:center;';
-      var aSelect=document.createElement('select');aSelect.className='input';aSelect.style.cssText='font-size:12px;padding:3px 4px;width:100%;max-width:130px;';
-      var aOpt0=document.createElement('option');aOpt0.value='';aOpt0.textContent='—';aSelect.appendChild(aOpt0);
-      armesItems.forEach(function(ai){var o=document.createElement('option');o.value=ai.id;o.textContent=ai.nom;if(mData.lieux[li]&&mData.lieux[li].arme==ai.id)o.selected=true;aSelect.appendChild(o);});
-      aSelect.onchange=(function(id,lidx,wd){return function(){if(!wd[id].lieux[lidx])wd[id].lieux[lidx]={};wd[id].lieux[lidx].arme=this.value?parseInt(this.value):null;};})(m.id,li,weekData);
-      tdA.appendChild(aSelect);tr.appendChild(tdA);
-
-      // Munition checkbox
-      var tdM=document.createElement('td');tdM.style.cssText='padding:6px;border:1px solid var(--border);text-align:center;';
-      var mCb=document.createElement('input');mCb.type='checkbox';mCb.style.cssText='width:18px;height:18px;accent-color:var(--purple);cursor:pointer;';
-      mCb.checked=!!(mData.lieux[li]&&mData.lieux[li].munition);
-      mCb.onchange=(function(id,lidx,wd){return function(){if(!wd[id].lieux[lidx])wd[id].lieux[lidx]={};wd[id].lieux[lidx].munition=this.checked;};})(m.id,li,weekData);
-      tdM.appendChild(mCb);tr.appendChild(tdM);
-    });
-
-    // Quota checkbox
-    var tdQ=document.createElement('td');tdQ.style.cssText='padding:6px;border:1px solid var(--border);text-align:center;';
-    var qCb=document.createElement('input');qCb.type='checkbox';qCb.style.cssText='width:18px;height:18px;accent-color:var(--success);cursor:pointer;';
-    qCb.checked=!!mData.quota;
-    qCb.onchange=(function(id,wd){return function(){wd[id].quota=this.checked;};})(m.id,weekData);
-    tdQ.appendChild(qCb);tr.appendChild(tdQ);
-
-    tbody.appendChild(tr);
+  // Cards per lieu
+  var lieuxGrid=document.createElement('div');lieuxGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:20px;';
+  armesLieux.forEach(function(l,li){
+    if(!mData.lieux[li])mData.lieux[li]={nom:l,arme:null,munition:false};
+    var card=document.createElement('div');card.className='card';card.style.marginBottom='0';
+    var ct=document.createElement('div');ct.className='card-title';ct.textContent=l;card.appendChild(ct);
+    var aWrap=document.createElement('div');aWrap.style.marginBottom='10px';
+    var aLbl=document.createElement('label');aLbl.className='lbl';aLbl.textContent='Arme';
+    var aSel=document.createElement('select');aSel.className='input';aSel.style.fontSize='13px';
+    var o0=document.createElement('option');o0.value='';o0.textContent='Aucune';aSel.appendChild(o0);
+    armesItems.forEach(function(ai){var o=document.createElement('option');o.value=ai.id;o.textContent=ai.nom+' ('+ai.valeur.toLocaleString('fr-FR')+' $)';if(mData.lieux[li].arme==ai.id)o.selected=true;aSel.appendChild(o);});
+    aSel.onchange=(function(lidx){return function(){mData.lieux[lidx].arme=this.value?parseInt(this.value):null;};})(li);
+    aWrap.appendChild(aLbl);aWrap.appendChild(aSel);card.appendChild(aWrap);
+    var mWrap=document.createElement('div');mWrap.style.cssText='display:flex;align-items:center;gap:8px;';
+    var mCb=document.createElement('input');mCb.type='checkbox';mCb.style.cssText='width:16px;height:16px;accent-color:var(--purple);cursor:pointer;';
+    mCb.checked=!!mData.lieux[li].munition;mCb.onchange=(function(lidx){return function(){mData.lieux[lidx].munition=this.checked;};})(li);
+    var mLbl=document.createElement('label');mLbl.style.cssText='font-size:13px;color:var(--text2);cursor:pointer;';mLbl.textContent='Munitions';
+    mWrap.appendChild(mCb);mWrap.appendChild(mLbl);card.appendChild(mWrap);
+    lieuxGrid.appendChild(card);
   });
-  table.appendChild(tbody);
-  tableWrap.appendChild(table);
-  wrap.appendChild(tableWrap);
+  wrap.appendChild(lieuxGrid);
 
   // Save button
-  var saveBtn=document.createElement('button');saveBtn.className='btn btn-primary';saveBtn.style.marginTop='16px';saveBtn.textContent='Enregistrer';
-  saveBtn.onclick=function(){sauvegarder();var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:14px 20px;z-index:9999;color:var(--success);font-weight:600;font-size:14px;';t.textContent='✅ Enregistré !';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},3000);};
+  var saveBtn=document.createElement('button');saveBtn.className='btn btn-primary';saveBtn.style.width='100%';saveBtn.textContent='Enregistrer';
+  saveBtn.onclick=function(){sauvegarder();var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:14px 20px;z-index:9999;color:var(--success);font-weight:600;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';t.textContent='Quota armes enregistre !';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},3000);};
   wrap.appendChild(saveBtn);
 }
 
