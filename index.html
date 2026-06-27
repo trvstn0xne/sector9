@@ -4227,23 +4227,16 @@ function renderArmesQuota(){
   var armesItems=database.filter(function(x){return x.cat==='Armement'||x.cat==='Arme';});
 
   // Header
-  var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;';
-  var titleEl=document.createElement('div');
-  titleEl.innerHTML='<div style="font-size:15px;font-weight:700;color:var(--text);">Mes armes — semaine du '+fmtDate(weekKey)+'</div>';
-  hdr.appendChild(titleEl);wrap.appendChild(hdr);
-
-  // Reset info banner
-  var resetBanner=document.createElement('div');
-  resetBanner.style.cssText='background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:8px 14px;margin-bottom:16px;font-size:12px;color:var(--text3);display:flex;align-items:center;gap:8px;';
-  resetBanner.innerHTML='<span style="color:var(--warning);">⟳</span> Reset tous les dimanches a 22h';
-  wrap.appendChild(resetBanner);
+  var hdr=document.createElement('div');hdr.style.cssText='margin-bottom:14px;';
+  hdr.innerHTML='<div style="font-size:15px;font-weight:700;color:var(--text);">Mes armes — semaine du '+fmtDate(weekKey)+'</div>';
+  wrap.appendChild(hdr);
 
   // Table
-  var tableWrap=document.createElement('div');tableWrap.style.cssText='overflow-x:auto;margin-bottom:16px;';
+  var tableWrap=document.createElement('div');tableWrap.style.cssText='overflow-x:auto;margin-bottom:14px;';
   var table=document.createElement('table');
   table.style.cssText='border-collapse:collapse;width:100%;font-size:13px;';
 
-  // Header row 1
+  // Header
   var thead=document.createElement('thead');
   var r1=document.createElement('tr');
   function mkTh(txt,rs,cs,bg,color){
@@ -4251,11 +4244,9 @@ function renderArmesQuota(){
     t.style.cssText='background:'+(bg||'var(--purple)')+';color:'+(color||'#fff')+';padding:9px 12px;border:1px solid var(--border);text-align:center;white-space:nowrap;font-weight:700;font-size:12px;';
     if(rs&&rs>1)t.rowSpan=rs;if(cs&&cs>1)t.colSpan=cs;return t;
   }
-  // Lieux as merged headers
   r1.appendChild(mkTh('Reset tous les<br>dimanches a 22h',2,1,'var(--bg3)','var(--text3)'));
-  armesLieux.forEach(function(l){r1.appendChild(mkTh(l,1,2,'var(--purple)','#fff'));});
+  armesLieux.forEach(function(l){r1.appendChild(mkTh(l,1,2));});
   thead.appendChild(r1);
-  // Header row 2
   var r2=document.createElement('tr');
   armesLieux.forEach(function(){
     var tA=document.createElement('th');tA.textContent='Armes';tA.style.cssText='background:var(--bg2);color:var(--text2);padding:7px 10px;border:1px solid var(--border);text-align:center;font-size:12px;';
@@ -4265,28 +4256,29 @@ function renderArmesQuota(){
   thead.appendChild(r2);
   table.appendChild(thead);
 
-  // Body - single row
+  // Body row
   var tbody=document.createElement('tbody');
   var tr=document.createElement('tr');tr.style.background='var(--bg)';
 
-  // First cell: quota status indicator
+  // Badge cell - keep reference to update it
   var tdInfo=document.createElement('td');tdInfo.style.cssText='padding:10px 12px;border:1px solid var(--border);text-align:center;';
   var qBadge=document.createElement('div');
-  qBadge.style.cssText='font-size:11px;font-weight:700;padding:4px 8px;border-radius:4px;display:inline-block;'+(mData.quota?'background:rgba(29,158,117,0.15);color:var(--success);':'background:var(--bg3);color:var(--text3);');
-  qBadge.textContent=mData.quota?'Valide':'En attente';
+  qBadge.id='armes-quota-badge';
+  function updateBadge(){
+    qBadge.style.cssText='font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;display:inline-block;'+(mData.quota?'background:rgba(29,158,117,0.15);color:var(--success);':'background:var(--bg3);color:var(--text3);');
+    qBadge.textContent=mData.quota?'Valide':'En attente';
+  }
+  updateBadge();
   tdInfo.appendChild(qBadge);tr.appendChild(tdInfo);
 
-  // Lieu columns
   armesLieux.forEach(function(l,li){
     if(!mData.lieux[li])mData.lieux[li]={nom:l,arme:null,munition:false};
-    // Arme select
     var tdA=document.createElement('td');tdA.style.cssText='padding:8px;border:1px solid var(--border);';
     var aSel=document.createElement('select');aSel.className='input';aSel.style.cssText='font-size:12px;width:100%;min-width:120px;';
-    var o0=document.createElement('option');o0.value='';o0.textContent='— Aucune —';aSel.appendChild(o0);
+    var o0=document.createElement('option');o0.value='';o0.textContent='Aucune';aSel.appendChild(o0);
     armesItems.forEach(function(ai){var o=document.createElement('option');o.value=ai.id;o.textContent=ai.nom;if(mData.lieux[li].arme==ai.id)o.selected=true;aSel.appendChild(o);});
     aSel.onchange=(function(lidx){return function(){mData.lieux[lidx].arme=this.value?parseInt(this.value):null;};})(li);
     tdA.appendChild(aSel);tr.appendChild(tdA);
-    // Munitions checkbox
     var tdM=document.createElement('td');tdM.style.cssText='padding:8px;border:1px solid var(--border);text-align:center;';
     var mCb=document.createElement('input');mCb.type='checkbox';mCb.style.cssText='width:17px;height:17px;accent-color:var(--purple);cursor:pointer;';
     mCb.checked=!!mData.lieux[li].munition;
@@ -4298,7 +4290,7 @@ function renderArmesQuota(){
   tableWrap.appendChild(table);
   wrap.appendChild(tableWrap);
 
-  // Buttons row
+  // Buttons
   var btnRow=document.createElement('div');btnRow.style.cssText='display:flex;gap:10px;';
   var saveBtn=document.createElement('button');saveBtn.className='btn btn-sm';saveBtn.textContent='Enregistrer';
   saveBtn.onclick=function(){
@@ -4306,16 +4298,14 @@ function renderArmesQuota(){
     var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:12px 18px;z-index:9999;color:var(--success);font-weight:600;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
     t.textContent='Enregistre !';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},2500);
   };
-  var valBtn=document.createElement('button');valBtn.className='btn btn-primary btn-sm';
-  valBtn.textContent='Valider mon quota de la semaine';
-  valBtn.onclick=(function(mid){return function(){
+  var valBtn=document.createElement('button');valBtn.className='btn btn-primary btn-sm';valBtn.textContent='Valider mon quota de la semaine';
+  valBtn.onclick=function(){
     mData.quota=true;
-    qBadge.style.cssText='font-size:11px;font-weight:700;padding:4px 8px;border-radius:4px;display:inline-block;background:rgba(29,158,117,0.15);color:var(--success);';
-    qBadge.textContent='Valide';
+    updateBadge();
     sauvegarder();
     var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:12px 18px;z-index:9999;color:var(--success);font-weight:600;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
     t.textContent='Quota valide !';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},2500);
-  };})(myId);
+  };
   btnRow.appendChild(saveBtn);btnRow.appendChild(valBtn);
   wrap.appendChild(btnRow);
 }
