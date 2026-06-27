@@ -4226,17 +4226,12 @@ function renderArmesQuota(){
   while(mData.lieux.length<armesLieux.length)mData.lieux.push({nom:armesLieux[mData.lieux.length]||'',arme:null,munition:false});
   var armesItems=database.filter(function(x){return x.cat==='Armement'||x.cat==='Arme';});
 
-  // Header
   var hdr=document.createElement('div');hdr.style.cssText='margin-bottom:14px;';
   hdr.innerHTML='<div style="font-size:15px;font-weight:700;color:var(--text);">Mes armes — semaine du '+fmtDate(weekKey)+'</div>';
   wrap.appendChild(hdr);
 
-  // Table
   var tableWrap=document.createElement('div');tableWrap.style.cssText='overflow-x:auto;margin-bottom:14px;';
-  var table=document.createElement('table');
-  table.style.cssText='border-collapse:collapse;width:100%;font-size:13px;';
-
-  // Header
+  var table=document.createElement('table');table.style.cssText='border-collapse:collapse;width:100%;font-size:13px;';
   var thead=document.createElement('thead');
   var r1=document.createElement('tr');
   function mkTh(txt,rs,cs,bg,color){
@@ -4253,23 +4248,13 @@ function renderArmesQuota(){
     var tM=document.createElement('th');tM.textContent='Munitions';tM.style.cssText='background:var(--bg2);color:var(--purple2);padding:7px 10px;border:1px solid var(--border);text-align:center;font-size:12px;';
     r2.appendChild(tA);r2.appendChild(tM);
   });
-  thead.appendChild(r2);
-  table.appendChild(thead);
+  thead.appendChild(r2);table.appendChild(thead);
 
-  // Body row
   var tbody=document.createElement('tbody');
   var tr=document.createElement('tr');tr.style.background='var(--bg)';
-
-  // Badge cell - keep reference to update it
-  var tdInfo=document.createElement('td');tdInfo.style.cssText='padding:10px 12px;border:1px solid var(--border);text-align:center;';
-  var qBadge=document.createElement('div');
-  qBadge.id='armes-quota-badge';
-  function updateBadge(){
-    qBadge.style.cssText='font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;display:inline-block;'+(mData.quota?'background:rgba(29,158,117,0.15);color:var(--success);':'background:var(--bg3);color:var(--text3);');
-    qBadge.textContent=mData.quota?'Valide':'En attente';
-  }
-  updateBadge();
-  tdInfo.appendChild(qBadge);tr.appendChild(tdInfo);
+  // First cell: just the reset info text
+  var tdInfo=document.createElement('td');tdInfo.style.cssText='padding:10px 12px;border:1px solid var(--border);text-align:center;font-size:11px;color:var(--text3);';
+  tdInfo.textContent='Dimanche 22h';tr.appendChild(tdInfo);
 
   armesLieux.forEach(function(l,li){
     if(!mData.lieux[li])mData.lieux[li]={nom:l,arme:null,munition:false};
@@ -4285,29 +4270,14 @@ function renderArmesQuota(){
     mCb.onchange=(function(lidx){return function(){mData.lieux[lidx].munition=this.checked;};})(li);
     tdM.appendChild(mCb);tr.appendChild(tdM);
   });
-  tbody.appendChild(tr);
-  table.appendChild(tbody);
-  tableWrap.appendChild(table);
-  wrap.appendChild(tableWrap);
+  tbody.appendChild(tr);table.appendChild(tbody);tableWrap.appendChild(table);wrap.appendChild(tableWrap);
 
-  // Buttons
   var btnRow=document.createElement('div');btnRow.style.cssText='display:flex;gap:10px;';
   var saveBtn=document.createElement('button');saveBtn.className='btn btn-sm';saveBtn.textContent='Enregistrer';
-  saveBtn.onclick=function(){
-    sauvegarder();
-    var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:12px 18px;z-index:9999;color:var(--success);font-weight:600;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
-    t.textContent='Enregistre !';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},2500);
-  };
+  saveBtn.onclick=function(){sauvegarder();var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:12px 18px;z-index:9999;color:var(--success);font-weight:600;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';t.textContent='Enregistre !';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},2500);};
   var valBtn=document.createElement('button');valBtn.className='btn btn-primary btn-sm';valBtn.textContent='Valider mon quota de la semaine';
-  valBtn.onclick=function(){
-    mData.quota=true;
-    updateBadge();
-    sauvegarder();
-    var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:12px 18px;z-index:9999;color:var(--success);font-weight:600;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
-    t.textContent='Quota valide !';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},2500);
-  };
-  btnRow.appendChild(saveBtn);btnRow.appendChild(valBtn);
-  wrap.appendChild(btnRow);
+  valBtn.onclick=function(){mData.quota=true;sauvegarder();var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:12px 18px;z-index:9999;color:var(--success);font-weight:600;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';t.textContent='Quota valide !';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},2500);};
+  btnRow.appendChild(saveBtn);btnRow.appendChild(valBtn);wrap.appendChild(btnRow);
 }
 
 function openArmesLieux(){
@@ -4351,7 +4321,18 @@ function renderAdminArmesRecap(){
   wrap.innerHTML='';
   var weekKey=getWeekStartStr();
   var weekData=armesData[weekKey]||{};
-  var armesMembers=membres.filter(function(m){return !m.pending;});
+  // Show only members with armes data this week OR who ever submitted armes
+  var hasEverSubmitted={};
+  Object.keys(armesData).forEach(function(wk){Object.keys(armesData[wk]).forEach(function(mid){hasEverSubmitted[mid]=true;});});
+  var armesMembers=membres.filter(function(m){
+    if(m.pending)return false;
+    // Show if they have data this week or ever submitted armes
+    return weekData[m.id]||hasEverSubmitted[m.id];
+  });
+  if(!armesMembers.length){
+    var noData=document.createElement('p');noData.style.cssText='color:var(--text3);padding:20px;font-size:13px;';
+    noData.textContent='Aucun membre avec des donnees armes cette semaine.';wrap.appendChild(noData);return;
+  }
   var title=document.createElement('div');title.style.cssText='font-size:13px;font-weight:600;color:var(--text2);margin-bottom:14px;';
   title.textContent='Semaine du '+fmtDate(weekKey)+' — quotas armes';wrap.appendChild(title);
   var tw=document.createElement('div');tw.className='table-wrap';
