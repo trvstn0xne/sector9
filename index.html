@@ -2277,8 +2277,12 @@ function saveCompte(){
     .then(function(r){return r.json();}).then(function(res){
       if(res.error){errDiv.textContent='Erreur: '+res.error;return;}
       var newId=res.data&&res.data.user&&res.data.user.id;if(!newId){errDiv.textContent='Erreur ID.';return;}
-      return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Prefer':'return=minimal'},body:JSON.stringify({id:newId,email:email,user_name:email.split('@')[0],role:role,roles:roles,membre_id:membreIdVal})})
-      .then(function(){errDiv.textContent='';closeModal('modal-compte');renderComptes();sauvegarder();});
+      var token=currentUser&&currentUser.accessToken?currentUser.accessToken:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
+      return fetch('https://zgmvlwkegfbrnsxfbbiy.supabase.co/rest/v1/s9_profiles',{method:'POST',headers:{'Content-Type':'application/json','apikey':'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM','Authorization':'Bearer '+token,'Prefer':'return=representation'},body:JSON.stringify({id:newId,email:email,user_name:email.split('@')[0],role:role,roles:roles,membre_id:membreIdVal})})
+      .then(function(r2){
+        if(!r2.ok){return r2.text().then(function(t){errDiv.textContent='Profil non cree: '+t;});}
+        errDiv.textContent='';closeModal('modal-compte');renderComptes();sauvegarder();
+      });
     }).catch(function(e){errDiv.textContent='Erreur: '+e.message;});
   }
 }
