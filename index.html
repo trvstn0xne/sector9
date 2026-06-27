@@ -847,7 +847,7 @@ function buildInterface(){
       +'<div class="nav-dropdown-menu" id="dd-gestion-membres-menu">'
       +'<button onclick="showSec(\'admin-membres\',this);closeDropdowns()">Liste des membres</button>'
       +'<button onclick="showSec(\'admin-quotas\',this);closeDropdowns()">Quotas</button>'
-      +'<button onclick="showSec(\'admin-sanctions\',this);closeDropdowns()">Sanctions</button>'
+      +'<button onclick="showSec(\'admin-sanctions\',this);closeDropdowns()">Sanctions</button>'    +'<button onclick="showSec(\'admin-bareme-grades\',this);closeDropdowns()">Barème des grades</button>'
       +'<button onclick="showSec(\'admin-recrutement\',this);closeDropdowns()">Recrutement</button>'
       +'</div></div>'
       +'<div class="nav-dropdown" id="dd-gestion-site">'
@@ -899,6 +899,7 @@ function showSec(id,btn){
   if(id==='mb-recrutement'||id==='admin-recrutement'){setTimeout(function(){renderAccordionQuestions();},50);}
   if(id==='admin-calendrier'){renderPresencePanel('admin-presence-panel',true);}
   if(id==='mb-calendrier'){renderPresencePanel('mb-presence-panel',false);}
+  if(id==='admin-bareme-grades')renderGradeBareme();
   setTimeout(function(){document.querySelectorAll('.nav-dropdown-menu').forEach(function(menu){var ac=menu.querySelector('button.active');if(ac){var pb=menu.previousElementSibling;if(pb&&pb.classList.contains('nav-dropdown-btn'))pb.classList.add('active');}});},0);
 }
 function showSubtab(groupId,tabId,btn){
@@ -949,7 +950,7 @@ function buildAdminHTML(){
     +'<div id="aq-recap" class="subtab-content active"><div id="quota-recap-div"></div></div>'
     +'</div>'
 
-    +'<div class="section" id="sec-admin-sanctions">'
+    +'<div class="section" id="sec-admin-bareme-grades">'    +'<div class="section-title">Barème des grades</div>'    +'<div class="section-sub">Conditions de promotion et taux de paie</div>'    +'<div style="display:flex;justify-content:flex-end;margin-bottom:12px;">'    +'<button class="btn btn-sm" onclick="openEditGradeBareme()">✏ Modifier</button>'    +'</div>'    +'<div id="grade-bareme-wrap"></div>'    +'</div>'        +'<div class="section" id="sec-admin-sanctions">'
     +'<div class="section-title">Sanctions</div>'
     +'<div class="section-sub">Barème disciplinaire et suivi des sanctions</div>'
     +'<div class="subtabs" id="sanctions-subtabs">'
@@ -4089,6 +4090,92 @@ function renderMaqList(){
 }
 
 
+var gradeBareme=[
+  {id:1,rang:'Commandant',categorie:'Direction',paieSpeedo:null,paieRecel:null,up:''},
+  {id:2,rang:'Capitaine',categorie:'Direction',paieSpeedo:25,paieRecel:25,up:''},
+  {id:3,rang:'Lieutenant',categorie:'Haut grades',paieSpeedo:20,paieRecel:25,up:'Gerer equipe / gerer une op'},
+  {id:4,rang:'Sergent chef',categorie:'Haut grades',paieSpeedo:17,paieRecel:25,up:'Merite'},
+  {id:5,rang:'Sergent',categorie:'Haut grades',paieSpeedo:15,paieRecel:25,up:'Merite'},
+  {id:6,rang:'Caporal',categorie:'Corps executifs',paieSpeedo:10,paieRecel:25,up:'3 semaines + kidnapping'},
+  {id:7,rang:'Operateur',categorie:'Corps executifs',paieSpeedo:5,paieRecel:25,up:'2 semaines + quotas'},
+  {id:8,rang:'Recrue',categorie:'Corps executifs',paieSpeedo:null,paieRecel:null,up:'1/2 semaine + quotas'}
+];
+
+function renderGradeBareme(){
+  var wrap=document.getElementById('grade-bareme-wrap');if(!wrap)return;
+  wrap.innerHTML='';
+  var cats={};
+  gradeBareme.forEach(function(g){
+    if(!cats[g.categorie])cats[g.categorie]=[];
+    cats[g.categorie].push(g);
+  });
+  var table=document.createElement('table');
+  var thead=document.createElement('thead');
+  thead.innerHTML='<tr style="background:var(--purple);"><th style="color:#fff;">ID</th><th style="color:#fff;">Rang</th><th style="color:#fff;">Paie/Speedo</th><th style="color:#fff;">% de Recel</th><th style="color:#fff;">Up</th></tr>';
+  table.appendChild(thead);
+  var tbody=document.createElement('tbody');
+  Object.keys(cats).forEach(function(cat){
+    var catRow=document.createElement('tr');
+    catRow.innerHTML='<td colspan="5" style="background:var(--bg3);color:var(--purple3);font-weight:700;font-size:12px;padding:8px 12px;letter-spacing:0.5px;">'+cat+'</td>';
+    tbody.appendChild(catRow);
+    cats[cat].forEach(function(g){
+      var tr=document.createElement('tr');
+      tr.innerHTML='<td style="color:var(--text3);font-size:12px;">'+g.id+'</td>'
+        +'<td style="font-weight:600;">'+g.rang+'</td>'
+        +'<td style="color:var(--purple2);">'+(g.paieSpeedo?g.paieSpeedo+'%':'∅')+'</td>'
+        +'<td style="color:var(--success);">'+(g.paieRecel?g.paieRecel+'%/total':'∅')+'</td>'
+        +'<td style="color:var(--warning);">'+(g.up?('↗ '+g.up):'∅')+'</td>';
+      tbody.appendChild(tr);
+    });
+  });
+  table.appendChild(tbody);
+  var tw=document.createElement('div');tw.className='table-wrap';tw.appendChild(table);
+  wrap.appendChild(tw);
+}
+
+function openEditGradeBareme(){
+  var modal=document.getElementById('modal-grade-bareme');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-grade-bareme';modal.style.zIndex='600';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.cssText='max-width:700px;max-height:85vh;overflow-y:auto;';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-grade-bareme');};
+    var h3=document.createElement('h3');h3.textContent='Modifier le barème des grades';
+    var sub=document.createElement('div');sub.style.cssText='font-size:12px;color:var(--text3);margin-bottom:16px;';sub.textContent='Modifiez les conditions de promotion et les taux de paie par grade.';
+    var listDiv=document.createElement('div');listDiv.id='gb-list';
+    var footer=document.createElement('div');footer.className='modal-footer';
+    var saveBtn=document.createElement('button');saveBtn.className='btn btn-primary';saveBtn.textContent='Enregistrer';
+    saveBtn.onclick=function(){sauvegarder();closeModal('modal-grade-bareme');renderGradeBareme();};
+    var closeBtn=document.createElement('button');closeBtn.className='btn';closeBtn.textContent='Annuler';closeBtn.onclick=function(){closeModal('modal-grade-bareme');};
+    footer.appendChild(closeBtn);footer.appendChild(saveBtn);
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(sub);mb.appendChild(listDiv);mb.appendChild(footer);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-grade-bareme');});
+    document.body.appendChild(modal);
+  }
+  renderGbList();openModal('modal-grade-bareme');
+}
+
+function renderGbList(){
+  var listDiv=document.getElementById('gb-list');if(!listDiv)return;listDiv.innerHTML='';
+  gradeBareme.forEach(function(g,gi){
+    var card=document.createElement('div');card.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:12px;margin-bottom:10px;';
+    var title=document.createElement('div');title.style.cssText='font-weight:700;color:var(--purple3);font-size:13px;margin-bottom:10px;';title.textContent=g.rang;
+    card.appendChild(title);
+    var grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;';
+    function mkField(label,key,isNull){
+      var wrap=document.createElement('div');
+      var lbl=document.createElement('label');lbl.className='lbl';lbl.textContent=label;
+      var inp=document.createElement('input');inp.className='input';inp.style.cssText='font-size:13px;';
+      inp.value=isNull?'∅':(g[key]!==null&&g[key]!==undefined?g[key]:'');
+      inp.oninput=(function(idx,k){return function(){var v=this.value.trim();gradeBareme[idx][k]=v==='∅'||v===''?null:isNaN(v)?v:Number(v);};})(gi,key);
+      wrap.appendChild(lbl);wrap.appendChild(inp);return wrap;
+    }
+    grid.appendChild(mkField('Paie Speedo (%)','paieSpeedo',g.paieSpeedo===null));
+    grid.appendChild(mkField('% Recel','paieRecel',g.paieRecel===null));
+    grid.appendChild(mkField('Condition de promotion','up',false));
+    card.appendChild(grid);listDiv.appendChild(card);
+  });
+}
+
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
@@ -4097,7 +4184,7 @@ var SUPABASE_URL='https://zgmvlwkegfbrnsxfbbiy.supabase.co';
 var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
 
 function sauvegarder(){
-  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence,paieArchives:paieArchives,accordionQuestions:accordionQuestions};
+  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence,paieArchives:paieArchives,accordionQuestions:accordionQuestions,gradeBareme:gradeBareme};
   // Save full payload (with photos) to localStorage
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
   // For Supabase: strip large base64 photos to reduce payload size
@@ -4164,6 +4251,7 @@ function applyData(data){
   if(data.frequence)frequence=data.frequence;
   if(data.paieArchives)paieArchives=data.paieArchives;
   if(data.accordionQuestions)accordionQuestions=data.accordionQuestions;
+  if(data.gradeBareme)gradeBareme=data.gradeBareme;
 }
 
 function chargerDonnees(){
