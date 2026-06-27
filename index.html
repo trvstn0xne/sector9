@@ -1047,7 +1047,7 @@ function buildMembreHTML(isCmd,isRecruit){
     +'<div id="mb-quota-subtabs-wrap"></div>'
     +'<div id="mbq-saisie" class="subtab-content active"><div id="mb-quota-saisie-div"></div></div>'
     +'<div id="mbq-recap" class="subtab-content"><div id="mb-quota-recap-div"></div></div>'
-    +'<div id="mbq-armes" class="subtab-content"><p style="padding:20px;color:var(--text3);font-size:13px;">Section Armes — contenu a venir.</p></div>'
+    +'<div id="mbq-armes" class="subtab-content"><div id="armes-quota-wrap"></div></div>'
     +'</div>'
     +'</div>'
 
@@ -3924,6 +3924,7 @@ function showQuotaSubtab2(tabId,btn){
   // Render content
   if(tabId==='mbq-recap')renderQuotaRecap('mb-quota-recap-div',true);
   if(tabId==='mbq-saisie')renderQuotaSaisie('mb-quota-saisie-div');
+  if(tabId==='mbq-armes')renderArmesQuota();
 }
 
 
@@ -4091,6 +4092,8 @@ function renderMaqList(){
 }
 
 
+var armesData={};
+var armesLieux=['LS','Sandy','Paleto'];
 var gradeBareme=[
   {id:1,rang:'Commandant',categorie:'Direction',paieSpeedo:null,paieRecel:null,up:''},
   {id:2,rang:'Capitaine',categorie:'Direction',paieSpeedo:25,paieRecel:25,up:''},
@@ -4200,6 +4203,169 @@ function renderGbList(){
   listDiv.appendChild(addBtn);
 }
 
+
+function getWeekStartStr(){
+  var now=new Date();var day=now.getDay();var diff=day===0?-6:1-day;
+  var mon=new Date(now);mon.setDate(now.getDate()+diff);
+  return mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');
+}
+
+function renderArmesQuota(){
+  var wrap=document.getElementById('armes-quota-wrap');if(!wrap)return;
+  wrap.innerHTML='';
+  var weekKey=getWeekStartStr();
+  if(!armesData[weekKey])armesData[weekKey]={};
+  var weekData=armesData[weekKey];
+
+  // Get armes items from database
+  var armesItems=database.filter(function(x){return x.cat==='Armement'||x.cat==='Arme';});
+  var munItems=database.filter(function(x){return x.souscat==='Munitions'||x.souscat==='Munition';});
+
+  // Header buttons
+  var topRow=document.createElement('div');topRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;';
+  var configBtn=document.createElement('button');configBtn.className='btn btn-sm';configBtn.textContent='⚙ Configurer les lieux';
+  configBtn.onclick=function(){openArmesLieux();};
+  topRow.appendChild(configBtn);
+  wrap.appendChild(topRow);
+
+  // Table container
+  var tableWrap=document.createElement('div');tableWrap.style.cssText='overflow-x:auto;';
+  var table=document.createElement('table');
+  table.style.cssText='border-collapse:collapse;width:100%;min-width:700px;font-size:13px;';
+
+  // Build header
+  var thead=document.createElement('thead');
+  // Row 1
+  var r1=document.createElement('tr');
+  function th(txt,rs,cs,bg){
+    var t=document.createElement('th');t.textContent=txt;
+    t.style.cssText='background:'+(bg||'var(--bg3)')+';color:var(--text);padding:8px 10px;border:1px solid var(--border);text-align:center;white-space:nowrap;';
+    if(rs>1)t.rowSpan=rs;if(cs>1)t.colSpan=cs;return t;
+  }
+  r1.appendChild(th('Matricule',2,1));
+  r1.appendChild(th('Nom',2,1,'var(--purple)'));
+  r1.appendChild(th('PPA',2,1));
+  // Lieux headers
+  armesLieux.forEach(function(l){r1.appendChild(th('Liste des Ammun. — '+l,1,2));});
+  r1.appendChild(th('Quota',2,1));
+  thead.appendChild(r1);
+  // Row 2
+  var r2=document.createElement('tr');
+  armesLieux.forEach(function(){
+    var tA=document.createElement('th');tA.textContent='Armes';tA.style.cssText='background:var(--bg3);color:var(--text2);padding:6px 8px;border:1px solid var(--border);text-align:center;font-size:12px;';
+    var tM=document.createElement('th');tM.textContent='Munitions';tM.style.cssText='background:var(--bg3);color:var(--purple2);padding:6px 8px;border:1px solid var(--border);text-align:center;font-size:12px;';
+    r2.appendChild(tA);r2.appendChild(tM);
+  });
+  thead.appendChild(r2);
+  table.appendChild(thead);
+
+  // Body - one row per member with armes role
+  var tbody=document.createElement('tbody');
+  var armesMembers=membres.filter(function(m){
+    if(m.pending)return false;
+    // Check if this member has armes role via their compte
+    return true; // show all non-pending members for now; admin sees all
+  });
+
+  // For member view: only show current user's row
+  var isAdmin2=currentUser&&(currentUser.role==='admin');
+  var myId=currentUser&&currentUser.membreId;
+
+  var displayMembers=isAdmin2?armesMembers:armesMembers.filter(function(m){return m.id===myId;});
+
+  displayMembers.forEach(function(m,mi){
+    if(!weekData[m.id])weekData[m.id]={ppa:'NON',quota:false,lieux:armesLieux.map(function(l){return {nom:l,arme:null,munition:null};})};
+    var mData=weekData[m.id];
+    // Ensure lieux array matches current armesLieux
+    while(mData.lieux.length<armesLieux.length)mData.lieux.push({nom:armesLieux[mData.lieux.length]||'',arme:null,munition:null});
+
+    var tr=document.createElement('tr');tr.style.background=mi%2===0?'var(--bg)':'var(--bg2)';
+
+    // Matricule
+    var tdNum=document.createElement('td');tdNum.textContent=m.id;tdNum.style.cssText='text-align:center;padding:8px;border:1px solid var(--border);color:var(--text3);font-size:12px;';tr.appendChild(tdNum);
+
+    // Nom
+    var tdNom=document.createElement('td');tdNom.style.cssText='padding:8px 12px;border:1px solid var(--border);font-weight:700;color:var(--text);white-space:nowrap;';tdNom.textContent=m.pseudo||m.nom;tr.appendChild(tdNom);
+
+    // PPA
+    var tdPpa=document.createElement('td');tdPpa.style.cssText='text-align:center;padding:6px;border:1px solid var(--border);';
+    var ppaSelect=document.createElement('select');ppaSelect.className='input';ppaSelect.style.cssText='font-size:12px;padding:3px 6px;width:70px;';
+    ['OUI','NON','INC'].forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;if((mData.ppa||'NON')===v)o.selected=true;ppaSelect.appendChild(o);});
+    ppaSelect.onchange=(function(id,wd){return function(){wd[id].ppa=this.value;};})(m.id,weekData);
+    tdPpa.appendChild(ppaSelect);tr.appendChild(tdPpa);
+
+    // Lieux cols
+    armesLieux.forEach(function(l,li){
+      // Arme select
+      var tdA=document.createElement('td');tdA.style.cssText='padding:6px;border:1px solid var(--border);text-align:center;';
+      var aSelect=document.createElement('select');aSelect.className='input';aSelect.style.cssText='font-size:12px;padding:3px 4px;width:100%;max-width:130px;';
+      var aOpt0=document.createElement('option');aOpt0.value='';aOpt0.textContent='—';aSelect.appendChild(aOpt0);
+      armesItems.forEach(function(ai){var o=document.createElement('option');o.value=ai.id;o.textContent=ai.nom;if(mData.lieux[li]&&mData.lieux[li].arme==ai.id)o.selected=true;aSelect.appendChild(o);});
+      aSelect.onchange=(function(id,lidx,wd){return function(){if(!wd[id].lieux[lidx])wd[id].lieux[lidx]={};wd[id].lieux[lidx].arme=this.value?parseInt(this.value):null;};})(m.id,li,weekData);
+      tdA.appendChild(aSelect);tr.appendChild(tdA);
+
+      // Munition checkbox
+      var tdM=document.createElement('td');tdM.style.cssText='padding:6px;border:1px solid var(--border);text-align:center;';
+      var mCb=document.createElement('input');mCb.type='checkbox';mCb.style.cssText='width:18px;height:18px;accent-color:var(--purple);cursor:pointer;';
+      mCb.checked=!!(mData.lieux[li]&&mData.lieux[li].munition);
+      mCb.onchange=(function(id,lidx,wd){return function(){if(!wd[id].lieux[lidx])wd[id].lieux[lidx]={};wd[id].lieux[lidx].munition=this.checked;};})(m.id,li,weekData);
+      tdM.appendChild(mCb);tr.appendChild(tdM);
+    });
+
+    // Quota checkbox
+    var tdQ=document.createElement('td');tdQ.style.cssText='padding:6px;border:1px solid var(--border);text-align:center;';
+    var qCb=document.createElement('input');qCb.type='checkbox';qCb.style.cssText='width:18px;height:18px;accent-color:var(--success);cursor:pointer;';
+    qCb.checked=!!mData.quota;
+    qCb.onchange=(function(id,wd){return function(){wd[id].quota=this.checked;};})(m.id,weekData);
+    tdQ.appendChild(qCb);tr.appendChild(tdQ);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  wrap.appendChild(tableWrap);
+
+  // Save button
+  var saveBtn=document.createElement('button');saveBtn.className='btn btn-primary';saveBtn.style.marginTop='16px';saveBtn.textContent='Enregistrer';
+  saveBtn.onclick=function(){sauvegarder();var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:14px 20px;z-index:9999;color:var(--success);font-weight:600;font-size:14px;';t.textContent='✅ Enregistré !';document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},3000);};
+  wrap.appendChild(saveBtn);
+}
+
+function openArmesLieux(){
+  var modal=document.getElementById('modal-armes-lieux');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-armes-lieux';modal.style.zIndex='600';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.maxWidth='420px';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-armes-lieux');};
+    var h3=document.createElement('h3');h3.textContent='Configurer les lieux';
+    var sub=document.createElement('div');sub.style.cssText='font-size:12px;color:var(--text3);margin-bottom:14px;';sub.textContent='Noms des lieux de récupération des armes.';
+    var listDiv=document.createElement('div');listDiv.id='al-list';
+    var addBtn=document.createElement('button');addBtn.className='btn btn-sm';addBtn.style.margin='10px 0';addBtn.textContent='+ Ajouter un lieu';
+    addBtn.onclick=function(){armesLieux.push('Nouveau lieu');renderAlList();};
+    var footer=document.createElement('div');footer.className='modal-footer';
+    var saveBtn2=document.createElement('button');saveBtn2.className='btn btn-primary';saveBtn2.textContent='Enregistrer';
+    saveBtn2.onclick=function(){sauvegarder();closeModal('modal-armes-lieux');renderArmesQuota();};
+    var closeBtn2=document.createElement('button');closeBtn2.className='btn';closeBtn2.textContent='Annuler';closeBtn2.onclick=function(){closeModal('modal-armes-lieux');};
+    footer.appendChild(closeBtn2);footer.appendChild(saveBtn2);
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(sub);mb.appendChild(listDiv);mb.appendChild(addBtn);mb.appendChild(footer);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-armes-lieux');});
+    document.body.appendChild(modal);
+  }
+  renderAlList();openModal('modal-armes-lieux');
+}
+
+function renderAlList(){
+  var listDiv=document.getElementById('al-list');if(!listDiv)return;listDiv.innerHTML='';
+  armesLieux.forEach(function(l,li){
+    var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    var inp=document.createElement('input');inp.type='text';inp.className='input';inp.style.flex='1';inp.value=l;
+    inp.oninput=(function(i){return function(){armesLieux[i]=this.value;};})(li);
+    var delBtn=document.createElement('button');delBtn.className='btn btn-sm btn-danger';delBtn.textContent='✕';
+    delBtn.onclick=(function(i){return function(){armesLieux.splice(i,1);renderAlList();};})(li);
+    row.appendChild(inp);row.appendChild(delBtn);listDiv.appendChild(row);
+  });
+}
+
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
@@ -4208,7 +4374,7 @@ var SUPABASE_URL='https://zgmvlwkegfbrnsxfbbiy.supabase.co';
 var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
 
 function sauvegarder(){
-  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence,paieArchives:paieArchives,accordionQuestions:accordionQuestions,gradeBareme:gradeBareme};
+  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,frequence:frequence,paieArchives:paieArchives,accordionQuestions:accordionQuestions,gradeBareme:gradeBareme,armesData:armesData,armesLieux:armesLieux};
   // Save full payload (with photos) to localStorage
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
   // For Supabase: strip large base64 photos to reduce payload size
@@ -4276,6 +4442,8 @@ function applyData(data){
   if(data.paieArchives)paieArchives=data.paieArchives;
   if(data.accordionQuestions)accordionQuestions=data.accordionQuestions;
   if(data.gradeBareme)gradeBareme=data.gradeBareme;
+  if(data.armesData)armesData=data.armesData;
+  if(data.armesLieux)armesLieux=data.armesLieux;
 }
 
 function chargerDonnees(){
