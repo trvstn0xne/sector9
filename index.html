@@ -4157,23 +4157,46 @@ function openEditGradeBareme(){
 function renderGbList(){
   var listDiv=document.getElementById('gb-list');if(!listDiv)return;listDiv.innerHTML='';
   gradeBareme.forEach(function(g,gi){
-    var card=document.createElement('div');card.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:12px;margin-bottom:10px;';
-    var title=document.createElement('div');title.style.cssText='font-weight:700;color:var(--purple3);font-size:13px;margin-bottom:10px;';title.textContent=g.rang;
-    card.appendChild(title);
+    var card=document.createElement('div');card.style.cssText='background:var(--bg3);border-radius:var(--r2);padding:12px;margin-bottom:10px;border:1px solid var(--border);';
+
+    // Header row: grade name + categorie + delete
+    var hRow=document.createElement('div');hRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:10px;';
+    var nameInp=document.createElement('input');nameInp.className='input';nameInp.style.cssText='font-weight:700;color:var(--purple3);font-size:13px;flex:1;';nameInp.value=g.rang;nameInp.placeholder='Nom du grade';
+    nameInp.oninput=(function(i){return function(){gradeBareme[i].rang=this.value;};})(gi);
+    var catInp=document.createElement('input');catInp.className='input';catInp.style.cssText='font-size:12px;color:var(--text3);flex:1;';catInp.value=g.categorie||'';catInp.placeholder='Catégorie';
+    catInp.oninput=(function(i){return function(){gradeBareme[i].categorie=this.value;};})(gi);
+    var delBtn=document.createElement('button');delBtn.className='btn btn-sm btn-danger';delBtn.textContent='✕';delBtn.style.flexShrink='0';
+    delBtn.onclick=(function(i){return function(){if(confirm('Supprimer le grade "'+gradeBareme[i].rang+'" ?')){gradeBareme.splice(i,1);renderGbList();}};})(gi);
+    hRow.appendChild(nameInp);hRow.appendChild(catInp);hRow.appendChild(delBtn);
+    card.appendChild(hRow);
+
+    // Fields grid
     var grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;';
-    function mkField(label,key,isNull){
+    function mkField(label,key){
       var wrap=document.createElement('div');
       var lbl=document.createElement('label');lbl.className='lbl';lbl.textContent=label;
-      var inp=document.createElement('input');inp.className='input';inp.style.cssText='font-size:13px;';
-      inp.value=isNull?'∅':(g[key]!==null&&g[key]!==undefined?g[key]:'');
-      inp.oninput=(function(idx,k){return function(){var v=this.value.trim();gradeBareme[idx][k]=v==='∅'||v===''?null:isNaN(v)?v:Number(v);};})(gi,key);
+      var inp=document.createElement('input');inp.className='input';inp.style.fontSize='13px';
+      var v=g[key];inp.value=(v===null||v===undefined)?'∅':v;
+      inp.placeholder='∅ = aucun';
+      inp.oninput=(function(i,k){return function(){var val=this.value.trim();gradeBareme[i][k]=(val==='∅'||val==='')?null:(isNaN(Number(val))?val:Number(val));};})(gi,key);
       wrap.appendChild(lbl);wrap.appendChild(inp);return wrap;
     }
-    grid.appendChild(mkField('Paie Speedo (%)','paieSpeedo',g.paieSpeedo===null));
-    grid.appendChild(mkField('% Recel','paieRecel',g.paieRecel===null));
-    grid.appendChild(mkField('Condition de promotion','up',false));
-    card.appendChild(grid);listDiv.appendChild(card);
+    grid.appendChild(mkField('Paie Speedo (%)','paieSpeedo'));
+    grid.appendChild(mkField('% Recel','paieRecel'));
+    grid.appendChild(mkField('Condition de promotion','up'));
+    card.appendChild(grid);
+    listDiv.appendChild(card);
   });
+
+  // Add grade button at bottom
+  var addBtn=document.createElement('button');addBtn.className='btn btn-sm';addBtn.style.marginTop='8px';addBtn.textContent='+ Ajouter un grade';
+  addBtn.onclick=function(){
+    gradeBareme.push({id:Date.now(),rang:'Nouveau grade',categorie:'Corps executifs',paieSpeedo:null,paieRecel:null,up:''});
+    renderGbList();
+    // Scroll to bottom
+    var lb=document.getElementById('gb-list');if(lb)lb.lastChild.scrollIntoView({behavior:'smooth'});
+  };
+  listDiv.appendChild(addBtn);
 }
 
 // ============================================================
