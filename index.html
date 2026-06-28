@@ -2411,13 +2411,12 @@ function renderQuotaSaisie(divId,forceDate){
     var editBtn=document.createElement('button');
     editBtn.className='btn btn-sm';
     editBtn.textContent='✏️ Modifier';
-    editBtn.onclick=function(){
-      var today=getTodayStr();
-      if(quotaHistory[today]&&quotaHistory[today][currentUser.membreId]){
-        quotaHistory[today][currentUser.membreId].submitted=false;
+    editBtn.onclick=(function(selDate){return function(){
+      if(quotaHistory[selDate]&&quotaHistory[selDate][currentUser.membreId]){
+        quotaHistory[selDate][currentUser.membreId].submitted=false;
       }
-      renderQuotaSaisie(divId);
-    };
+      renderQuotaSaisie(divId, selDate);
+    };})(today);
     hdr.appendChild(editBtn);
   }
   wrap.appendChild(hdr);
