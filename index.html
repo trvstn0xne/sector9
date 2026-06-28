@@ -939,6 +939,7 @@ function buildAdminHTML(){
     +'<div class="section-title">Quotas hebdomadaires</div>'
     +'<div class="section-sub">Objectifs minimum par membre</div>'
     +'<div id="quota-banner-wrap"></div>'
+    +'<div style="display:flex;justify-content:flex-end;margin-bottom:10px;"><button class="btn btn-sm" onclick="openQuotaGestion()">&#128465; Gerer les dates</button></div>'
     +'<div class="subtabs" id="admin-quota-subtabs">'
     +'<button class="subtab active" onclick="showQuotaSubtab(\'admin-quota-subtabs\',\'aq-recap\',this)">Récap membres</button>'
     +'<button class="subtab" onclick="showQuotaSubtab(\'admin-quota-subtabs\',\'aq-armes\',this)">Quota armes</button>'
@@ -4217,6 +4218,87 @@ function archiverPaieArmes(divId){
   paieArmesArchives.push({startStr:week.startStr,endStr:week.endStr,rows:rows,totalPaies:totalPaies});
   sauvegarder();alert('Archive !');renderPaieArmes(divId);
 }
+
+function openQuotaGestion(){
+  var modal=document.getElementById('modal-quota-gestion');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-quota-gestion';modal.style.zIndex='600';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.cssText='max-width:520px;max-height:80vh;overflow-y:auto;';
+    var cx=document.createElement('button');cx.className='close-x';cx.innerHTML='&#x2715;';cx.onclick=function(){closeModal('modal-quota-gestion');};
+    var h3=document.createElement('h3');h3.textContent='Gestion des quotas';
+    var content=document.createElement('div');content.id='quota-gestion-content';
+    mb.appendChild(cx);mb.appendChild(h3);mb.appendChild(content);
+    modal.appendChild(mb);modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-quota-gestion');});
+    document.body.appendChild(modal);
+  }
+  renderQuotaGestionContent();
+  openModal('modal-quota-gestion');
+}
+
+function renderQuotaGestionContent(){
+  var content=document.getElementById('quota-gestion-content');if(!content)return;
+  var dates=Object.keys(quotaHistory).sort().reverse();
+  var today=getTodayStr();
+  var pastDates=dates.filter(function(d){return d<today;});
+
+  var html='';
+  // Delete all past dates button
+  html+='<div style="background:var(--bg3);border-radius:var(--r2);padding:14px;margin-bottom:16px;">';
+  html+='<div style="font-weight:700;font-size:13px;margin-bottom:6px;">Supprimer toutes les dates passees</div>';
+  html+='<div style="font-size:12px;color:var(--text3);margin-bottom:12px;">'+pastDates.length+' date(s) anterieure(s) a aujourd\'hui</div>';
+  html+='<button class="btn btn-danger btn-sm" onclick="deleteAllPastQuotas()">Supprimer tout l\'historique passe</button>';
+  html+='</div>';
+
+  // Delete specific date
+  html+='<div style="background:var(--bg3);border-radius:var(--r2);padding:14px;">';
+  html+='<div style="font-weight:700;font-size:13px;margin-bottom:10px;">Supprimer une date specifique</div>';
+  if(!dates.length){
+    html+='<p style="color:var(--text3);font-size:12px;">Aucun historique de quotas.</p>';
+  } else {
+    html+='<div style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;">';
+    dates.forEach(function(d){
+      var membresCount=Object.keys(quotaHistory[d]).length;
+      var isToday=d===today;
+      html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg2);border-radius:6px;border:1px solid var(--border);">';
+      html+='<div><span style="font-weight:600;font-size:13px;">'+fmtDate(d)+'</span>';
+      if(isToday)html+=' <span style="font-size:11px;color:var(--purple2);font-weight:600;">Aujourd\'hui</span>';
+      html+='<span style="font-size:11px;color:var(--text3);margin-left:8px;">'+membresCount+' soumission(s)</span></div>';
+      html+='<button class="btn btn-danger btn-sm" style="font-size:11px;padding:3px 8px;" onclick="deleteQuotaDate(\''+d+'\')">Supprimer</button>';
+      html+='</div>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+  content.innerHTML=html;
+}
+
+function deleteAllPastQuotas(){
+  var today=getTodayStr();
+  var pastDates=Object.keys(quotaHistory).filter(function(d){return d<today;});
+  if(!pastDates.length){alert('Aucune date passee a supprimer.');return;}
+  if(!confirm('Supprimer '+pastDates.length+' date(s) d\'historique ? Cette action est irreversible.'))return;
+  pastDates.forEach(function(d){delete quotaHistory[d];});
+  sauvegarder();
+  renderQuotaGestionContent();
+  showToast('Historique passe supprime !','var(--success)');
+}
+
+function deleteQuotaDate(date){
+  if(!confirm('Supprimer les quotas du '+fmtDate(date)+' ? Cette action est irreversible.'))return;
+  delete quotaHistory[date];
+  sauvegarder();
+  renderQuotaGestionContent();
+  renderQuotaRecap('quota-recap-div',true);
+  showToast('Date supprimee !','var(--success)');
+}
+
+function showToast(msg,color){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid '+(color||'var(--success)')+';border-radius:var(--r2);padding:12px 18px;z-index:9999;color:'+(color||'var(--success)')+';font-weight:600;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+  t.textContent=msg;document.body.appendChild(t);
+  setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},2500);
+}
+
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
