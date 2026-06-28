@@ -1760,46 +1760,79 @@ function deleteItem(id){if(!confirm('Supprimer cet objet de la database ?'))retu
 function toggleGroupeDetails(){var oui=document.getElementById('r-groupe-oui')&&document.getElementById('r-groupe-oui').checked;var el=document.getElementById('groupe-details');if(el)el.style.display=oui?'block':'none';}
 function copyMarket(){var text=document.getElementById('market-msg').value;navigator.clipboard.writeText(text).then(function(){var ok=document.getElementById('copy-ok');ok.style.display='block';setTimeout(function(){ok.style.display='none';},2000);});}
 function submitRecruit(){
-  var errDiv=document.getElementById('r-form-err');errDiv.style.display='none';
+  // Find visible form elements (avoid duplicate IDs from member+admin forms)
+  function getEl(id){
+    var els=document.querySelectorAll('#'+id);
+    for(var i=0;i<els.length;i++){if(els[i].offsetParent!==null)return els[i];}
+    return els[0]||null;
+  }
+  var errDivEl=getEl('r-form-err');
+  if(!errDivEl){return;}
+  errDivEl.style.display='none';
   var errors=[];
-  function req(id,label){var v=document.getElementById(id)&&document.getElementById(id).value&&document.getElementById(id).value.trim();if(!v)errors.push(label);return v;}
-  var nom=req('r-nom','Nom du candidat');req('r-pseudo','Pseudo');req('r-tel','Téléphone');req('r-discord','Discord');req('r-age-ville','Âge en ville');req('r-date','Date d\'arrivée');req('r-travail','Travail légal');req('r-washington','Problèmes avec Washington');req('r-pourquoi','Pourquoi recherche-t-il un groupe');req('r-attentes','Attentes');
-  if(document.querySelectorAll('.dispo-cb:checked').length===0)errors.push('Disponibilités');
-  if(!document.getElementById('r-groupe-oui').checked&&!document.getElementById('r-groupe-non').checked)errors.push('Ancien groupe');
-  if(document.getElementById('r-groupe-oui').checked){req('r-ancien-nom','Nom de l\'ancien groupe');req('r-ancien-role','Rôle');if(!document.querySelector('input[name="r-haut-grade"]:checked'))errors.push('Était-il haut gradé ?');if(!document.querySelector('input[name="r-kick"]:checked'))errors.push('A-t-il été kick ?');req('r-dissous','Dissolution');}
-  if(!document.getElementById('r-photo-visage').files[0])errors.push('Photo du visage');
-  if(!document.getElementById('r-photo-ci').files[0])errors.push('Carte d\'identité');
-  if(errors.length>0){errDiv.style.display='block';errDiv.innerHTML='Champs manquants :<br>• '+errors.join('<br>• ');return;}
-    // Read disponibilités
+  function req(id,label){var el=getEl(id);var v=el&&el.value&&el.value.trim();if(!v)errors.push(label);return v||'';}
+
+  var nom=req('r-nom','Nom du candidat');
+  var pseudo=req('r-pseudo','Pseudo')||'';
+  req('r-tel','Telephone');
+  req('r-discord','Discord');
+  req('r-age-ville','Age en ville');
+  req('r-date','Date arrivee');
+
+  if(document.querySelectorAll('.dispo-cb:checked').length===0)errors.push('Disponibilites');
+
+  var grpOui=getEl('r-groupe-oui');var grpNon=getEl('r-groupe-non');
+  if(grpOui&&grpNon&&!grpOui.checked&&!grpNon.checked)errors.push('Ancien groupe');
+  if(grpOui&&grpOui.checked){
+    req('r-ancien-nom','Nom ancien groupe');req('r-ancien-role','Role');
+    if(!document.querySelector('input[name="r-haut-grade"]:checked'))errors.push('Etait-il haut grade ?');
+    if(!document.querySelector('input[name="r-kick"]:checked'))errors.push('A-t-il ete kick ?');
+    req('r-dissous','Dissolution');
+  }
+
+  var ciInput=getEl('r-photo-ci');
+  if(!ciInput||!ciInput.files||!ciInput.files[0])errors.push('Carte identite');
+
+  if(errors.length>0){
+    errDivEl.style.display='block';
+    errDivEl.innerHTML='Champs manquants :<br>• '+errors.join('<br>• ');
+    return;
+  }
+
   var dispoData={};
   document.querySelectorAll('.dispo-cb').forEach(function(cb){
-    dispoData[cb.dataset.slot]=cb.checked;
+    if(cb.offsetParent!==null)dispoData[cb.dataset.slot]=cb.checked;
   });
-  // Read photos async then push
-  function readFileB64(input,cb){
-    if(input&&input.files&&input.files[0]){
-      var r=new FileReader();r.onload=function(e){cb(e.target.result);};r.readAsDataURL(input.files[0]);
-    } else cb('');
-  }
-  var visageInput=document.getElementById('r-photo-visage');
-  var ciInput=document.getElementById('r-photo-ci');
-  readFileB64(visageInput,function(photoB64){
-    readFileB64(ciInput,function(ciB64){
-      membres.push({id:Date.now(),nom:nom||'Candidat',pseudo:'',date:document.getElementById('r-date').value,tel:document.getElementById('r-tel').value.trim(),discord:document.getElementById('r-discord').value.trim(),grade:'Recrue',radio:false,arme:document.getElementById('r-arme')&&document.getElementById('r-arme').checked||false,disqueuse:false,absence:false,absenceFin:'',photo:photoB64,carteId:ciB64,dispo:dispoData,ppa:document.getElementById('r-ppa')&&document.getElementById('r-ppa').checked||false,pending:true});
-      sauvegarder();
-      document.getElementById('recruit-ok').style.display='block';
-      setTimeout(function(){document.getElementById('recruit-ok').style.display='none';},5000);
-    });
-  });
-  return;
 
+  function readFileB64(input,cb){
+    if(input&&input.files&&input.files[0]){var r=new FileReader();r.onload=function(e){cb(e.target.result);};r.readAsDataURL(input.files[0]);}
+    else cb('');
+  }
+
+  readFileB64(ciInput,function(ciB64){
+    var newMembre={
+      id:Date.now(),
+      nom:nom||'Candidat',
+      pseudo:pseudo,
+      date:(getEl('r-date')&&getEl('r-date').value)||'',
+      tel:(getEl('r-tel')&&getEl('r-tel').value&&getEl('r-tel').value.trim())||'',
+      discord:(getEl('r-discord')&&getEl('r-discord').value&&getEl('r-discord').value.trim())||'',
+      grade:'Recrue',radio:false,arme:false,disqueuse:false,
+      absence:false,absenceFin:'',photo:'',carteId:ciB64,
+      dispo:dispoData,ppa:false,pending:true
+    };
+    membres.push(newMembre);
+    sauvegarder();
+    var rokEl=getEl('recruit-ok');
+    if(rokEl){rokEl.style.display='block';setTimeout(function(){rokEl.style.display='none';},5000);}
+    else{
+      var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:16px 20px;z-index:9999;';
+      t.innerHTML='<div style="font-weight:700;color:var(--success);">Candidature enregistree !</div><div style="font-size:12px;color:var(--text3);margin-top:4px;">Le candidat a ete ajoute en liste attente.</div>';
+      document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},4000);
+    }
+  });
 }
 
-// ============================================================
-// CALENDRIER
-// ============================================================
-var MONTHS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-var DAYS_FR=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 function changeMonth(dir,isMb){calDate.setMonth(calDate.getMonth()+dir);if(isMb)renderCal('mb-cal-cells','mb-cal-days-names','mb-cal-title','mb-events-list',true);else renderCal('cal-cells','cal-days-names','cal-title','events-list',false);}
 function renderCal(cellsId,namesId,titleId,listId,readOnly){
   var titleEl=document.getElementById(titleId);if(!titleEl)return;
