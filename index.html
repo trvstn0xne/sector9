@@ -765,7 +765,7 @@ function refreshCurrentSection(){
   if(id==='mb-quotas'){setTimeout(function(){renderQuotaSubtabs();renderQuotaSaisie('mb-quota-saisie-div');},0);}
   if(id==='admin-compta'||id==='mb-compta')renderCoffre();
   if(id==='admin-sanctions')renderSancMembres();
-  if(id==='admin-bareme-grades')renderGradeBareme();
+  if(id==='admin-bareme-grades')setTimeout(function(){renderGradeBareme();},50);
   if(id==='mb-compte')renderMonCompte();
 }
 document.addEventListener('keydown',function(e){
