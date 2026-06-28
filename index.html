@@ -765,7 +765,7 @@ function refreshCurrentSection(){
   if(id==='mb-quotas'){setTimeout(function(){renderQuotaSubtabs();renderQuotaSaisie('mb-quota-saisie-div');},0);}
   if(id==='admin-compta'||id==='mb-compta')renderCoffre();
   if(id==='admin-sanctions')renderSancMembres();
-  if(id==='admin-bareme-grades')setTimeout(function(){renderGradeBareme();},50);
+  if(id==='admin-bareme-grades')setTimeout(function(){renderGradeBareme();},200);
   if(id==='mb-compte')renderMonCompte();
 }
 document.addEventListener('keydown',function(e){
@@ -1190,7 +1190,7 @@ function initAdmin(){
   setupFileInput('r-photo-ci','r-ci-preview',null);
   document.getElementById('m-photo-url').addEventListener('input',function(){var p=document.getElementById('m-photo-preview');if(this.value){p.src=this.value;p.style.display='block';}else p.style.display='none';});
   document.getElementById('m-ci-url').addEventListener('input',function(){var p=document.getElementById('m-ci-preview');if(this.value){p.src=this.value;p.style.display='block';}else p.style.display='none';});
-  setTimeout(function(){renderAccueil();renderBareme();renderDatabase();renderCal('cal-cells','cal-days-names','cal-title','events-list',false);renderTodo('todo-panel');renderPresencePanel('admin-presence-panel',true);renderPresencePanel('admin-presence-panel',true);},0);
+  setTimeout(function(){renderAccueil();renderBareme();renderDatabase();renderGradeBareme();renderCal('cal-cells','cal-days-names','cal-title','events-list',false);renderTodo('todo-panel');renderPresencePanel('admin-presence-panel',true);renderPresencePanel('admin-presence-panel',true);},0);
 }
 function initMembre(){
   renderMembresMb();
