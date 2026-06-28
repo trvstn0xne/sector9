@@ -4093,16 +4093,36 @@ function renderAdminArmesRecap(){
 }
 
 function renderGradeBareme(){
-  var wrap=document.getElementById('grade-bareme-wrap');if(!wrap)return;wrap.innerHTML='';
-  var cats={};gradeBareme.forEach(function(g){if(!cats[g.categorie])cats[g.categorie]=[];cats[g.categorie].push(g);});
-  var table=document.createElement('table');var thead=document.createElement('thead');
-  thead.innerHTML='<tr style="background:var(--purple);"><th style="color:#fff;">ID</th><th style="color:#fff;">Rang</th><th style="color:#fff;">Paie/Speedo</th><th style="color:#fff;">% Recel</th><th style="color:#fff;">Up</th></tr>';
-  table.appendChild(thead);var tbody=document.createElement('tbody');
-  Object.keys(cats).forEach(function(cat){
-    var cR=document.createElement('tr');cR.innerHTML='<td colspan="5" style="background:var(--bg3);color:var(--purple3);font-weight:700;font-size:12px;padding:8px 12px;">'+cat+'</td>';tbody.appendChild(cR);
-    cats[cat].forEach(function(g){var tr=document.createElement('tr');tr.innerHTML='<td style="color:var(--text3);font-size:12px;">'+g.id+'</td><td style="font-weight:600;">'+g.rang+'</td><td style="color:var(--purple2);">'+(g.paieSpeedo!==null?g.paieSpeedo+'%':'no')+'</td><td style="color:var(--success);">'+(g.paieRecel!==null?g.paieRecel+'%':'no')+'</td><td style="color:var(--warning);">'+(g.up?g.up:'')+'</td>';tbody.appendChild(tr);});
+  var wrap=document.getElementById('grade-bareme-wrap');
+  if(!wrap){console.warn('grade-bareme-wrap not found');return;}
+  if(!gradeBareme||!gradeBareme.length){
+    wrap.innerHTML='<p style="color:var(--text3);padding:20px;">Aucune donnee de bareme. Cliquez sur Modifier pour configurer.</p>';
+    return;
+  }
+  var cats={};
+  gradeBareme.forEach(function(g){
+    if(!cats[g.categorie])cats[g.categorie]=[];
+    cats[g.categorie].push(g);
   });
-  table.appendChild(tbody);var tw=document.createElement('div');tw.className='table-wrap';tw.appendChild(table);wrap.appendChild(tw);
+  var html='<div class="table-wrap"><table><thead><tr style="background:var(--purple);">'
+    +'<th style="color:#fff;">Rang</th>'
+    +'<th style="color:#fff;">Paie Speedo</th>'
+    +'<th style="color:#fff;">% Recel</th>'
+    +'<th style="color:#fff;">Condition de promotion</th>'
+    +'</tr></thead><tbody>';
+  Object.keys(cats).forEach(function(cat){
+    html+='<tr><td colspan="4" style="background:var(--bg3);color:var(--purple3);font-weight:700;font-size:12px;padding:8px 12px;letter-spacing:0.5px;">'+cat+'</td></tr>';
+    cats[cat].forEach(function(g){
+      html+='<tr>'
+        +'<td style="font-weight:600;">'+g.rang+'</td>'
+        +'<td style="color:var(--purple2);">'+(g.paieSpeedo!==null&&g.paieSpeedo!==undefined?g.paieSpeedo+'%':'—')+'</td>'
+        +'<td style="color:var(--success);">'+(g.paieRecel!==null&&g.paieRecel!==undefined?g.paieRecel+'%':'—')+'</td>'
+        +'<td style="color:var(--warning);">'+(g.up||'')+'</td>'
+        +'</tr>';
+    });
+  });
+  html+='</tbody></table></div>';
+  wrap.innerHTML=html;
 }
 
 function openEditGradeBareme(){
