@@ -1466,6 +1466,7 @@ function openAddSanction(){
   populateSancModal();populateSancInfractions();
   document.getElementById('s-infraction').value='';
   document.getElementById('s-autofill-preview').style.display='none';
+  document.getElementById('s-infractions-supp-list').innerHTML='';
   document.getElementById('s-type').value='Rappel à l\'ordre';
   document.getElementById('s-gravite').value='mineure';
   document.getElementById('s-date').value=new Date().toISOString().split('T')[0];
@@ -1475,7 +1476,9 @@ function openAddSanction(){
 function saveSanction(){
   var membreId=parseInt(document.getElementById('s-membre').value);
   var infractionId=parseInt(document.getElementById('s-infraction').value)||null;
-  var data={id:Date.now(),membreId:membreId,infractionId:infractionId,type:document.getElementById('s-type').value,gravite:document.getElementById('s-gravite').value,date:document.getElementById('s-date').value,motif:document.getElementById('s-motif').value.trim()};
+  var infrSuppEls=document.querySelectorAll('.s-infraction-supp');
+  var infrSuppIds=[];infrSuppEls.forEach(function(el){var v=parseInt(el.value);if(v)infrSuppIds.push(v);});
+  var data={id:Date.now(),membreId:membreId,infractionId:infractionId,infractionsSupp:infrSuppIds,type:document.getElementById('s-type').value,gravite:document.getElementById('s-gravite').value,date:document.getElementById('s-date').value,motif:document.getElementById('s-motif').value.trim()};
   if(!data.motif){alert('Motif requis.');return;}
   sanctions.push(data);closeModal('modal-sanction');renderSancMembres();renderMembres(membres);sauvegarder();
 }
@@ -1496,6 +1499,7 @@ function renderSancMembres(){
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">'
       +'<strong style="font-size:13px;color:var(--text);">'+(m?m.nom:'Inconnu')+'</strong>'
       +(code?'<span style="padding:1px 7px;border-radius:4px;background:rgba(124,58,237,0.15);color:var(--purple3);font-size:11px;font-weight:700;font-family:monospace;">'+code+'</span>':'')
+      +(s.infractionsSupp&&s.infractionsSupp.length?(s.infractionsSupp.map(function(sid){var bs=baremeData.find(function(x){return x.id===sid;});var cs=bs?extractCodeFaute(bs.faute):null;return cs?'<span style="padding:1px 7px;border-radius:4px;background:rgba(239,159,39,0.15);color:var(--warning);font-size:11px;font-weight:700;font-family:monospace;">'+cs+'</span>':'';}).join(''))  :'')
       +'<span class="badge '+GRAVITE_CLASSES[s.gravite]+'">'+GRAVITE_LABELS[s.gravite]+'</span>'
       +'<span class="badge badge-grade">'+s.type+'</span>'
       +'<span style="font-size:11px;color:var(--text3);margin-left:auto;">'+s.date+'</span>'
@@ -4332,6 +4336,39 @@ function showToast(msg,color){
   t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid '+(color||'var(--success)')+';border-radius:var(--r2);padding:12px 18px;z-index:9999;color:'+(color||'var(--success)')+';font-weight:600;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
   t.textContent=msg;document.body.appendChild(t);
   setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},2500);
+}
+
+
+function addInfractionSupp(){
+  var list=document.getElementById('s-infractions-supp-list');if(!list)return;
+  var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:6px;';
+  var sel=document.createElement('select');sel.className='input s-infraction-supp';sel.style.cssText='flex:1;font-size:13px;';
+  var opt0=document.createElement('option');opt0.value='';opt0.textContent='— Infraction du bareme —';sel.appendChild(opt0);
+  // Populate from baremeData
+  if(typeof baremeData!=='undefined'&&baremeData.length){
+    baremeData.forEach(function(b){var o=document.createElement('option');o.value=b.id;o.textContent='['+b.code+'] '+b.nom;sel.appendChild(o);});
+  }
+  var delBtn=document.createElement('button');delBtn.type='button';delBtn.className='btn btn-sm btn-danger';delBtn.textContent='✕';delBtn.style.flexShrink='0';
+  delBtn.onclick=function(){list.removeChild(row);};
+  row.appendChild(sel);row.appendChild(delBtn);list.appendChild(row);
+  // Also populate from populateSancInfractions
+  populateSuppSelect(sel);
+}
+
+function populateSuppSelect(sel){
+  if(!sel)return;
+  sel.innerHTML='<option value="">— Infraction supplementaire —</option>';
+  var ORDER=['mineure','intermediaire','grave','critique'];
+  var sorted=[].concat(baremeData).sort(function(a,b){return ORDER.indexOf(a.gravite)-ORDER.indexOf(b.gravite);});
+  var lastGrav='';
+  sorted.forEach(function(b){
+    if(b.gravite!==lastGrav){
+      var grp=document.createElement('optgroup');grp.label='── '+GRAVITE_LABELS[b.gravite]+' ──';sel.appendChild(grp);lastGrav=b.gravite;
+    }
+    var code=extractCodeFaute(b.faute);var nom=extractNomFaute(b.faute);
+    var opt=document.createElement('option');opt.value=b.id;opt.textContent=(code?code+' — ':'')+nom;
+    sel.lastElementChild.appendChild(opt);
+  });
 }
 
 // ============================================================
