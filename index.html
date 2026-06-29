@@ -379,7 +379,7 @@ input[type="number"]{-moz-appearance:textfield;}input[type="number"]::-webkit-ou
     <h3>Ajouter une sanction</h3>
     <div style="margin-bottom:14px;"><label class="lbl">Membre concerné</label><select class="input" id="s-membre"></select></div>
     <div style="margin-bottom:14px;">
-      <label class="lbl">Infraction (optionnel — auto-remplit les champs)</label>
+      <label class="lbl">Infraction principale <span style="color:var(--purple2);font-size:11px;">(auto-remplit les champs)</span></label>
       <select class="input" id="s-infraction" onchange="autoFillSanction()">
         <option value="">— Sélectionner une infraction du barème —</option>
       </select>
@@ -392,6 +392,11 @@ input[type="number"]{-moz-appearance:textfield;}input[type="number"]::-webkit-ou
         <span style="font-size:11px;color:var(--text3);">│ Récidive : <span id="s-af-recidive" style="color:var(--text2);"></span></span>
         <span style="font-size:11px;color:var(--text3);">│ Max : <span id="s-af-max" style="color:var(--text2);font-weight:600;"></span></span>
       </div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="lbl">Infractions supplémentaires <span style="color:var(--text3);font-size:11px;">(optionnel)</span></label>
+      <div id="s-infractions-supp-list"></div>
+      <button type="button" class="btn btn-sm" style="margin-top:6px;font-size:12px;" onclick="addInfractionSupp()">+ Ajouter une infraction</button>
     </div>
     <div style="margin-bottom:14px;"><label class="lbl">Type de sanction appliqué</label>
       <select class="input" id="s-type"><option>Rappel à l'ordre</option><option>Convocation</option><option>Surveillance</option><option>Mise à pied</option><option>Démote temporaire</option><option>Démote définitif</option><option>Kick</option><option>Wipe</option></select>
@@ -1466,7 +1471,7 @@ function openAddSanction(){
   populateSancModal();populateSancInfractions();
   document.getElementById('s-infraction').value='';
   document.getElementById('s-autofill-preview').style.display='none';
-  document.getElementById('s-infractions-supp-list').innerHTML='';
+  var suppList=document.getElementById('s-infractions-supp-list');if(suppList)suppList.innerHTML='';
   document.getElementById('s-type').value='Rappel à l\'ordre';
   document.getElementById('s-gravite').value='mineure';
   document.getElementById('s-date').value=new Date().toISOString().split('T')[0];
