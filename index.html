@@ -963,7 +963,9 @@ function buildAdminHTML(){
     +'<div class="section-sub">Gérez les membres de Sector 9</div>'
     +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'
     +'<input class="input" style="max-width:240px;" id="search-membre" placeholder="Rechercher..." oninput="filterMembres()"/>'
-    +'<button class="btn btn-primary" onclick="openAddMembre()">+ Ajouter un membre</button></div>'
+    +'<button class="btn btn-sm" id="sort-grade-btn" onclick="setMembreSort(\'grade\')" style="background:rgba(124,58,237,0.2);color:var(--purple2);">Par grade</button>'
+    +'<button class="btn btn-sm" id="sort-nom-btn" onclick="setMembreSort(\'nom\')">Par nom</button>'
+    +'<button class="btn btn-primary" style="margin-left:auto;" onclick="openAddMembre()">+ Ajouter un membre</button></div>'
     +'<div id="membres-table-wrap"></div></div>'
 
     +'<div class="section" id="sec-admin-database">'
@@ -1312,7 +1314,7 @@ function renderMembres(list){
     tbody.appendChild(tr);
   });
 }
-function filterMembres(){var q=document.getElementById('search-membre').value.toLowerCase().trim();if(!q){renderMembres(membres);return;}renderMembres(membres.filter(function(m){return m.nom.toLowerCase().includes(q)||(m.pseudo&&m.pseudo.toLowerCase().includes(q))||m.grade.toLowerCase().includes(q);}));}
+function filterMembres(){var q=document.getElementById('search-membre')&&document.getElementById('search-membre').value.toLowerCase().trim()||'';var list=membres.filter(function(m){return !q||m.nom.toLowerCase().includes(q)||(m.pseudo&&m.pseudo.toLowerCase().includes(q))||m.grade.toLowerCase().includes(q);});renderMembres(sortMembres(list,_membreSort));}
 
 // ============================================================
 // MEMBRES (VUE MEMBRE)
@@ -2419,7 +2421,15 @@ function vote(eventId, choice){
 // quotaHistory = { 'YYYY-MM-DD': { membreId: { containers: N, recel: [{itemId, qte, valeur}], speedos: [{itemId, qte}] } } }
 
 function getTodayStr(){
-  return new Date().toISOString().split('T')[0];
+  var now=new Date();
+  // Quota day resets at 7am: before 7am = still previous day
+  if(now.getHours()<7){
+    now.setDate(now.getDate()-1);
+  }
+  var y=now.getFullYear();
+  var m=String(now.getMonth()+1).padStart(2,'0');
+  var d=String(now.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+d;
 }
 
 function getMyTodayData(){
