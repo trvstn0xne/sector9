@@ -540,7 +540,10 @@ window.addEventListener('error', function(e){
 // ============================================================
 // DONNÉES GLOBALES
 // ============================================================
-const GRADES_ORDER=['Commandant','Capitaine','Lieutenant','Sergent Chef','Sergent','Caporal','Opérateur','Recrue'];
+function gradeRank(grade){
+  var idx=gradeBareme.findIndex(function(g){return g.rang===grade;});
+  return idx===-1?9999:idx;
+}
 let _membreSort='grade';
 function sortMembres(list,mode){
   mode=mode||_membreSort;
@@ -552,7 +555,7 @@ function sortMembres(list,mode){
       var bn=(b.pseudo||b.nom||'').toLowerCase();
       return an.localeCompare(bn);
     }
-    return GRADES_ORDER.indexOf(a.grade)-GRADES_ORDER.indexOf(b.grade);
+    return gradeRank(a.grade)-gradeRank(b.grade);
   });
 }
 function setMembreSort(mode){
@@ -876,7 +879,7 @@ function gradeBadgeHTML(grade){
     html='<span style="font-size:12px;color:var(--text2);font-weight:600;">'+grade+'</span>';
   }
   if(cat){
-    html+='<br><span style="font-size:10px;color:'+style.color+';opacity:0.7;font-weight:500;letter-spacing:0.3px;">'+cat+'</span>';
+    html+='<br><span style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0.3px;">'+cat+'</span>';
   }
   return html;
 }
@@ -1348,7 +1351,7 @@ function renderMembresMb(list){
   var src=list||membres.filter(function(m){return !m.pending;});
   var tbody=document.getElementById('mb-membres-tbody');if(!tbody)return;
   tbody.innerHTML='';
-  [].concat(src).sort(function(a,b){return GRADES_ORDER.indexOf(a.grade)-GRADES_ORDER.indexOf(b.grade);}).forEach(function(m){
+  [].concat(src).sort(function(a,b){return gradeRank(a.grade)-gradeRank(b.grade);}).forEach(function(m){
     var displayName=m.pseudo||m.nom;
     var photoHtml=m.photo
       ?'<div class="photo-thumb" onclick="previewPhoto(\''+displayName+'\',\''+m.photo+'\')"><img src="'+m.photo+'"/></div>'
@@ -3418,7 +3421,7 @@ function calculerPaies(divId){
   var tbody=document.createElement('tbody');
 
   rows.sort(function(a,b){
-    return GRADES_ORDER.indexOf(a.membre.grade)-GRADES_ORDER.indexOf(b.membre.grade);
+    return gradeRank(a.membre.grade)-gradeRank(b.membre.grade);
   }).forEach(function(r){
     var tr=document.createElement('tr');
     if(r.isDirectAccess){
