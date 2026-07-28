@@ -816,11 +816,40 @@ function closeModal(id){document.getElementById(id).classList.remove('show');}
 document.querySelectorAll('.modal-overlay').forEach(function(m){
   m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('show');});
 });
+function getGradeCategorie(grade){
+  var g=gradeBareme.find(function(x){return x.rang===grade;});
+  return g?g.categorie:'';
+}
+
+function getCategorieStyle(cat){
+  if(!cat)return {cls:'',color:'var(--text3)'};
+  var c=cat.toLowerCase();
+  if(c.indexOf('direction')>=0)return {cls:'badge-danger',color:'var(--danger)'};
+  if(c.indexOf('haut')>=0||c.indexOf('commandement')>=0)return {cls:'badge-grade',color:'var(--purple3)'};
+  if(c.indexOf('sous')>=0||c.indexOf('officier')>=0)return {cls:'badge-ok',color:'var(--success)'};
+  if(c.indexOf('executif')>=0||c.indexOf('exécutif')>=0||c.indexOf('corps')>=0)return {cls:'badge-warn',color:'var(--warning)'};
+  return {cls:'',color:'var(--text3)'};
+}
+
 function gradeColor(g){
-  if(g==='Commandant'||g==='Capitaine')return 'badge-danger';
-  if(g==='Lieutenant'||g==='Sergent Chef')return 'badge-warn';
-  if(g==='Sergent'||g==='Caporal')return 'badge-grade';
-  return '';
+  var cat=getGradeCategorie(g);
+  return getCategorieStyle(cat).cls;
+}
+
+function gradeBadgeHTML(grade){
+  var cat=getGradeCategorie(grade);
+  var style=getCategorieStyle(cat);
+  var badgeClass=style.cls?('badge '+style.cls):'';
+  var html='';
+  if(badgeClass){
+    html='<span class="'+badgeClass+'" style="display:inline-block;">'+grade+'</span>';
+  } else {
+    html='<span style="font-size:12px;color:var(--text2);font-weight:600;">'+grade+'</span>';
+  }
+  if(cat){
+    html+='<br><span style="font-size:10px;color:'+style.color+';opacity:0.7;font-weight:500;letter-spacing:0.3px;">'+cat+'</span>';
+  }
+  return html;
 }
 function previewPhoto(nom,src){
   document.getElementById('pp-name').textContent=nom;
@@ -1257,7 +1286,7 @@ function renderMembres(list){
     if(m.pseudo){var nEl=document.createElement('div');nEl.style.cssText='font-size:11px;color:var(--text3);';nEl.textContent=m.nom;nomCell.appendChild(pEl);nomCell.appendChild(nEl);}
     else{nomCell.appendChild(pEl);}
     tr.appendChild(nomCell);
-    tr.appendChild(mkTd2('<span class="badge '+gradeColor(m.grade)+'">'+m.grade+'</span>'));
+    tr.appendChild(mkTd2(gradeBadgeHTML(m.grade)));
     tr.appendChild(mkTd2(fmtDate(m.date),'font-size:12px;color:var(--text3);'));
     tr.appendChild(mkTd2(sancHtml));
     tr.appendChild(mkTd2(absHtml));
@@ -1552,7 +1581,7 @@ function renderMonCompte(){
     +'<div style="flex:1;min-width:180px;">'
     +'<div style="font-size:24px;font-weight:700;color:var(--text);margin-bottom:2px;">'+pseudo+'</div>'
     +'<div style="font-size:13px;color:var(--text3);margin-bottom:10px;">'+m.nom+'</div>'
-    +'<span class="badge '+gradeColor(m.grade)+'" style="font-size:13px;padding:5px 14px;margin-bottom:12px;display:inline-block;">'+m.grade+'</span>'
+    +(function(){var cat=getGradeCategorie(m.grade);var st=getCategorieStyle(cat);var bc=st.cls?'badge '+st.cls:'';var r=bc?'<span class="'+bc+'" style="font-size:13px;padding:5px 14px;margin-bottom:6px;display:inline-block;">'+m.grade+'</span>':'<span style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;display:inline-block;">'+m.grade+'</span>';if(cat)r+='<br><span style="font-size:11px;color:'+st.color+';opacity:0.75;font-weight:500;">'+cat+'</span>';return r;})()
     +'<div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;">'
     +'<div style="font-size:13px;color:var(--text3);">📞 Téléphone : <span style="color:var(--text2);">'+(m.tel||'—')+'</span></div>'
     +'<div style="font-size:13px;color:var(--text3);">💬 Discord : <span style="color:var(--text2);">'+(m.discord||'—')+'</span></div>'
@@ -3416,7 +3445,20 @@ function renderAccueil(){
   heroTitle.textContent='Bienvenue, '+displayName+' ! ✨';
   var heroSub=document.createElement('div');heroSub.style.cssText='font-size:13px;color:var(--text3);display:flex;align-items:center;gap:10px;margin-top:4px;';
   heroSub.textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  if(grade){var gb=document.createElement('span');gb.className='badge '+gradeColor(grade);gb.style.marginLeft='8px';gb.textContent=grade;heroSub.appendChild(gb);}
+  if(grade){
+    var cat=getGradeCategorie(grade);
+    var style=getCategorieStyle(cat);
+    var gb=document.createElement('span');
+    if(style.cls){gb.className='badge '+style.cls;}
+    gb.style.marginLeft='8px';gb.textContent=grade;
+    heroSub.appendChild(gb);
+    if(cat){
+      var catSpan=document.createElement('span');
+      catSpan.style.cssText='font-size:11px;color:'+style.color+';opacity:0.75;margin-left:8px;font-weight:500;';
+      catSpan.textContent=cat;
+      heroSub.appendChild(catSpan);
+    }
+  }
   heroText.appendChild(heroTitle);heroText.appendChild(heroSub);
   hero.appendChild(avatarDiv);hero.appendChild(heroText);
   var freqBadge=document.createElement('div');
