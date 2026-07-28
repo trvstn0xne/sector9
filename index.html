@@ -2427,6 +2427,37 @@ function renderPresencePanel(panelId, readOnly){
   footer.innerHTML='<span style="color:'+(voted===total?'var(--success)':'var(--text2)')+';">'+voted+' / '+total+'</span> ont répondu';
   card.appendChild(footer);
 
+  // Détail des votes — visible admin + commandants uniquement
+  if(isAdminOrCmd()){
+    var voteMeta={
+      present:{label:'Présent',icon:'✅',color:'var(--success)'},
+      incertain:{label:'En retard / Pas sûr',icon:'⏳',color:'var(--warning)'},
+      absent:{label:'Absent',icon:'❌',color:'var(--danger)'},
+      '':{label:'N\'a pas répondu',icon:'•',color:'var(--text3)'}
+    };
+    var detailWrap=document.createElement('div');
+    detailWrap.style.cssText='margin-top:14px;padding-top:12px;border-top:1px solid var(--border);';
+    var detailTitle=document.createElement('div');
+    detailTitle.style.cssText='font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;';
+    detailTitle.textContent='Détail des votes';
+    detailWrap.appendChild(detailTitle);
+    sortMembres(membersList,'grade').forEach(function(m){
+      var v=evPresences[m.id]||'';
+      var meta=voteMeta[v];
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(120,80,220,0.08);';
+      var nameSpan=document.createElement('span');
+      nameSpan.style.cssText='color:var(--text2);font-size:13px;';
+      nameSpan.textContent=m.pseudo||m.nom;
+      var statusSpan=document.createElement('span');
+      statusSpan.style.cssText='color:'+meta.color+';font-weight:600;font-size:12px;white-space:nowrap;';
+      statusSpan.textContent=meta.icon+' '+meta.label;
+      row.appendChild(nameSpan);row.appendChild(statusSpan);
+      detailWrap.appendChild(row);
+    });
+    card.appendChild(detailWrap);
+  }
+
   panel.innerHTML='';panel.appendChild(card);
 }
 
