@@ -3083,6 +3083,11 @@ function setQuotaDetailRange(n){
   var mid=modal&&modal.dataset.membreId?parseInt(modal.dataset.membreId):null;
   if(mid)renderMembreQuotaDetail(mid);
 }
+function toggleQuotaDetailRow(id){
+  var el=document.getElementById(id);
+  if(!el)return;
+  el.style.display=(el.style.display==='none')?'table-row':'none';
+}
 function renderMembreQuotaDetail(membreId){
   var m=membres.find(function(x){return x.id===membreId;});
   if(!m)return;
@@ -3106,12 +3111,27 @@ function renderMembreQuotaDetail(membreId){
     var submitted=md&&md.submitted;
     if(submitted)joursOk++;
     var contHtml=md&&md.containers?'<span style="color:var(--success);font-weight:700;">&#10003;</span>':'<span style="color:var(--text3);">&#8212;</span>';
-    var recelQty=0,recelVal=0;
-    if(md&&md.recel)md.recel.forEach(function(r){recelQty+=r.qte;var item=database.find(function(x){return x.id===r.itemId;});if(item)recelVal+=item.valeur*r.qte;});
-    var recelHtml=recelQty>0?recelQty+' obj. <span style="color:var(--text3);">('+recelVal.toLocaleString('fr-FR')+' $)</span>':'<span style="color:var(--text3);">&#8212;</span>';
-    var speedoQty=0,speedoVal=0;
-    if(md&&md.speedos)md.speedos.forEach(function(s){speedoQty+=s.qte;var item=database.find(function(x){return x.id===s.itemId;});if(item)speedoVal+=item.valeur*s.qte;});
-    var speedoHtml=speedoQty>0?speedoQty+' obj. <span style="color:var(--text3);">('+speedoVal.toLocaleString('fr-FR')+' $)</span>':'<span style="color:var(--text3);">&#8212;</span>';
+    var safeId=d.replace(/-/g,'');
+    var recelQty=0,recelVal=0,recelLines=[];
+    if(md&&md.recel)md.recel.forEach(function(r){
+      if(!r.qte)return;
+      recelQty+=r.qte;var item=database.find(function(x){return x.id===r.itemId;});
+      if(item){var v=item.valeur*r.qte;recelVal+=v;recelLines.push({nom:item.nom,qte:r.qte,val:v});}
+    });
+    var recelDetailId='mqd-recel-'+safeId;
+    var recelHtml=recelQty>0
+      ?'<span onclick="toggleQuotaDetailRow(\''+recelDetailId+'\')" style="cursor:pointer;color:var(--purple2);text-decoration:underline dotted;">'+recelQty+' obj. <span style="color:var(--text3);text-decoration:none;">('+recelVal.toLocaleString('fr-FR')+' $)</span></span>'
+      :'<span style="color:var(--text3);">&#8212;</span>';
+    var speedoQty=0,speedoVal=0,speedoLines=[];
+    if(md&&md.speedos)md.speedos.forEach(function(s){
+      if(!s.qte)return;
+      speedoQty+=s.qte;var item=database.find(function(x){return x.id===s.itemId;});
+      if(item){var v2=item.valeur*s.qte;speedoVal+=v2;speedoLines.push({nom:item.nom,qte:s.qte,val:v2});}
+    });
+    var speedoDetailId='mqd-speedo-'+safeId;
+    var speedoHtml=speedoQty>0
+      ?'<span onclick="toggleQuotaDetailRow(\''+speedoDetailId+'\')" style="cursor:pointer;color:var(--purple2);text-decoration:underline dotted;">'+speedoQty+' obj. <span style="color:var(--text3);text-decoration:none;">('+speedoVal.toLocaleString('fr-FR')+' $)</span></span>'
+      :'<span style="color:var(--text3);">&#8212;</span>';
     var statutHtml=submitted?'<span style="color:var(--success);font-weight:600;">Soumis</span>':'<span style="color:var(--text3);">Non soumis</span>';
     html+='<tr'+(d===todayStr?' style="background:rgba(124,58,237,0.08);"':'')+'>'
       +'<td style="font-weight:600;white-space:nowrap;">'+dayLabelFR(d)+(d===todayStr?' <span style="color:var(--purple2);font-size:10px;">(auj.)</span>':'')+'</td>'
@@ -3120,6 +3140,22 @@ function renderMembreQuotaDetail(membreId){
       +'<td>'+speedoHtml+'</td>'
       +'<td>'+statutHtml+'</td>'
       +'</tr>';
+    if(recelLines.length){
+      html+='<tr id="'+recelDetailId+'" style="display:none;background:var(--bg3);">'
+        +'<td></td>'
+        +'<td colspan="4" style="padding:8px 14px;">'
+        +'<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">&#128176; Détail recel</div>'
+        +recelLines.map(function(l){return '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:2px 0;"><span>'+l.nom+' &times;'+l.qte+'</span><span style="color:var(--purple2);font-weight:600;">'+l.val.toLocaleString('fr-FR')+' $</span></div>';}).join('')
+        +'</td></tr>';
+    }
+    if(speedoLines.length){
+      html+='<tr id="'+speedoDetailId+'" style="display:none;background:var(--bg3);">'
+        +'<td></td>'
+        +'<td colspan="4" style="padding:8px 14px;">'
+        +'<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">&#129514; Détail speedos</div>'
+        +speedoLines.map(function(l){return '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:2px 0;"><span>'+l.nom+' &times;'+l.qte+'</span><span style="color:var(--purple2);font-weight:600;">'+l.val.toLocaleString('fr-FR')+' $</span></div>';}).join('')
+        +'</td></tr>';
+    }
   });
   html+='</tbody></table></div>';
   html+='<div style="margin-top:10px;font-size:12px;color:var(--text3);text-align:right;">'+joursOk+' / '+dates.length+' jours avec quotas soumis</div>';
