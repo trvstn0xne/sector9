@@ -4381,6 +4381,21 @@ function populateSuppSelect(sel){
   });
 }
 
+
+function populateGradeSelect(selId, currentGrade){
+  var sel=document.getElementById(selId);if(!sel)return;
+  sel.innerHTML='';
+  gradeBareme.forEach(function(g){
+    var opt=document.createElement('option');
+    opt.value=g.rang;opt.textContent=g.rang;
+    if(g.rang===(currentGrade||'Recrue'))opt.selected=true;
+    sel.appendChild(opt);
+  });
+  if(currentGrade&&!gradeBareme.find(function(g){return g.rang===currentGrade;})){
+    var opt=document.createElement('option');opt.value=currentGrade;opt.textContent=currentGrade+' (ancien)';opt.selected=true;sel.appendChild(opt);
+  }
+}
+
 // ============================================================
 // LOCALSTORAGE
 // ============================================================
