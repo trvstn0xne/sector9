@@ -1323,6 +1323,7 @@ function openAddMembre(){
   ['m-radio','m-arme','m-disqueuse','m-absence'].forEach(function(id){document.getElementById(id).checked=false;});
   document.getElementById('m-absence-fin').value='';document.getElementById('absence-date-wrap').style.display='none';
   document.getElementById('m-photo-preview').style.display='none';document.getElementById('m-ci-preview').style.display='none';
+  populateGradeSelect('m-grade','Recrue');
   openModal('modal-membre');
 }
 function openEditMembre(id){
@@ -1333,7 +1334,7 @@ function openEditMembre(id){
   document.getElementById('m-pseudo').value=m.pseudo||'';
   document.getElementById('m-date').value=m.date;
   document.getElementById('m-tel').value=m.tel;
-  document.getElementById('m-grade').value=m.grade;
+  populateGradeSelect('m-grade', m.grade);
   document.getElementById('m-discord').value=m.discord||'';
   document.getElementById('m-radio').checked=m.radio;
   document.getElementById('m-arme').checked=m.arme;
