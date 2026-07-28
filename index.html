@@ -541,6 +541,35 @@ window.addEventListener('error', function(e){
 // DONNÉES GLOBALES
 // ============================================================
 const GRADES_ORDER=['Commandant','Capitaine','Lieutenant','Sergent Chef','Sergent','Caporal','Opérateur','Recrue'];
+let _membreSort='grade';
+function sortMembres(list,mode){
+  mode=mode||_membreSort;
+  return [].concat(list).sort(function(a,b){
+    if(a.pending&&!b.pending)return 1;
+    if(!a.pending&&b.pending)return -1;
+    if(mode==='nom'){
+      var an=(a.pseudo||a.nom||'').toLowerCase();
+      var bn=(b.pseudo||b.nom||'').toLowerCase();
+      return an.localeCompare(bn);
+    }
+    return GRADES_ORDER.indexOf(a.grade)-GRADES_ORDER.indexOf(b.grade);
+  });
+}
+function setMembreSort(mode){
+  _membreSort=mode;
+  var gBtn=document.getElementById('sort-grade-btn');
+  var nBtn=document.getElementById('sort-nom-btn');
+  if(gBtn&&nBtn){
+    if(mode==='grade'){
+      gBtn.style.background='rgba(124,58,237,0.2)';gBtn.style.color='var(--purple2)';
+      nBtn.style.background='';nBtn.style.color='';
+    } else {
+      nBtn.style.background='rgba(124,58,237,0.2)';nBtn.style.color='var(--purple2)';
+      gBtn.style.background='';gBtn.style.color='';
+    }
+  }
+  filterMembres();
+}
 const GRAVITE_LABELS={mineure:'Mineure',intermediaire:'Intermédiaire',grave:'Grave',critique:'Critique'};
 const GRAVITE_CLASSES={mineure:'grav-mineure',intermediaire:'grav-intermediaire',grave:'grav-grave',critique:'grav-critique'};
 const GRAVITE_COLORS={mineure:'var(--success)',intermediaire:'var(--warning)',grave:'#e05c00',critique:'var(--danger)'};
@@ -1263,11 +1292,7 @@ function renderMembres(list){
   thead.innerHTML='<tr><th>Photo</th><th>Pseudo / Nom</th><th>Grade</th><th>Arrivee</th><th>Sanctions</th><th>Absence</th><th>Actions</th></tr>';
   var tbody=document.createElement('tbody');tbody.id='membres-tbody';
   table.appendChild(thead);table.appendChild(tbody);tableDiv.appendChild(table);wrap.appendChild(tableDiv);
-  var sorted=[].concat(list).sort(function(a,b){
-    if(a.pending&&!b.pending)return 1;
-    if(!a.pending&&b.pending)return -1;
-    return GRADES_ORDER.indexOf(a.grade)-GRADES_ORDER.indexOf(b.grade);
-  });
+  var sorted=sortMembres(list,_membreSort);
   sorted.forEach(function(m){
     var tr=document.createElement('tr');
     var tdPhoto=document.createElement('td');
@@ -4212,7 +4237,7 @@ function renderGradeBareme(){
     +'<th style="color:#fff;">Condition de promotion</th>'
     +'</tr></thead><tbody>';
   Object.keys(cats).forEach(function(cat){
-    html+='<tr><td colspan="4" style="background:var(--bg3);color:var(--purple3);font-weight:700;font-size:12px;padding:8px 12px;letter-spacing:0.5px;">'+cat+'</td></tr>';
+    html+='<tr><td colspan="4" style="background:var(--bg3);color:var(--text3);font-weight:700;font-size:12px;padding:8px 12px;letter-spacing:0.5px;">'+cat+'</td></tr>';
     cats[cat].forEach(function(g){
       html+='<tr>'
         +'<td style="font-weight:600;">'+g.rang+'</td>'
