@@ -1016,9 +1016,11 @@ function buildAdminHTML(){
     +'<div style="display:flex;justify-content:flex-end;margin-bottom:10px;"><button class="btn btn-sm" onclick="openQuotaGestion()">&#128465; Gerer les dates</button></div>'
     +'<div class="subtabs" id="admin-quota-subtabs">'
     +'<button class="subtab active" onclick="showQuotaSubtab(\'admin-quota-subtabs\',\'aq-recap\',this)">Récap membres</button>'
+    +'<button class="subtab" onclick="showQuotaSubtab(\'admin-quota-subtabs\',\'aq-parmembre\',this)">Par membre</button>'
     +'<button class="subtab" onclick="showQuotaSubtab(\'admin-quota-subtabs\',\'aq-armes\',this)">Quota armes</button>'
     +'</div>'
     +'<div id="aq-recap" class="subtab-content active"><div id="quota-recap-div"></div></div>'
+    +'<div id="aq-parmembre" class="subtab-content"><div id="quota-parmembre-div"></div></div>'
     +'<div id="aq-armes" class="subtab-content"><div id="admin-armes-recap-wrap"></div></div>'
     +'</div>'
 
@@ -1123,6 +1125,7 @@ function buildMembreHTML(isCmd,isRecruit){
     +'<div id="mb-quota-subtabs-wrap"></div>'
     +'<div id="mbq-saisie" class="subtab-content active"><div id="mb-quota-saisie-div"></div></div>'
     +'<div id="mbq-recap" class="subtab-content"><div id="mb-quota-recap-div"></div></div>'
+    +'<div id="mbq-parmembre" class="subtab-content"><div id="mb-quota-parmembre-div"></div></div>'
     +'<div id="mbq-armes" class="subtab-content"><div id="armes-quota-wrap"></div></div>'
     +'</div>'
     +'</div>'
@@ -2490,6 +2493,23 @@ function getTodayStr(){
   var d=String(now.getDate()).padStart(2,'0');
   return y+'-'+m+'-'+d;
 }
+function lastNDates(n){
+  var arr=[];
+  var ref=new Date();
+  if(ref.getHours()<7)ref.setDate(ref.getDate()-1);
+  for(var i=0;i<n;i++){
+    var d=new Date(ref);d.setDate(d.getDate()-i);
+    var y=d.getFullYear(),mo=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');
+    arr.push(y+'-'+mo+'-'+da);
+  }
+  return arr;
+}
+function dayLabelFR(dateStr){
+  var p=dateStr.split('-');
+  var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  var idx=(d.getDay()+6)%7;
+  return DAYS_FR[idx]+' '+p[2]+'/'+p[1];
+}
 
 function getMyTodayData(){
   if(!currentUser||!currentUser.membreId)return null;
@@ -2990,6 +3010,122 @@ function renderQuotaRecapForDate(container, dateStr, membersList, showValues){
   });
 }
 
+// ============================================================
+// QUOTAS — VUE PAR MEMBRE (detail jour par jour)
+// ============================================================
+function renderQuotaParMembre(divId){
+  var div=document.getElementById(divId);if(!div)return;
+  var membersList=sortMembres(membres.filter(function(m){return !m.pending;}),'grade');
+  var wrap=document.createElement('div');
+
+  var sub=document.createElement('div');
+  sub.style.cssText='font-size:12px;color:var(--text3);margin-bottom:14px;';
+  sub.textContent='Cliquez sur un membre pour voir le détail jour par jour de ses quotas.';
+  wrap.appendChild(sub);
+
+  if(!membersList.length){
+    var empty=document.createElement('p');empty.style.cssText='color:var(--text3);font-size:13px;';empty.textContent='Aucun membre.';
+    wrap.appendChild(empty);div.innerHTML='';div.appendChild(wrap);return;
+  }
+
+  var list=document.createElement('div');
+  list.style.cssText='display:flex;flex-direction:column;gap:8px;';
+  var dates7=lastNDates(7);
+  membersList.forEach(function(m){
+    var streak=dates7.filter(function(d){var md=quotaHistory[d]&&quotaHistory[d][m.id];return md&&md.submitted;}).length;
+    var row=document.createElement('div');
+    row.className='card';
+    row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;';
+    row.onclick=(function(id){return function(){openMembreQuotaModal(id);};})(m.id);
+    var photoDiv=document.createElement('div');photoDiv.className='photo-thumb';
+    if(m.photo){var img=document.createElement('img');img.src=m.photo;photoDiv.appendChild(img);}
+    else{photoDiv.textContent=(m.pseudo||m.nom).charAt(0).toUpperCase();}
+    var info=document.createElement('div');info.style.cssText='flex:1;';
+    info.innerHTML='<div style="font-weight:700;font-size:14px;color:var(--text);">'+(m.pseudo||m.nom)+'</div><div style="font-size:11px;color:var(--text3);">'+m.grade+'</div>';
+    var streakBadge=document.createElement('span');
+    streakBadge.style.cssText='padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;'+(streak>0?'background:rgba(29,158,117,0.12);color:var(--success);':'background:var(--bg3);color:var(--text3);');
+    streakBadge.textContent=streak+'/7 jours';
+    var arrow=document.createElement('span');arrow.style.cssText='color:var(--text3);font-size:16px;';arrow.textContent='›';
+    row.appendChild(photoDiv);row.appendChild(info);row.appendChild(streakBadge);row.appendChild(arrow);
+    list.appendChild(row);
+  });
+  wrap.appendChild(list);
+  div.innerHTML='';div.appendChild(wrap);
+}
+
+var _quotaDetailRange=14;
+function openMembreQuotaModal(membreId){
+  var m=membres.find(function(x){return x.id===membreId;});
+  if(!m)return;
+  var modal=document.getElementById('modal-membre-quota-detail');
+  if(!modal){
+    modal=document.createElement('div');modal.className='modal-overlay';modal.id='modal-membre-quota-detail';modal.style.zIndex='600';
+    var mb=document.createElement('div');mb.className='modal-box';mb.style.maxWidth='620px';
+    mb.innerHTML='<button class="close-x" onclick="closeModal(\'modal-membre-quota-detail\')">&#x2715;</button>'
+      +'<div id="mqd-header" style="margin-bottom:14px;"></div>'
+      +'<div style="display:flex;gap:8px;margin-bottom:16px;">'
+      +'<button class="btn btn-sm" id="mqd-range-7" onclick="setQuotaDetailRange(7)">7 jours</button>'
+      +'<button class="btn btn-sm" id="mqd-range-14" onclick="setQuotaDetailRange(14)">14 jours</button>'
+      +'<button class="btn btn-sm" id="mqd-range-30" onclick="setQuotaDetailRange(30)">30 jours</button>'
+      +'</div>'
+      +'<div id="mqd-body"></div>';
+    modal.appendChild(mb);
+    modal.addEventListener('click',function(e){if(e.target===modal)closeModal('modal-membre-quota-detail');});
+    document.body.appendChild(modal);
+  }
+  modal.dataset.membreId=membreId;
+  renderMembreQuotaDetail(membreId);
+  openModal('modal-membre-quota-detail');
+}
+function setQuotaDetailRange(n){
+  _quotaDetailRange=n;
+  var modal=document.getElementById('modal-membre-quota-detail');
+  var mid=modal&&modal.dataset.membreId?parseInt(modal.dataset.membreId):null;
+  if(mid)renderMembreQuotaDetail(mid);
+}
+function renderMembreQuotaDetail(membreId){
+  var m=membres.find(function(x){return x.id===membreId;});
+  if(!m)return;
+  var header=document.getElementById('mqd-header');
+  if(header)header.innerHTML='<div style="font-weight:800;font-size:17px;color:var(--text);">'+(m.pseudo||m.nom)+'</div><div style="font-size:12px;color:var(--text3);">'+m.grade+(m.pseudo?' · '+m.nom:'')+'</div>';
+  [7,14,30].forEach(function(n){
+    var b=document.getElementById('mqd-range-'+n);
+    if(b){
+      if(n===_quotaDetailRange){b.style.background='rgba(124,58,237,0.2)';b.style.color='var(--purple2)';}
+      else{b.style.background='';b.style.color='';}
+    }
+  });
+  var body=document.getElementById('mqd-body');
+  if(!body)return;
+  var dates=lastNDates(_quotaDetailRange);
+  var todayStr=getTodayStr();
+  var html='<div class="table-wrap"><table><thead><tr><th>Jour</th><th>Containers</th><th>Recel</th><th>Speedos</th><th>Statut</th></tr></thead><tbody>';
+  var joursOk=0;
+  dates.forEach(function(d){
+    var md=quotaHistory[d]&&quotaHistory[d][membreId];
+    var submitted=md&&md.submitted;
+    if(submitted)joursOk++;
+    var contHtml=md&&md.containers?'<span style="color:var(--success);font-weight:700;">&#10003;</span>':'<span style="color:var(--text3);">&#8212;</span>';
+    var recelQty=0,recelVal=0;
+    if(md&&md.recel)md.recel.forEach(function(r){recelQty+=r.qte;var item=database.find(function(x){return x.id===r.itemId;});if(item)recelVal+=item.valeur*r.qte;});
+    var recelHtml=recelQty>0?recelQty+' obj. <span style="color:var(--text3);">('+recelVal.toLocaleString('fr-FR')+' $)</span>':'<span style="color:var(--text3);">&#8212;</span>';
+    var speedoQty=0,speedoVal=0;
+    if(md&&md.speedos)md.speedos.forEach(function(s){speedoQty+=s.qte;var item=database.find(function(x){return x.id===s.itemId;});if(item)speedoVal+=item.valeur*s.qte;});
+    var speedoHtml=speedoQty>0?speedoQty+' obj. <span style="color:var(--text3);">('+speedoVal.toLocaleString('fr-FR')+' $)</span>':'<span style="color:var(--text3);">&#8212;</span>';
+    var statutHtml=submitted?'<span style="color:var(--success);font-weight:600;">Soumis</span>':'<span style="color:var(--text3);">Non soumis</span>';
+    html+='<tr'+(d===todayStr?' style="background:rgba(124,58,237,0.08);"':'')+'>'
+      +'<td style="font-weight:600;white-space:nowrap;">'+dayLabelFR(d)+(d===todayStr?' <span style="color:var(--purple2);font-size:10px;">(auj.)</span>':'')+'</td>'
+      +'<td>'+contHtml+'</td>'
+      +'<td>'+recelHtml+'</td>'
+      +'<td>'+speedoHtml+'</td>'
+      +'<td>'+statutHtml+'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div style="margin-top:10px;font-size:12px;color:var(--text3);text-align:right;">'+joursOk+' / '+dates.length+' jours avec quotas soumis</div>';
+  body.innerHTML=html;
+}
+
 function showQuotaSubtab(groupId,tabId,btn){
   var g=document.getElementById(groupId);if(!g)return;
   var parent=g.parentElement;
@@ -3000,6 +3136,7 @@ function showQuotaSubtab(groupId,tabId,btn){
   if(tabId==='mbq-recap')renderQuotaRecap('mb-quota-recap-div',true);
   if(tabId==='mbq-saisie')renderQuotaSaisie('mb-quota-saisie-div');
   if(tabId==='aq-recap')renderQuotaRecap('quota-recap-div',true);
+  if(tabId==='aq-parmembre')renderQuotaParMembre('quota-parmembre-div');
   if(tabId==='aq-armes')renderAdminArmesRecap();
 }
 
@@ -3934,6 +4071,7 @@ function renderQuotaSubtabs(){
   var html='<div class="subtabs" id="mb-quota-subtabs">';
   html+='<button class="subtab active" onclick="showQuotaSubtab2(\'mbq-saisie\',this)">Mes quotas</button>';
   if(isCmd)html+='<button class="subtab" onclick="showQuotaSubtab2(\'mbq-recap\',this)">Quotas des membres</button>';
+  if(isCmd)html+='<button class="subtab" onclick="showQuotaSubtab2(\'mbq-parmembre\',this)">Par membre</button>';
   if(hasArmes)html+='<button class="subtab" onclick="showQuotaSubtab2(\'mbq-armes\',this)">Armes</button>';
   html+='</div>';
   wrap.innerHTML=html;
@@ -3941,7 +4079,7 @@ function renderQuotaSubtabs(){
 
 function showQuotaSubtab2(tabId,btn){
   // Toggle all content divs in the container
-  ['mbq-saisie','mbq-recap','mbq-armes'].forEach(function(id){
+  ['mbq-saisie','mbq-recap','mbq-parmembre','mbq-armes'].forEach(function(id){
     var el=document.getElementById(id);
     if(el)el.classList.remove('active');
   });
@@ -3954,6 +4092,7 @@ function showQuotaSubtab2(tabId,btn){
   if(btn)btn.classList.add('active');
   // Render content
   if(tabId==='mbq-recap')renderQuotaRecap('mb-quota-recap-div',true);
+  if(tabId==='mbq-parmembre')renderQuotaParMembre('mb-quota-parmembre-div');
   if(tabId==='mbq-saisie')renderQuotaSaisie('mb-quota-saisie-div');
   if(tabId==='mbq-armes')renderArmesQuota();
 }
