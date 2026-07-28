@@ -544,16 +544,20 @@ const GRADES_ORDER=['Commandant','Capitaine','Lieutenant','Sergent Chef','Sergen
 const GRAVITE_LABELS={mineure:'Mineure',intermediaire:'Intermédiaire',grave:'Grave',critique:'Critique'};
 const GRAVITE_CLASSES={mineure:'grav-mineure',intermediaire:'grav-intermediaire',grave:'grav-grave',critique:'grav-critique'};
 const GRAVITE_COLORS={mineure:'var(--success)',intermediaire:'var(--warning)',grave:'#e05c00',critique:'var(--danger)'};
-const REVENUS_GRADE={
-  'Commandant':{categorie:'Direction',speedos:null,note:'acces_direct'},
-  'Capitaine':{categorie:'Direction',speedos:25,note:''},
-  'Lieutenant':{categorie:'Haut gradé',speedos:20,note:''},
-  'Sergent Chef':{categorie:'Haut gradé',speedos:17,note:''},
-  'Sergent':{categorie:'Haut gradé',speedos:15,note:''},
-  'Caporal':{categorie:'Corps exécutif',speedos:10,note:''},
-  'Opérateur':{categorie:'Corps exécutif',speedos:5,note:''},
-  'Recrue':{categorie:'Corps exécutif',speedos:0,note:'aucune'},
-};
+// REVENUS_GRADE is now dynamic - reads from gradeBareme
+function getRevenusGrade(grade){
+  var g=gradeBareme.find(function(x){return x.rang===grade;});
+  if(g){
+    var isNull=(g.paieSpeedo===null||g.paieSpeedo===undefined);
+    return {
+      categorie: g.categorie||'',
+      speedos: isNull ? null : Number(g.paieSpeedo)||0,
+      paieRecel: g.paieRecel!==null&&g.paieRecel!==undefined ? Number(g.paieRecel) : 0,
+      note: isNull ? 'acces_direct' : (Number(g.paieSpeedo)===0 ? 'aucune' : '')
+    };
+  }
+  return {categorie:'',speedos:0,paieRecel:0,note:'aucune'};
+}
 const CAT_COLORS={'Recel':'rgba(29,158,117,0.15)','Drogue':'rgba(226,75,74,0.15)','Recolte':'rgba(124,58,237,0.15)','Autre':'rgba(136,135,128,0.15)','Armement':'rgba(239,159,39,0.15)'};
 const CAT_TEXT={'Recel':'var(--success)','Drogue':'var(--danger)','Recolte':'var(--purple2)','Autre':'var(--text3)','Armement':'var(--warning)'};
 const CAT_LABELS={'Recel':'Recel','Drogue':'Drogue','Recolte':'Récolte','Autre':'Autre','Armement':'Armement'};
@@ -1522,7 +1526,7 @@ function renderMonCompte(){
   if(!isOk){div.innerHTML='';return;}
   var m=membres.find(function(x){return x.id===currentUser.membreId;});
   if(!m){div.innerHTML='<p style="color:var(--text3);">Profil introuvable. Demandez à un admin de lier votre compte.</p>';return;}
-  var rev=REVENUS_GRADE[m.grade]||{categorie:'',speedos:0,note:''};
+  var rev=getRevenusGrade(m.grade)||{categorie:'',speedos:0,note:''};
   var pseudo=m.pseudo||m.nom;
   var avatarInner=m.photo?'<img src="'+m.photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>':'<span style="font-size:40px;line-height:1;">'+pseudo.charAt(0).toUpperCase()+'</span>';
   var revHtml='';
@@ -3284,7 +3288,7 @@ function calculerPaies(divId){
   // 2. Membres éligibles au recel = non-commandants ayant un % > 0
   var membersList=membres.filter(function(m){return !m.pending;});
   var eligiblesRecel=membersList.filter(function(m){
-    var rev=REVENUS_GRADE[m.grade]||{};
+    var rev=getRevenusGrade(m.grade)||{};
     return rev.note!=='acces_direct'&&(rev.speedos||0)>0;
   });
 
@@ -3300,7 +3304,7 @@ function calculerPaies(divId){
   var rows=[];
 
   membersList.forEach(function(m){
-    var rev=REVENUS_GRADE[m.grade]||{speedos:0,note:''};
+    var rev=getRevenusGrade(m.grade)||{speedos:0,note:''};
     var isDirectAccess=rev.note==='acces_direct';
     var speedoPct=rev.speedos||0;
     var speedoVal=memberSpeedos[m.id]||0;
