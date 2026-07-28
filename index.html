@@ -3499,6 +3499,8 @@ function renderRecette(divId){
 // ============================================================
 // PAIE HEBDOMADAIRE
 // ============================================================
+let paieExclusions={}; // { membreId: true } => membre exclu de la paie de cette semaine
+
 function renderPaie(divId){
   var div=document.getElementById(divId);if(!div)return;
   div.innerHTML='';
@@ -3518,6 +3520,47 @@ function renderPaie(divId){
   calcBtn.onclick=function(){calculerPaies(divId);};
   hdr.appendChild(titleEl);hdr.appendChild(calcBtn);
   div.appendChild(hdr);
+
+  // Checklist des membres à payer
+  var membersList=sortMembres(membres.filter(function(m){return !m.pending;}),'grade');
+  var checkWrap=document.createElement('div');
+  checkWrap.className='card';
+  checkWrap.style.cssText='margin-bottom:16px;';
+  var ctitle=document.createElement('div');
+  ctitle.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;';
+  ctitle.innerHTML='<div><div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Membres à payer cette semaine</div>'
+    +'<div style="font-size:11px;color:var(--text3);margin-top:2px;">Décochez un membre pour l\'exclure de la paie (ex : absence non justifiée). Le recel sera réparti uniquement entre les membres cochés.</div></div>';
+  var resetBtn=document.createElement('button');
+  resetBtn.className='btn btn-sm';resetBtn.textContent='Tout cocher';
+  resetBtn.onclick=function(){paieExclusions={};renderPaie(divId);};
+  ctitle.appendChild(resetBtn);
+  checkWrap.appendChild(ctitle);
+
+  var checkGrid=document.createElement('div');
+  checkGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;';
+  membersList.forEach(function(m){
+    var excluded=!!paieExclusions[m.id];
+    var lbl=document.createElement('label');
+    lbl.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--r2);background:var(--bg3);cursor:pointer;font-size:12px;'
+      +'color:'+(excluded?'var(--text3)':'var(--text2)')+';'+(excluded?'text-decoration:line-through;opacity:0.6;':'');
+    var cb=document.createElement('input');
+    cb.type='checkbox';cb.checked=!excluded;
+    cb.style.cssText='accent-color:var(--purple);cursor:pointer;flex-shrink:0;';
+    var span=document.createElement('span');span.textContent=m.pseudo||m.nom;
+    cb.onchange=(function(id,lblEl){return function(){
+      if(paieExclusions[id])delete paieExclusions[id];else paieExclusions[id]=true;
+      var exc=!!paieExclusions[id];
+      lblEl.style.color=exc?'var(--text3)':'var(--text2)';
+      lblEl.style.textDecoration=exc?'line-through':'none';
+      lblEl.style.opacity=exc?'0.6':'1';
+      var resultDiv=document.getElementById(divId+'-result');
+      if(resultDiv&&resultDiv.innerHTML.trim())calculerPaies(divId);
+    };})(m.id,lbl);
+    lbl.appendChild(cb);lbl.appendChild(span);
+    checkGrid.appendChild(lbl);
+  });
+  checkWrap.appendChild(checkGrid);
+  div.appendChild(checkWrap);
 
   var resultDiv=document.createElement('div');resultDiv.id=divId+'-result';
   div.appendChild(resultDiv);
@@ -3557,9 +3600,10 @@ function calculerPaies(divId){
     });
   });
 
-  // 2. Membres éligibles au recel = non-commandants ayant un % > 0
+  // 2. Membres éligibles au recel = non-commandants ayant un % > 0, et non exclus de la paie
   var membersList=membres.filter(function(m){return !m.pending;});
   var eligiblesRecel=membersList.filter(function(m){
+    if(paieExclusions[m.id])return false;
     var rev=getRevenusGrade(m.grade)||{};
     return rev.note!=='acces_direct'&&(rev.speedos||0)>0;
   });
@@ -3576,26 +3620,27 @@ function calculerPaies(divId){
   var rows=[];
 
   membersList.forEach(function(m){
+    var excluded=!!paieExclusions[m.id];
     var rev=getRevenusGrade(m.grade)||{speedos:0,note:''};
     var isDirectAccess=rev.note==='acces_direct';
     var speedoPct=rev.speedos||0;
     var speedoVal=memberSpeedos[m.id]||0;
 
     // Speedos : % du total $ que CE membre a rapporté
-    var paieSpeedo=isDirectAccess?0:Math.round(speedoVal*(speedoPct/100));
+    var paieSpeedo=(!excluded&&!isDirectAccess)?Math.round(speedoVal*(speedoPct/100)):0;
 
-    // Recel : part égale du pool recel pour les membres éligibles
+    // Recel : part égale du pool recel pour les membres éligibles et non exclus
     var paieRecel=0;
-    if(!isDirectAccess&&speedoPct>0){
+    if(!excluded&&!isDirectAccess&&speedoPct>0){
       paieRecel=partRecelParMembre;
     }
 
     var total=paieSpeedo+paieRecel;
-    totalPaies+=total;
+    if(!excluded)totalPaies+=total;
     rows.push({
       membre:m,speedoPct:speedoPct,speedoVal:speedoVal,
       paieSpeedo:paieSpeedo,paieRecel:paieRecel,total:total,
-      isDirectAccess:isDirectAccess
+      isDirectAccess:isDirectAccess,excluded:excluded
     });
   });
 
@@ -3628,7 +3673,12 @@ function calculerPaies(divId){
     return gradeRank(a.membre.grade)-gradeRank(b.membre.grade);
   }).forEach(function(r){
     var tr=document.createElement('tr');
-    if(r.isDirectAccess){
+    if(r.excluded){
+      tr.style.opacity='0.5';
+      tr.innerHTML='<td style="font-weight:600;color:var(--text);">'+(r.membre.pseudo||r.membre.nom)+'</td>'
+        +'<td><span class="badge '+gradeColor(r.membre.grade)+'">'+r.membre.grade+'</span></td>'
+        +'<td colspan="5" style="color:var(--danger);font-size:12px;">Exclu de la paie cette semaine</td>';
+    } else if(r.isDirectAccess){
       tr.innerHTML='<td style="font-weight:600;color:var(--text);">'+(r.membre.pseudo||r.membre.nom)+'</td>'
         +'<td><span class="badge '+gradeColor(r.membre.grade)+'">'+r.membre.grade+'</span></td>'
         +'<td colspan="5" style="color:var(--text3);font-size:12px;">Accès direct au coffre — pas de paie calculée</td>';
@@ -3655,7 +3705,9 @@ function calculerPaies(divId){
 
   var note=document.createElement('p');
   note.style.cssText='font-size:11px;color:var(--text3);margin-top:12px;';
-  note.textContent='Speedos : chaque membre touche son % sur ses speedos personnels. Recel : '+poolRecelPct+'% du total recel divisé en parts égales entre les '+eligiblesRecel.length+' membres éligibles.';
+  var nbExclus=Object.keys(paieExclusions).filter(function(id){return membersList.some(function(m){return String(m.id)===String(id);});}).length;
+  note.textContent='Speedos : chaque membre touche son % sur ses speedos personnels. Recel : '+poolRecelPct+'% du total recel divisé en parts égales entre les '+eligiblesRecel.length+' membres éligibles et cochés.'
+    +(nbExclus>0?' ('+nbExclus+' membre'+(nbExclus>1?'s':'')+' exclu'+(nbExclus>1?'s':'')+' de la paie cette semaine.)':'');
   resultDiv.appendChild(note);
 }
 
