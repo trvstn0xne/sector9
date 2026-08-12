@@ -686,7 +686,7 @@ let comptes=[];
 let presences={};
 // presences = { eventId: { membreId: 'present'|'incertain'|'absent' } }
 let quotaHistory={};
-let coffre={solde:0,transactions:[]};var marchandises=[];var stockInventaire={};var marchandiseCategories=[];var parrainages=[];var parrainageMessage="Chaque filleul doit se tourner vers son parrain respectif avant toute autre démarche — questions, problèmes ou demandes d'encadrement.";var MONTHS_FR=['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
+let coffre={solde:0,transactions:[]};var marchandises=[];var stockInventaire={};var marchandiseCategories=[];var parrainages=[];var MONTHS_FR=['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
 var DAYS_FR=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 var paieArchives=[];
 var recruitQuestions=[];
@@ -1107,10 +1107,6 @@ function buildAdminHTML(){
     +'<div class="section" id="sec-admin-parrainage">'
     +'<div class="section-title">Parrainage</div>'
     +'<div class="section-sub">Associe chaque parrain à ses filleuls</div>'
-    +'<div class="card" style="margin-bottom:20px;">'
-    +'<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Message affiché aux membres</div>'
-    +'<textarea class="input" id="parrainage-msg" rows="3" style="resize:vertical;" oninput="updateParrainageMessage(this.value)">'+parrainageMessage.replace(/</g,'&lt;')+'</textarea>'
-    +'</div>'
     +'<div style="display:flex;gap:10px;margin-bottom:16px;">'
     +'<button class="btn btn-primary" onclick="addParrainageRow()">+ Ajouter une ligne</button>'
     +'</div>'
@@ -2107,38 +2103,50 @@ function deleteParrainageRow(id){
   renderParrainageAdmin();
   sauvegarder();
 }
-var _parrainageMsgTimer=null;
-function updateParrainageMessage(val){
-  parrainageMessage=val;
-  clearTimeout(_parrainageMsgTimer);
-  _parrainageMsgTimer=setTimeout(function(){sauvegarder();},700);
+function parrainagePersonCardHtml(m){
+  return '<div style="display:flex;align-items:center;gap:14px;">'
+    +'<div style="width:60px;height:60px;border-radius:50%;background:var(--bg3);border:2px solid var(--purple);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text3);">'
+    +(m.photo?'<img src="'+m.photo+'" style="width:100%;height:100%;object-fit:cover;">':'👤')
+    +'</div>'
+    +'<div>'
+    +'<div style="font-weight:700;font-size:15px;color:var(--text);">'+(m.pseudo||m.nom)+'</div>'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:4px;">'+m.grade+'</div>'
+    +'<div style="font-size:13px;color:var(--text2);">📞 '+(m.tel||'—')+'</div>'
+    +'</div></div>';
 }
 function renderMbParrainage(){
   var div=document.getElementById('mb-parrainage-content');if(!div)return;
   var myId=currentUser&&currentUser.membreId;
+
   var mine=parrainages.find(function(p){
     return String(p.filleul1Id)===String(myId)||String(p.filleul2Id)===String(myId)||String(p.filleul3Id)===String(myId);
   });
   var parrain=mine?membres.find(function(m){return String(m.id)===String(mine.parrainId);}):null;
 
-  var html='<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">';
+  var filleulIds=[];
+  parrainages.filter(function(p){return String(p.parrainId)===String(myId);}).forEach(function(p){
+    [p.filleul1Id,p.filleul2Id,p.filleul3Id].forEach(function(fid){
+      if(fid&&filleulIds.indexOf(fid)===-1)filleulIds.push(fid);
+    });
+  });
+  var filleuls=filleulIds.map(function(fid){return membres.find(function(m){return String(m.id)===String(fid);});}).filter(Boolean);
 
-  html+='<div class="card" style="text-align:center;">';
-  if(parrain){
-    html+='<div style="width:100px;height:100px;border-radius:50%;background:var(--bg3);border:2px solid var(--purple);overflow:hidden;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--text3);">'
-      +(parrain.photo?'<img src="'+parrain.photo+'" style="width:100%;height:100%;object-fit:cover;">':'👤')
-      +'</div>'
-      +'<div style="font-weight:800;font-size:17px;color:var(--text);">'+(parrain.pseudo||parrain.nom)+'</div>'
-      +'<div style="font-size:12px;color:var(--text3);margin-bottom:12px;">'+parrain.grade+'</div>'
-      +'<div style="font-size:13px;color:var(--text2);">📞 '+(parrain.tel||'—')+'</div>';
-  } else {
-    html+='<div style="width:100px;height:100px;border-radius:50%;background:var(--bg3);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--text3);">👤</div>'
-      +'<div style="color:var(--text3);font-size:13px;">Aucun parrain assigné pour l\'instant.</div>';
-  }
-  html+='</div>';
+  var html='<div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(168,85,247,0.06));border:1px solid rgba(124,58,237,0.3);border-radius:var(--radius);padding:18px 22px;font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:20px;">'
+    +"Chaque filleul doit se tourner vers son parrain respectif avant toute autre démarche — questions, problèmes ou demandes d'encadrement."
+    +'</div>';
 
-  html+='<div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(168,85,247,0.06));border:1px solid rgba(124,58,237,0.3);border-radius:var(--radius);padding:20px 24px;font-size:14px;color:var(--text2);line-height:1.6;">'
-    +parrainageMessage.replace(/</g,'&lt;')
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">';
+
+  html+='<div class="card">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;">Mon parrain</div>'
+    +(parrain?parrainagePersonCardHtml(parrain):'<div style="color:var(--text3);font-size:13px;">Aucun parrain assigné pour l\'instant.</div>')
+    +'</div>';
+
+  html+='<div class="card">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;">Mes filleuls</div>'
+    +(filleuls.length
+      ?'<div style="display:flex;flex-direction:column;gap:16px;">'+filleuls.map(parrainagePersonCardHtml).join('<div style="border-top:1px solid var(--border);"></div>')+'</div>'
+      :'<div style="color:var(--text3);font-size:13px;">Aucun filleul assigné pour l\'instant.</div>')
     +'</div>';
 
   html+='</div>';
@@ -5089,7 +5097,7 @@ var SUPABASE_URL='https://zgmvlwkegfbrnsxfbbiy.supabase.co';
 var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
 
 function sauvegarder(){
-  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,marchandises:marchandises,stockInventaire:stockInventaire,marchandiseCategories:marchandiseCategories,parrainages:parrainages,parrainageMessage:parrainageMessage,frequence:frequence,paieArchives:paieArchives,paieArmesArchives:paieArmesArchives,accordionQuestions:accordionQuestions,gradeBareme:gradeBareme,armesData:armesData,armesLieux:armesLieux};
+  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,marchandises:marchandises,stockInventaire:stockInventaire,marchandiseCategories:marchandiseCategories,parrainages:parrainages,frequence:frequence,paieArchives:paieArchives,paieArmesArchives:paieArmesArchives,accordionQuestions:accordionQuestions,gradeBareme:gradeBareme,armesData:armesData,armesLieux:armesLieux};
   // Save to localStorage as backup
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
   // Save to Supabase via UPSERT
@@ -5151,7 +5159,6 @@ function applyData(data){
   if(data.stockInventaire)stockInventaire=data.stockInventaire;
   if(data.marchandiseCategories)marchandiseCategories=data.marchandiseCategories;
   if(data.parrainages)parrainages=data.parrainages;
-  if(data.parrainageMessage)parrainageMessage=data.parrainageMessage;
   if(data.frequence)frequence=data.frequence;
   if(data.paieArchives)paieArchives=data.paieArchives;
   if(data.accordionQuestions)accordionQuestions=data.accordionQuestions;
