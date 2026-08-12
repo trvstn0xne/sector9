@@ -686,7 +686,7 @@ let comptes=[];
 let presences={};
 // presences = { eventId: { membreId: 'present'|'incertain'|'absent' } }
 let quotaHistory={};
-let coffre={solde:0,transactions:[]};var marchandises=[];var stockInventaire={};var marchandiseCategories=[];var MONTHS_FR=['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
+let coffre={solde:0,transactions:[]};var marchandises=[];var stockInventaire={};var marchandiseCategories=[];var parrainages=[];var parrainageMessage="Chaque filleul doit se tourner vers son parrain respectif avant toute autre démarche — questions, problèmes ou demandes d'encadrement.";var MONTHS_FR=['Janvier','Fevrier','Mars','Avril','Mai','Juin','Juillet','Aout','Septembre','Octobre','Novembre','Decembre'];
 var DAYS_FR=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 var paieArchives=[];
 var recruitQuestions=[];
@@ -941,6 +941,7 @@ function buildInterface(){
       +'<button onclick="showSec(\'admin-quotas\',this);closeDropdowns()">Quotas</button>'
       +'<button onclick="showSec(\'admin-sanctions\',this);closeDropdowns()">Sanctions</button>'
       +'<button onclick="showSec(\'admin-recrutement\',this);closeDropdowns()">Recrutement</button>'
+      +'<button onclick="showSec(\'admin-parrainage\',this);closeDropdowns()">Parrainage</button>'
       +'</div></div>'
       +'<div class="nav-dropdown" id="dd-gestion-stock">'
       +'<button class="nav-dropdown-btn" onclick="toggleDropdown(\'dd-gestion-stock\')">Gestion stock <span class="dd-arrow">▾</span></button>'
@@ -965,6 +966,7 @@ function buildInterface(){
       +'<button class="nav-btn" onclick="showSec(\'mb-quotas\',this)">Mes quotas</button>'
       +'<button class="nav-btn" onclick="showSec(\'mb-calendrier\',this)">Calendrier</button>'
       +(isRecruteur()?'<button class="nav-btn" onclick="showSec(\'mb-recrutement\',this)">Recrutement</button>':'')
+      +'<button class="nav-btn" onclick="showSec(\'mb-parrainage\',this)">Parrainage</button>'
       +(isCmd?'<button class="nav-btn" onclick="showSec(\'mb-compta\',this)">Comptabilit&#233;</button>':'')
       +'<button class="nav-btn" onclick="showSec(\'mb-compte\',this)">Mon compte</button>';
     content.innerHTML=buildMembreHTML(isCmd,isRecruteur());
@@ -989,6 +991,8 @@ function showSec(id,btn){
   if(id==='admin-database'||id==='mb-database')renderDatabase();
   if(id==='admin-marchandises')renderMarchandises();
   if(id==='admin-stock-inventaire')renderStockInventaire();
+  if(id==='admin-parrainage')renderParrainageAdmin();
+  if(id==='mb-parrainage')renderMbParrainage();
   if(id==='mb-compte')renderMonCompte();
   if(id==='admin-comptes')renderComptes();
   if(id==='admin-accueil'||id==='mb-accueil')renderAccueil();
@@ -1100,6 +1104,19 @@ function buildAdminHTML(){
     +buildRecrutementHTML()
     +'</div>'
 
+    +'<div class="section" id="sec-admin-parrainage">'
+    +'<div class="section-title">Parrainage</div>'
+    +'<div class="section-sub">Associe chaque parrain à ses filleuls</div>'
+    +'<div class="card" style="margin-bottom:20px;">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Message affiché aux membres</div>'
+    +'<textarea class="input" id="parrainage-msg" rows="3" style="resize:vertical;" oninput="updateParrainageMessage(this.value)">'+parrainageMessage.replace(/</g,'&lt;')+'</textarea>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px;margin-bottom:16px;">'
+    +'<button class="btn btn-primary" onclick="addParrainageRow()">+ Ajouter une ligne</button>'
+    +'</div>'
+    +'<div id="parrainage-content"></div>'
+    +'</div>'
+
     +'<div class="section" id="sec-admin-calendrier">'
     +'<div class="section-title">Calendrier</div>'
     +'<div class="section-sub">Réunions et événements</div>'
@@ -1130,12 +1147,9 @@ function buildAdminHTML(){
     +'<div id="marchandises-content"></div></div>'
     +'<div class="section" id="sec-admin-stock-inventaire">'
     +'<div class="section-title">Inventaire</div>'
-    +'<div class="section-sub">Ce que tu as actuellement dans ton coffre en jeu</div>'
-    +'<div style="background:linear-gradient(135deg,rgba(124,58,237,0.2),rgba(168,85,247,0.1));border:1px solid rgba(124,58,237,0.35);border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">'
-    +'<div><div style="font-size:12px;color:var(--purple3);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Valeur totale (tranche haute)</div>'
-    +'<div id="stock-total-value" style="font-size:26px;font-weight:800;color:var(--text);">0 $</div></div>'
-    +'<div style="text-align:right;"><div style="font-size:12px;color:var(--purple3);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Objets possédés</div>'
-    +'<div id="stock-total-qty" style="font-size:20px;font-weight:700;color:var(--text2);">0</div></div>'
+    +'<div style="background:linear-gradient(135deg,rgba(124,58,237,0.2),rgba(168,85,247,0.1));border:1px solid rgba(124,58,237,0.35);border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;">'
+    +'<div style="font-size:12px;color:var(--purple3);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Valeur totale (tranche haute)</div>'
+    +'<div id="stock-total-value" style="font-size:26px;font-weight:800;color:var(--text);">0 $</div>'
     +'</div>'
     +'<div id="stock-inventaire-content"></div></div>'
     +'<div class="section" id="sec-admin-comptes">'
@@ -1211,7 +1225,12 @@ function buildMembreHTML(isCmd,isRecruit){
     +'<div class="section-title">Recrutement</div>'
     +'<div class="section-sub">Formulaire et procédure de recrutement</div>'
     +buildRecrutementHTML()
-    +'</div>':'');
+    +'</div>':'')
+    +'<div class="section" id="sec-mb-parrainage">'
+    +'<div class="section-title">Parrainage</div>'
+    +'<div class="section-sub">Ton parrain et la marche à suivre</div>'
+    +'<div id="mb-parrainage-content"></div>'
+    +'</div>';
 }
 
 // ============================================================
@@ -2029,19 +2048,101 @@ function updateStockQty(marchId,val){
 }
 function updateStockTotal(){
   var totalEl=document.getElementById('stock-total-value');
-  var qtyEl=document.getElementById('stock-total-qty');
-  if(!totalEl||!qtyEl)return;
-  var total=0,totalQty=0;
+  if(!totalEl)return;
+  var total=0;
   Object.keys(stockInventaire).forEach(function(id){
     var qty=stockInventaire[id];
     var m=marchandises.find(function(x){return String(x.id)===String(id);});
     if(m&&qty>0){
       var tarifHaut=Math.max(m.tarifGeneral||0,m.tarifAffaire||0);
-      total+=tarifHaut*qty;totalQty+=qty;
+      total+=tarifHaut*qty;
     }
   });
   totalEl.textContent=total.toLocaleString('fr-FR')+' $';
-  qtyEl.textContent=totalQty;
+}
+
+// ============================================================
+// PARRAINAGE
+// ============================================================
+function memberOptionsHtml(selectedId){
+  var list=sortMembres(membres.filter(function(m){return !m.pending;}),'nom');
+  var out='<option value="">— Choisir —</option>';
+  list.forEach(function(m){
+    out+='<option value="'+m.id+'"'+(String(m.id)===String(selectedId)?' selected':'')+'>'+(m.pseudo||m.nom)+'</option>';
+  });
+  return out;
+}
+function renderParrainageAdmin(){
+  var div=document.getElementById('parrainage-content');if(!div)return;
+  if(!parrainages.length){
+    div.innerHTML='<p style="color:var(--text3);padding:20px;">Aucun parrainage. Clique sur "+ Ajouter une ligne" pour commencer.</p>';
+    return;
+  }
+  var out='<div class="table-wrap"><table><thead><tr><th>Parrain</th><th>1er filleul</th><th>2ème filleul</th><th>3ème filleul</th><th style="width:60px;"></th></tr></thead><tbody>';
+  parrainages.forEach(function(p){
+    out+='<tr>'
+      +'<td><select class="input" style="padding:6px 10px;" onchange="updateParrainageField('+p.id+',\'parrainId\',this.value)">'+memberOptionsHtml(p.parrainId)+'</select></td>'
+      +'<td><select class="input" style="padding:6px 10px;" onchange="updateParrainageField('+p.id+',\'filleul1Id\',this.value)">'+memberOptionsHtml(p.filleul1Id)+'</select></td>'
+      +'<td><select class="input" style="padding:6px 10px;" onchange="updateParrainageField('+p.id+',\'filleul2Id\',this.value)">'+memberOptionsHtml(p.filleul2Id)+'</select></td>'
+      +'<td><select class="input" style="padding:6px 10px;" onchange="updateParrainageField('+p.id+',\'filleul3Id\',this.value)">'+memberOptionsHtml(p.filleul3Id)+'</select></td>'
+      +'<td><button class="btn btn-sm btn-danger" onclick="deleteParrainageRow('+p.id+')">Suppr.</button></td>'
+      +'</tr>';
+  });
+  out+='</tbody></table></div>';
+  div.innerHTML=out;
+}
+function addParrainageRow(){
+  parrainages.push({id:Date.now(),parrainId:'',filleul1Id:'',filleul2Id:'',filleul3Id:''});
+  renderParrainageAdmin();
+  sauvegarder();
+}
+function updateParrainageField(id,field,val){
+  var p=parrainages.find(function(x){return x.id===id;});if(!p)return;
+  p[field]=val;
+  sauvegarder();
+}
+function deleteParrainageRow(id){
+  if(!confirm('Supprimer cette ligne de parrainage ?'))return;
+  parrainages=parrainages.filter(function(x){return x.id!==id;});
+  renderParrainageAdmin();
+  sauvegarder();
+}
+var _parrainageMsgTimer=null;
+function updateParrainageMessage(val){
+  parrainageMessage=val;
+  clearTimeout(_parrainageMsgTimer);
+  _parrainageMsgTimer=setTimeout(function(){sauvegarder();},700);
+}
+function renderMbParrainage(){
+  var div=document.getElementById('mb-parrainage-content');if(!div)return;
+  var myId=currentUser&&currentUser.membreId;
+  var mine=parrainages.find(function(p){
+    return String(p.filleul1Id)===String(myId)||String(p.filleul2Id)===String(myId)||String(p.filleul3Id)===String(myId);
+  });
+  var parrain=mine?membres.find(function(m){return String(m.id)===String(mine.parrainId);}):null;
+
+  var html='<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">';
+
+  html+='<div class="card" style="text-align:center;">';
+  if(parrain){
+    html+='<div style="width:100px;height:100px;border-radius:50%;background:var(--bg3);border:2px solid var(--purple);overflow:hidden;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--text3);">'
+      +(parrain.photo?'<img src="'+parrain.photo+'" style="width:100%;height:100%;object-fit:cover;">':'👤')
+      +'</div>'
+      +'<div style="font-weight:800;font-size:17px;color:var(--text);">'+(parrain.pseudo||parrain.nom)+'</div>'
+      +'<div style="font-size:12px;color:var(--text3);margin-bottom:12px;">'+parrain.grade+'</div>'
+      +'<div style="font-size:13px;color:var(--text2);">📞 '+(parrain.tel||'—')+'</div>';
+  } else {
+    html+='<div style="width:100px;height:100px;border-radius:50%;background:var(--bg3);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--text3);">👤</div>'
+      +'<div style="color:var(--text3);font-size:13px;">Aucun parrain assigné pour l\'instant.</div>';
+  }
+  html+='</div>';
+
+  html+='<div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(168,85,247,0.06));border:1px solid rgba(124,58,237,0.3);border-radius:var(--radius);padding:20px 24px;font-size:14px;color:var(--text2);line-height:1.6;">'
+    +parrainageMessage.replace(/</g,'&lt;')
+    +'</div>';
+
+  html+='</div>';
+  div.innerHTML=html;
 }
 function openAddItem(){
   itemEditId=null;
@@ -4988,7 +5089,7 @@ var SUPABASE_URL='https://zgmvlwkegfbrnsxfbbiy.supabase.co';
 var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
 
 function sauvegarder(){
-  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,marchandises:marchandises,stockInventaire:stockInventaire,marchandiseCategories:marchandiseCategories,frequence:frequence,paieArchives:paieArchives,paieArmesArchives:paieArmesArchives,accordionQuestions:accordionQuestions,gradeBareme:gradeBareme,armesData:armesData,armesLieux:armesLieux};
+  var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,marchandises:marchandises,stockInventaire:stockInventaire,marchandiseCategories:marchandiseCategories,parrainages:parrainages,parrainageMessage:parrainageMessage,frequence:frequence,paieArchives:paieArchives,paieArmesArchives:paieArmesArchives,accordionQuestions:accordionQuestions,gradeBareme:gradeBareme,armesData:armesData,armesLieux:armesLieux};
   // Save to localStorage as backup
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
   // Save to Supabase via UPSERT
@@ -5049,6 +5150,8 @@ function applyData(data){
   if(data.marchandises)marchandises=data.marchandises;
   if(data.stockInventaire)stockInventaire=data.stockInventaire;
   if(data.marchandiseCategories)marchandiseCategories=data.marchandiseCategories;
+  if(data.parrainages)parrainages=data.parrainages;
+  if(data.parrainageMessage)parrainageMessage=data.parrainageMessage;
   if(data.frequence)frequence=data.frequence;
   if(data.paieArchives)paieArchives=data.paieArchives;
   if(data.accordionQuestions)accordionQuestions=data.accordionQuestions;
