@@ -5228,6 +5228,41 @@ function applyData(data){
   if(data.paieArmesArchives)paieArmesArchives=data.paieArmesArchives;
 }
 
+// Migration automatique : remplace les grosses photos deja stockees en base64
+// par un simple lien vers le stockage Supabase (fait fondre la taille de la
+// sauvegarde et resout les timeouts causes par les anciennes photos).
+function migratePhotosIfNeeded(){
+  var BIG=20000; // ~20 Ko de base64
+  var toMigrate=[];
+  membres.forEach(function(m){
+    if(m.photo&&typeof m.photo==='string'&&m.photo.indexOf('data:')===0&&m.photo.length>BIG){
+      toMigrate.push({membre:m,field:'photo',path:'member-'+m.id+'-photo-'+Date.now()+'.jpg'});
+    }
+    if(m.carteId&&typeof m.carteId==='string'&&m.carteId.indexOf('data:')===0&&m.carteId.length>BIG){
+      toMigrate.push({membre:m,field:'carteId',path:'candidat-'+m.id+'-ci-'+Date.now()+'.jpg'});
+    }
+  });
+  if(!toMigrate.length)return;
+  console.warn('Migration de '+toMigrate.length+' photo(s) volumineuse(s) vers le stockage...');
+  var i=0;
+  function next(){
+    if(i>=toMigrate.length){
+      sauvegarder().then(function(){
+        console.warn('Migration des photos terminee et sauvegardee.');
+      }).catch(function(){
+        console.warn('Migration terminee mais la sauvegarde a encore echoue.');
+      });
+      return;
+    }
+    var item=toMigrate[i];i++;
+    uploadToStorage('member-photos',item.path,item.membre[item.field],'image/jpeg',function(url){
+      if(url){item.membre[item.field]=url;}
+      else{item.membre[item.field]='';}
+      next();
+    });
+  }
+  next();
+}
 function chargerDonnees(){
   try{
     var raw=localStorage.getItem(LS_KEY);
@@ -5249,6 +5284,7 @@ function chargerDepuisSupabase(callback){
       if(rows[0].data&&Object.keys(rows[0].data).length>0){
         applyData(rows[0].data);
         try{localStorage.setItem(LS_KEY,JSON.stringify(rows[0].data));}catch(e){}
+        setTimeout(migratePhotosIfNeeded,3000);
       }
       // Store server timestamp so refresh knows baseline
       if(rows[0].updated_at)lastUpdatedAt=rows[0].updated_at;
