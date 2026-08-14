@@ -1436,10 +1436,41 @@ function filterMembresMb(){var q=document.getElementById('mb-search-membre').val
 // ============================================================
 // MODAL MEMBRE
 // ============================================================
+// Compresse une image cote client avant de la stocker (evite de faire exploser
+// la taille de la sauvegarde -> timeouts Supabase sur les grosses photos)
+function compressImageDataUrl(file,maxDim,quality,callback){
+  if(!file){callback('');return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.width,h=img.height;
+      if(w>h){if(w>maxDim){h=Math.round(h*maxDim/w);w=maxDim;}}
+      else{if(h>maxDim){w=Math.round(w*maxDim/h);h=maxDim;}}
+      var canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      var ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      var out;
+      try{out=canvas.toDataURL('image/jpeg',quality);}catch(err){out=e.target.result;}
+      callback(out);
+    };
+    img.onerror=function(){callback(e.target.result);};
+    img.src=e.target.result;
+  };
+  reader.onerror=function(){callback('');};
+  reader.readAsDataURL(file);
+}
 function setupFileInput(fileId,previewId,urlId){
   var el=document.getElementById(fileId);if(!el)return;
   el.addEventListener('change',function(){
-    if(this.files[0]){var r=new FileReader();r.onload=function(e){document.getElementById(previewId).src=e.target.result;document.getElementById(previewId).style.display='block';if(urlId)document.getElementById(urlId).value=e.target.result;};r.readAsDataURL(this.files[0]);}
+    if(this.files[0]){
+      compressImageDataUrl(this.files[0],1000,0.72,function(dataUrl){
+        document.getElementById(previewId).src=dataUrl;
+        document.getElementById(previewId).style.display='block';
+        if(urlId)document.getElementById(urlId).value=dataUrl;
+      });
+    }
   });
 }
 function toggleAbsenceDate(){document.getElementById('absence-date-wrap').style.display=document.getElementById('m-absence').checked?'block':'none';}
@@ -1768,19 +1799,17 @@ function renderMonCompte(){
 }
 function changeMaPhoto(input){
   if(!input.files[0])return;
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var src=e.target.result;
+  var originalFile=input.files[0];
+  compressImageDataUrl(originalFile,800,0.7,function(src){
     if(!currentUser||currentUser.role==='admin')return;
     var membId=currentUser.membreId;
     var idx=membres.findIndex(function(x){return x.id===membId;});
     if(idx<0)return;
     membres[idx].photo=src;renderMonCompte();renderMembresMb();
-    uploadToStorage('member-photos','member-'+membId+'-photo.jpg',src,input.files[0].type||'image/jpeg',function(url){
+    uploadToStorage('member-photos','member-'+membId+'-photo.jpg',src,'image/jpeg',function(url){
       if(url){membres[idx].photo=url;}sauvegarder();
     });
-  };
-  reader.readAsDataURL(input.files[0]);
+  });
 }
 function renderMesSanctions(){
   var div=document.getElementById('mes-sanctions-list');if(!div)return;
@@ -2238,7 +2267,7 @@ function submitRecruit(){
   });
 
   function readFileB64(input,cb){
-    if(input&&input.files&&input.files[0]){var r=new FileReader();r.onload=function(e){cb(e.target.result);};r.readAsDataURL(input.files[0]);}
+    if(input&&input.files&&input.files[0]){compressImageDataUrl(input.files[0],1000,0.72,cb);}
     else cb('');
   }
 
@@ -2255,14 +2284,23 @@ function submitRecruit(){
       dispo:dispoData,ppa:false,pending:true
     };
     membres.push(newMembre);
-    sauvegarder();
-    var rokEl=getEl('recruit-ok');
-    if(rokEl){rokEl.style.display='block';setTimeout(function(){rokEl.style.display='none';},5000);}
-    else{
-      var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:16px 20px;z-index:9999;';
-      t.innerHTML='<div style="font-weight:700;color:var(--success);">Candidature enregistree !</div><div style="font-size:12px;color:var(--text3);margin-top:4px;">Le candidat a ete ajoute en liste attente.</div>';
-      document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},4000);
-    }
+    var submitBtn=document.querySelector('button[onclick="submitRecruit()"]');
+    if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Envoi en cours...';}
+    sauvegarder().then(function(){
+      if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Soumettre le rapport';}
+      var rokEl=getEl('recruit-ok');
+      if(rokEl){rokEl.style.display='block';setTimeout(function(){rokEl.style.display='none';},5000);}
+      else{
+        var t=document.createElement('div');t.style.cssText='position:fixed;bottom:30px;right:30px;background:var(--bg2);border:1px solid var(--success);border-radius:var(--r2);padding:16px 20px;z-index:9999;';
+        t.innerHTML='<div style="font-weight:700;color:var(--success);">Candidature enregistree !</div><div style="font-size:12px;color:var(--text3);margin-top:4px;">Le candidat a ete ajoute en liste attente.</div>';
+        document.body.appendChild(t);setTimeout(function(){if(t.parentNode)document.body.removeChild(t);},4000);
+      }
+    }).catch(function(){
+      membres.pop();
+      if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Soumettre le rapport';}
+      errDivEl.style.display='block';
+      errDivEl.innerHTML='La sauvegarde a echoue (probleme de connexion au serveur). Reessaie dans quelques instants, et si ca persiste, previens l\'administrateur.';
+    });
   });
 }
 
@@ -5096,12 +5134,33 @@ var LS_KEY='s9_data_v4';
 var SUPABASE_URL='https://zgmvlwkegfbrnsxfbbiy.supabase.co';
 var SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnbXZsd2tlZ2Zicm5zeGZiYml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2ODUyMzYsImV4cCI6MjA5NzI2MTIzNn0.xWWxsElKQLIdIl0gmbQucIIHXQju7OCMy9mRaLAimMM';
 
+// Empeche certaines listes de grossir indefiniment (source des timeouts Supabase
+// quand la sauvegarde JSON devient trop volumineuse)
+function trimGrowingData(){
+  if(coffre&&coffre.transactions&&coffre.transactions.length>300){
+    coffre.transactions=coffre.transactions.slice(-300);
+  }
+  if(typeof paieArchives!=='undefined'&&paieArchives&&paieArchives.length>20){
+    paieArchives=paieArchives.slice(-20);
+  }
+  if(typeof paieArmesArchives!=='undefined'&&paieArmesArchives&&paieArmesArchives.length>20){
+    paieArmesArchives=paieArmesArchives.slice(-20);
+  }
+  if(typeof armesData!=='undefined'&&armesData){
+    var weeks=Object.keys(armesData).sort();
+    if(weeks.length>12){
+      weeks.slice(0,weeks.length-12).forEach(function(wk){delete armesData[wk];});
+    }
+  }
+  if(typeof cleanOldHistory==='function')cleanOldHistory();
+}
 function sauvegarder(){
+  trimGrowingData();
   var payload={membres:membres,sanctions:sanctions,baremeData:baremeData,events:events,todos:todos,comptes:comptes,database:database,bannerText:bannerText,quotaCards:quotaCards,presences:presences,quotaHistory:quotaHistory,coffre:coffre,marchandises:marchandises,stockInventaire:stockInventaire,marchandiseCategories:marchandiseCategories,parrainages:parrainages,frequence:frequence,paieArchives:paieArchives,paieArmesArchives:paieArmesArchives,accordionQuestions:accordionQuestions,gradeBareme:gradeBareme,armesData:armesData,armesLieux:armesLieux};
   // Save to localStorage as backup
   try{localStorage.setItem(LS_KEY,JSON.stringify(payload));}catch(e){}
   // Save to Supabase via UPSERT
-  fetch(SUPABASE_URL+'/rest/v1/s9_data',{
+  return fetch(SUPABASE_URL+'/rest/v1/s9_data',{
     method:'POST',
     headers:{
       'Content-Type':'application/json',
@@ -5112,7 +5171,7 @@ function sauvegarder(){
     body:JSON.stringify({id:'main',data:payload,updated_at:new Date().toISOString()})
   })
   .then(function(r){
-    if(!r.ok){r.text().then(function(t){console.warn('Supabase error:',t);});return;}
+    if(!r.ok){return r.text().then(function(t){console.warn('Supabase error:',t);throw new Error(t);});}
     // Get real server timestamp to avoid triggering self-refresh
     fetch(SUPABASE_URL+'/rest/v1/s9_data?id=eq.main&select=updated_at',{
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
@@ -5120,8 +5179,9 @@ function sauvegarder(){
     .then(function(r2){return r2.json();})
     .then(function(rows){if(rows&&rows[0])lastUpdatedAt=rows[0].updated_at;})
     .catch(function(){});
+    return true;
   })
-  .catch(function(e){console.warn('Supabase save failed:',e);});
+  .catch(function(e){console.warn('Supabase save failed:',e);throw e;});
 }
 function applyData(data){
   if(!data)return;
